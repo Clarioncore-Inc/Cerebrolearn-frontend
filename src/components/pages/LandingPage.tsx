@@ -35,24 +35,24 @@ import {
   Users2,
   CheckCircle
 } from 'lucide-react';
-import imgImage9 from "figma:asset/1b8ecf81cf4f7b4c4ad46fb87d38198fce6066e5.png";
-import imgImage55 from "figma:asset/279474bb0377daeaa24db9ebc979f29a163e457d.png";
-import imgImage56 from "figma:asset/287263fbc10ba182771f89e03a20b5a325d6dc81.png";
-import imgImage59 from "figma:asset/6fccf20ec49077fcdc5b458b410228f700798765.png";
-import imgImage61 from "figma:asset/64c735cea776b2bb18be343bad5d67e5528354cc.png";
-import imgImage62 from "figma:asset/9a8e10c0215eba6754e78eff77112ba157fcc62e.png";
-import imgImage67 from "figma:asset/28cb7d225bf072bdf1e8a907b803a449aa9efaf2.png";
-import imgDiv from "figma:asset/676be56e3abc59e868c4aebf8c78e59bfba4cb9e.png";
-import imgDiv1 from "figma:asset/dfa849d9c6c959b062d1c54434187530d7dc31bf.png";
-import imgDiv2 from "figma:asset/1c0fb39200e97fbb738f409f0c95349f83cc3103.png";
-import imgDiv3 from "figma:asset/e0e83dd7b43a66952dcf7fbc3b1f6b3bafafadf2.png";
-import imgProductImage from "figma:asset/395b74aa3ac48340d5e1bb34035e499118657561.png";
-import imgDiv4 from "figma:asset/0de71ac4144ddf456e41d314839af7a4dd98160e.png";
-import imgOnlineTest1 from "figma:asset/74b9c4a05863014e829874effcdb4e101a4bfaea.png";
-import imgExam1 from "figma:asset/2b9915a5b2bccb2fc3576435451e50183a1ab681.png";
-import imgCertification1 from "figma:asset/2b450a7aaeec583b742195169b6d6e836c5b8470.png";
-import imgCallToAction from "figma:asset/a956cf32af6d936b4e935451c2fe2257d07c8ea7.png";
-import imgImage36 from "figma:asset/741a1331d7985746b98055256fcf23d00e2a0ce7.png";
+const imgImage9 = "/assets/1b8ecf81cf4f7b4c4ad46fb87d38198fce6066e5.png";
+const imgImage55 = "/assets/279474bb0377daeaa24db9ebc979f29a163e457d.png";
+const imgImage56 = "/assets/287263fbc10ba182771f89e03a20b5a325d6dc81.png";
+const imgImage59 = "/assets/6fccf20ec49077fcdc5b458b410228f700798765.png";
+const imgImage61 = "/assets/64c735cea776b2bb18be343bad5d67e5528354cc.png";
+const imgImage62 = "/assets/9a8e10c0215eba6754e78eff77112ba157fcc62e.png";
+const imgImage67 = "/assets/28cb7d225bf072bdf1e8a907b803a449aa9efaf2.png";
+const imgDiv = "/assets/676be56e3abc59e868c4aebf8c78e59bfba4cb9e.png";
+const imgDiv1 = "/assets/dfa849d9c6c959b062d1c54434187530d7dc31bf.png";
+const imgDiv2 = "/assets/1c0fb39200e97fbb738f409f0c95349f83cc3103.png";
+const imgDiv3 = "/assets/e0e83dd7b43a66952dcf7fbc3b1f6b3bafafadf2.png";
+const imgProductImage = "/assets/395b74aa3ac48340d5e1bb34035e499118657561.png";
+const imgDiv4 = "/assets/0de71ac4144ddf456e41d314839af7a4dd98160e.png";
+const imgOnlineTest1 = "/assets/74b9c4a05863014e829874effcdb4e101a4bfaea.png";
+const imgExam1 = "/assets/2b9915a5b2bccb2fc3576435451e50183a1ab681.avif";
+const imgCertification1 = "/assets/2b450a7aaeec583b742195169b6d6e836c5b8470.png";
+const imgCallToAction = "/assets/a956cf32af6d936b4e935451c2fe2257d07c8ea7.png";
+
 
 interface LandingPageProps {
   onNavigate: (page: string, data?: any) => void;

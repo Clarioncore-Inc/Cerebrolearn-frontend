@@ -28,9 +28,9 @@ import { ContinueLearningWidget } from '../learner/ContinueLearningWidget';
 import { RecentCoursesPanel } from '../learner/RecentCoursesPanel';
 import { QuickActionsPanel } from '../learner/QuickActionsPanel';
 import svgPaths from '../../imports/svg-tpq70jnat3';
-import imgImage from "figma:asset/2032fc19b38e203a661b2856012b01f2c17133fd.png";
-import imgImage1 from "figma:asset/aa0e63b4b72dafa20ebf705cb3408f9d3a4343ef.png";
-import imgImage2 from "figma:asset/908f6e6dadefff9c6fad99774e0aa7808b2270ab.png";
+const imgImage = "/assets/2032fc19b38e203a661b2856012b01f2c17133fd.png";
+const imgImage1 = "/assets/aa0e63b4b72dafa20ebf705cb3408f9d3a4343ef.png";
+const imgImage2 = "assets/908f6e6dadefff9c6fad99774e0aa7808b2270ab.png";
 
 interface LearnerDashboardProps {
   onNavigate: (page: string, data?: any) => void;
