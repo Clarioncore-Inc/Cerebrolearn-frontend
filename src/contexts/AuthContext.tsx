@@ -1,12 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { createClient } from '../utils/supabase/client';
-import type { User } from '@supabase/supabase-js';
+import { authApi } from '../utils/api-client';
+import type { User } from '../types/database';
 
 interface UserProfile {
   id: string;
   email: string;
   full_name: string;
-  role: 'learner' | 'instructor' | 'org_admin' | 'admin' | 'psychologist' | 'psychologist_pending';
+  role:
+    | 'learner'
+    | 'instructor'
+    | 'org_admin'
+    | 'admin'
+    | 'psychologist'
+    | 'psychologist_pending';
   org_id: string | null;
   avatar: string | null;
   xp: number;
@@ -20,12 +26,19 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, role?: string) => Promise<void>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    role?: string,
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
+
+const AUTH_TOKEN_KEY = 'cerebrolearn.auth.token';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -33,45 +46,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const supabase = createClient();
 
-  const fetchProfile = async (userId: string) => {
+  const fetchAndSetProfile = async () => {
     try {
-      // In offline mode, skip session check and use userId directly
-      const profile = {
-        id: userId,
-        full_name: 'Demo User',
-        email: 'demo@cerebrolearn.com',
-        role: 'instructor',
-        xp: 1250,
-        level: 5,
-        streak: 7,
-        badges: []
-      };
-      setProfile(profile);
+      const userProfile = await authApi.getProfile();
+      setUser(userProfile);
+      setProfile(userProfile as unknown as UserProfile);
     } catch (error) {
-      console.log('Error fetching profile, using default');
+      console.error('[Auth] Error fetching profile:', error);
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+      setUser(null);
       setProfile(null);
     }
   };
 
   useEffect(() => {
-    // Offline mode: Skip real auth session checks to prevent refresh token errors
-    const initializeOfflineAuth = async () => {
+    const initializeAuth = async () => {
       try {
-        // Check localStorage for existing mock session
-        const mockSession = localStorage.getItem('mock_auth_session');
-        
-        if (mockSession) {
-          const session = JSON.parse(mockSession);
-          setUser(session.user);
-          await fetchProfile(session.user.id);
+        const token = localStorage.getItem(AUTH_TOKEN_KEY);
+        if (token) {
+          await fetchAndSetProfile();
         } else {
           setUser(null);
           setProfile(null);
         }
       } catch (error) {
-        console.log('[Auth] Error in offline mode initialization:', error);
+        console.error('[Auth] Error initializing auth:', error);
         setUser(null);
         setProfile(null);
       } finally {
@@ -79,15 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    initializeOfflineAuth();
+    initializeAuth();
 
-    // Set up auth state change listener (for sign in/out)
+    // Listen for token changes in other tabs
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'mock_auth_session') {
+      if (e.key === AUTH_TOKEN_KEY) {
         if (e.newValue) {
-          const session = JSON.parse(e.newValue);
-          setUser(session.user);
-          fetchProfile(session.user.id);
+          fetchAndSetProfile();
         } else {
           setUser(null);
           setProfile(null);
@@ -100,196 +98,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Offline mode: Mock authentication
-    console.log('[Auth] Mock sign in:', email);
-    
-    // Create mock user
-    const mockUser = {
-      id: `user-${Date.now()}`,
-      email,
-      app_metadata: {},
-      user_metadata: { full_name: 'Demo User' },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as User;
-
-    // Create mock profile based on email
-    let role: 'learner' | 'instructor' | 'org_admin' | 'admin' | 'psychologist' | 'psychologist_pending' = 'learner';
-    if (email.includes('instructor')) role = 'instructor';
-    if (email.includes('admin')) role = 'admin';
-
-    const mockProfile = {
-      id: mockUser.id,
-      email,
-      full_name: 'Demo User',
-      role,
-      org_id: null,
-      avatar: null,
-      xp: 1250,
-      streak: 7,
-      badges: [],
-      created_at: new Date().toISOString()
-    };
-
-    // Store in state
-    setUser(mockUser);
-    setProfile(mockProfile);
-
-    // Store in localStorage
-    const mockSession = {
-      user: mockUser,
-      access_token: `mock_token_${Date.now()}`,
-      refresh_token: `mock_refresh_${Date.now()}`
-    };
-    localStorage.setItem('mock_auth_session', JSON.stringify(mockSession));
-    localStorage.setItem(`cerebrolearn_profile_${mockUser.id}`, JSON.stringify(mockProfile));
+    const result = await authApi.login({ email, password });
+    localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+    setUser(result.user);
+    setProfile(result.user as unknown as UserProfile);
   };
 
-  const signUp = async (email: string, password: string, fullName: string, role = 'learner') => {
-    // Offline mode: Mock signup
-    console.log('[Auth] Mock sign up:', email, fullName, role);
-    
-    const mockUser = {
-      id: `user-${Date.now()}`,
-      email,
-      app_metadata: {},
-      user_metadata: { full_name: fullName, role },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as User;
-
-    const mockProfile = {
-      id: mockUser.id,
-      email,
-      full_name: fullName,
-      role: role as 'learner' | 'instructor' | 'org_admin' | 'admin' | 'psychologist' | 'psychologist_pending',
-      org_id: null,
-      avatar: null,
-      xp: 0,
-      streak: 0,
-      badges: [],
-      created_at: new Date().toISOString()
-    };
-
-    // Store in state
-    setUser(mockUser);
-    setProfile(mockProfile);
-
-    // Store in localStorage
-    const mockSession = {
-      user: mockUser,
-      access_token: `mock_token_${Date.now()}`,
-      refresh_token: `mock_refresh_${Date.now()}`
-    };
-    localStorage.setItem('mock_auth_session', JSON.stringify(mockSession));
-    localStorage.setItem(`cerebrolearn_profile_${mockUser.id}`, JSON.stringify(mockProfile));
-
-    return { user: mockUser, error: null };
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    role = 'learner',
+  ) => {
+    await authApi.signup({ email, password, full_name: fullName, role });
+    // Auto sign in after successful registration
+    await signIn(email, password);
   };
 
   const signOut = async () => {
-    // Offline mode: Mock sign out
-    console.log('[Auth] Mock sign out');
-    
+    localStorage.removeItem(AUTH_TOKEN_KEY);
     setUser(null);
     setProfile(null);
-    localStorage.removeItem('mock_auth_session');
   };
 
   const signInWithGoogle = async () => {
-    // Offline mode: Mock Google sign in
-    console.log('[Auth] Mock Google sign in');
-    
-    const mockUser = {
-      id: `google-user-${Date.now()}`,
-      email: 'google@cerebrolearn.com',
-      app_metadata: {},
-      user_metadata: { full_name: 'Google User' },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as User;
-
-    const mockProfile = {
-      id: mockUser.id,
-      email: mockUser.email,
-      full_name: 'Google User',
-      role: 'learner' as const,
-      org_id: null,
-      avatar: null,
-      xp: 0,
-      streak: 0,
-      badges: [],
-      created_at: new Date().toISOString()
-    };
-
-    setUser(mockUser);
-    setProfile(mockProfile);
-
-    const mockSession = {
-      user: mockUser,
-      access_token: `mock_token_${Date.now()}`,
-      refresh_token: `mock_refresh_${Date.now()}`
-    };
-    localStorage.setItem('mock_auth_session', JSON.stringify(mockSession));
-    localStorage.setItem(`cerebrolearn_profile_${mockUser.id}`, JSON.stringify(mockProfile));
+    console.warn(
+      '[Auth] Google sign-in is not yet implemented in the FastAPI backend.',
+    );
+    throw new Error('Google sign-in is not yet available.');
   };
 
   const signInWithFacebook = async () => {
-    // Offline mode: Mock Facebook sign in
-    console.log('[Auth] Mock Facebook sign in');
-    
-    const mockUser = {
-      id: `facebook-user-${Date.now()}`,
-      email: 'facebook@cerebrolearn.com',
-      app_metadata: {},
-      user_metadata: { full_name: 'Facebook User' },
-      aud: 'authenticated',
-      created_at: new Date().toISOString(),
-    } as User;
-
-    const mockProfile = {
-      id: mockUser.id,
-      email: mockUser.email,
-      full_name: 'Facebook User',
-      role: 'learner' as const,
-      org_id: null,
-      avatar: null,
-      xp: 0,
-      streak: 0,
-      badges: [],
-      created_at: new Date().toISOString()
-    };
-
-    setUser(mockUser);
-    setProfile(mockProfile);
-
-    const mockSession = {
-      user: mockUser,
-      access_token: `mock_token_${Date.now()}`,
-      refresh_token: `mock_refresh_${Date.now()}`
-    };
-    localStorage.setItem('mock_auth_session', JSON.stringify(mockSession));
-    localStorage.setItem(`cerebrolearn_profile_${mockUser.id}`, JSON.stringify(mockProfile));
+    console.warn(
+      '[Auth] Facebook sign-in is not yet implemented in the FastAPI backend.',
+    );
+    throw new Error('Facebook sign-in is not yet available.');
   };
 
   const refreshProfile = async () => {
     if (user) {
-      await fetchProfile(user.id);
+      await fetchAndSetProfile();
     }
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      profile, 
-      loading, 
-      signIn, 
-      signUp, 
-      signOut,
-      signInWithGoogle,
-      signInWithFacebook,
-      refreshProfile
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        signIn,
+        signUp,
+        signOut,
+        signInWithGoogle,
+        signInWithFacebook,
+        refreshProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

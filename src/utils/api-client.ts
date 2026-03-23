@@ -1,5 +1,4 @@
 // CerebroLearn API Client
-import { projectId, publicAnonKey } from './supabase/info';
 import type {
   User,
   Course,
@@ -14,20 +13,11 @@ import type {
   PlatformSettings,
 } from '../types/database';
 
-const BASE_URL = `https://${projectId}.supabase.co/functions/v1/make-server-c6a99485`;
+const BASE_URL = 'http://localhost:8000/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
-  try {
-    const session = localStorage.getItem('supabase.auth.token');
-    if (session) {
-      const parsed = JSON.parse(session);
-      return parsed.access_token || null;
-    }
-  } catch (error) {
-    console.error('Error getting auth token:', error);
-  }
-  return null;
+  return localStorage.getItem('cerebrolearn.auth.token');
 }
 
 // Helper to make API requests
@@ -36,15 +26,12 @@ async function request<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getAuthToken();
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...options.headers,
   };
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
-  } else {
-    headers['Authorization'] = `Bearer ${publicAnonKey}`;
   }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
@@ -78,15 +65,21 @@ export const authApi = {
     full_name: string;
     role?: string;
     org_id?: string;
-  }) => request<{ success: boolean; user: User }>('/signup', {
+  }) => request<{ success: boolean; user: User }>('/auth/signup', {
     method: 'POST',
     body: JSON.stringify(data),
   }),
 
-  getProfile: () => request<{ user: User }>('/profile'),
+  login: (data: { email: string; password: string }) =>
+    request<{ access_token: string; token_type: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getProfile: () => request<User>('/accounts/profile'),
 
   updateProfile: (updates: Partial<User>) =>
-    request<{ success: boolean; user: User }>('/profile', {
+    request<User>('/accounts/profile', {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
@@ -105,24 +98,24 @@ export const coursesApi = {
     category: string;
     level: string;
   }) =>
-    request<{ success: boolean; course: Course }>('/courses', {
+    request<Course>('/courses/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  getAll: () => request<{ courses: Course[] }>('/courses'),
+  getAll: () => request<{ items: Course[]; total: number; page: number; pages: number }>('/courses/'),
 
   getById: (courseId: string) =>
-    request<{ course: Course; lessons: Lesson[] }>(`/courses/${courseId}`),
+    request<Course & { lessons: Lesson[] }>(`/courses/${courseId}`),
 
   update: (courseId: string, updates: Partial<Course>) =>
-    request<{ success: boolean; course: Course }>(`/courses/${courseId}`, {
+    request<Course>(`/courses/${courseId}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
 
   getReviews: (courseId: string) =>
-    request<{ reviews: Review[] }>(`/courses/${courseId}/reviews`),
+    request<Review[]>(`/courses/${courseId}/reviews`),
 };
 
 // ========================================
@@ -137,16 +130,16 @@ export const lessonsApi = {
     content: any;
     position?: number;
   }) =>
-    request<{ success: boolean; lesson: Lesson }>('/lessons', {
+    request<Lesson>('/lessons/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   getById: (lessonId: string) =>
-    request<{ lesson: Lesson }>(`/lessons/${lessonId}`),
+    request<Lesson>(`/lessons/${lessonId}`),
 
   getComments: (lessonId: string) =>
-    request<{ comments: Comment[] }>(`/lessons/${lessonId}/comments`),
+    request<Comment[]>(`/lessons/${lessonId}/comments`),
 };
 
 // ========================================
@@ -155,12 +148,12 @@ export const lessonsApi = {
 
 export const enrollmentsApi = {
   enroll: (courseId: string) =>
-    request<{ success: boolean; enrollment: Enrollment }>('/enrollments', {
+    request<Enrollment>('/enrollments/', {
       method: 'POST',
       body: JSON.stringify({ course_id: courseId }),
     }),
 
-  getMy: () => request<{ enrollments: Enrollment[] }>('/enrollments'),
+  getMy: () => request<Enrollment[]>('/enrollments/'),
 };
 
 // ========================================
@@ -169,25 +162,22 @@ export const enrollmentsApi = {
 
 export const progressApi = {
   save: (data: { lesson_id: string; percent: number; state?: any }) =>
-    request<{ success: boolean; progress: any }>('/progress', {
+    request<any>('/progress/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   get: (lessonId: string) =>
-    request<{ progress: any }>(`/progress/${lessonId}`),
+    request<any>(`/progress/${lessonId}`),
 };
 
 // ========================================
 // QUIZ API
 // ========================================
 
+// Quiz attempts are not yet implemented in the FastAPI backend
 export const quizApi = {
-  submitAttempt: (data: { quiz_id: string; answers: any[]; score: number }) =>
-    request<{ success: boolean; attempt: any }>('/quiz-attempts', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  submitAttempt: (_data: any) => Promise.resolve({ success: false, attempt: null }),
 };
 
 // ========================================
@@ -195,19 +185,15 @@ export const quizApi = {
 // ========================================
 
 export const creatorApi = {
-  getCourses: () => request<{ courses: Course[] }>('/creator/courses'),
+  getCourses: () => request<Course[]>('/creator/courses'),
 
   getSubscribers: (courseId: string) =>
-    request<{ subscribers: Subscriber[] }>(
-      `/creator/courses/${courseId}/subscribers`
-    ),
+    request<Subscriber[]>(`/creator/courses/${courseId}/subscribers`),
 
   getAnalytics: (courseId: string) =>
-    request<{ analytics: CourseAnalytics }>(
-      `/creator/courses/${courseId}/analytics`
-    ),
+    request<CourseAnalytics>(`/creator/courses/${courseId}/analytics`),
 
-  getEarnings: () => request<{ earnings: CreatorEarnings }>('/creator/earnings'),
+  getEarnings: () => request<CreatorEarnings>('/creator/earnings'),
 };
 
 // ========================================
@@ -216,36 +202,26 @@ export const creatorApi = {
 
 export const socialApi = {
   like: (lessonId: string) =>
-    request<{ success: boolean; likes: number }>('/likes', {
-      method: 'POST',
-      body: JSON.stringify({ lesson_id: lessonId }),
-    }),
+    request<{ success: boolean; likes: number }>(`/lessons/${lessonId}/like`, { method: 'POST' }),
 
   unlike: (lessonId: string) =>
-    request<{ success: boolean; likes: number }>(`/likes/${lessonId}`, {
-      method: 'DELETE',
-    }),
+    request<{ success: boolean; likes: number }>(`/lessons/${lessonId}/like`, { method: 'DELETE' }),
 
   bookmark: (lessonId: string) =>
-    request<{ success: boolean }>('/bookmarks', {
-      method: 'POST',
-      body: JSON.stringify({ lesson_id: lessonId }),
-    }),
+    request<{ success: boolean }>(`/lessons/${lessonId}/bookmark`, { method: 'POST' }),
 
-  getBookmarks: () => request<{ bookmarks: any[] }>('/bookmarks'),
+  getBookmarks: () => request<any[]>('/bookmarks/'),
 
-  share: (lessonId: string, platform: string) =>
-    request<{ success: boolean; shares: number }>('/shares', {
-      method: 'POST',
-      body: JSON.stringify({ lesson_id: lessonId, platform }),
-    }),
+  // share is NOT implemented in the FastAPI backend
+  share: (_lessonId: string, _platform: string) =>
+    Promise.resolve({ success: false, shares: 0 }),
 
   addComment: (data: {
     lesson_id: string;
     content: string;
     parent_id?: string;
   }) =>
-    request<{ success: boolean; comment: Comment }>('/comments', {
+    request<Comment>('/comments/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -257,7 +233,7 @@ export const socialApi = {
 
 export const reviewsApi = {
   create: (data: { course_id: string; rating: number; comment: string }) =>
-    request<{ success: boolean; review: Review }>('/reviews', {
+    request<Review>('/reviews/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -268,32 +244,20 @@ export const reviewsApi = {
 // ========================================
 
 export const gamificationApi = {
-  awardBadge: (data: {
-    badge_name: string;
-    badge_icon: string;
-    badge_description: string;
-  }) =>
-    request<{ success: boolean; badges: any[] }>('/badges', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
+  // awardBadge is NOT implemented in the FastAPI backend
+  awardBadge: (_data: any) => Promise.resolve({ success: false, badges: [] }),
 
-  getLeaderboard: () => request<{ leaderboard: User[] }>('/leaderboard'),
+  getLeaderboard: () => request<User[]>('/leaderboard/'),
 };
 
 // ========================================
 // ORGANIZATIONS API
 // ========================================
 
+// Organizations are NOT implemented in the FastAPI backend
 export const organizationsApi = {
-  create: (data: { name: string; slug: string; subscription_plan?: string }) =>
-    request<{ success: boolean; organization: Organization }>('/organizations', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-
-  getById: (orgId: string) =>
-    request<{ organization: Organization }>(`/organizations/${orgId}`),
+  create: (_data: any) => Promise.resolve({ success: false, organization: null as Organization | null }),
+  getById: (_orgId: string) => Promise.resolve({ organization: null as Organization | null }),
 };
 
 // ========================================
@@ -308,7 +272,7 @@ export const paymentsApi = {
     course_id?: string;
     org_id?: string;
   }) =>
-    request<{ success: boolean; payment: any; paymentId: string }>('/payments', {
+    request<{ success: boolean; payment: any; paymentId: string }>('/payments/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -325,9 +289,9 @@ export const paymentsApi = {
 // ========================================
 
 export const adminApi = {
-  getUsers: () => request<{ users: User[] }>('/admin/users'),
+  getUsers: () => request<{ items: User[]; total: number }>('/admin/users'),
 
-  getCourses: () => request<{ courses: Course[] }>('/admin/courses'),
+  getCourses: () => request<{ items: Course[]; total: number }>('/admin/courses'),
 
   getAnalytics: () =>
     request<{
