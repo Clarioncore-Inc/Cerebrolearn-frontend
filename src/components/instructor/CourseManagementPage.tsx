@@ -39,7 +39,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { apiCall } from '../../utils/supabase/client';
+import { enrollmentsApi } from '../../utils/api-client';
 import { CourseLearnersTab } from './CourseLearnersTab';
 import { ReviewSystem } from '../courses/ReviewSystem';
 
@@ -260,7 +260,7 @@ export function CourseManagementPage({ course, onNavigate, onBack }: CourseManag
     const loadStudents = async () => {
       setLoadingStudents(true);
       try {
-        const response = await apiCall(`/enrollments/course/${course.id}`);
+        const response = await enrollmentsApi.getByCourse(course.id);
         if (response.enrollments) {
           const enrichedStudents = response.enrollments.map((enrollment: any) => ({
             id: enrollment.user_id || enrollment.id,
@@ -293,9 +293,7 @@ export function CourseManagementPage({ course, onNavigate, onBack }: CourseManag
 
     try {
       // Call API to remove learner
-      const response = await apiCall(`/enrollments/${learner.enrollmentId}`, {
-        method: 'DELETE',
-      });
+      const response = await enrollmentsApi.remove(learner.enrollmentId);
 
       if (response.success) {
         setEnrolledStudents(enrolledStudents.filter(s => s.enrollmentId !== learner.enrollmentId));

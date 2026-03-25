@@ -143,6 +143,12 @@
     font-family: var(--font-family);
   }
 
+  button,
+  [role="button"],
+  .cursor-pointer {
+    cursor: pointer;
+  }
+
   /* Container configuration for consistent padding */
   .container {
     width: 100%;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { apiCall } from '../../utils/supabase/client';
+import { quizApi } from '../../utils/api-client';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
@@ -13,7 +13,11 @@ interface InteractiveQuizProps {
   onComplete: (score: number) => void;
 }
 
-export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizProps) {
+export function InteractiveQuiz({
+  quiz,
+  lessonId,
+  onComplete,
+}: InteractiveQuizProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [answers, setAnswers] = useState<{ [key: number]: string }>({});
@@ -33,27 +37,28 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
     const correct = selectedAnswer === question.correctAnswer;
     setIsCorrect(correct);
     setShowResult(true);
-    
+
     setAnswers({ ...answers, [currentQuestion]: selectedAnswer });
   };
 
   const handleNextQuestion = () => {
     setShowResult(false);
     setSelectedAnswer('');
-    
+
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);
     } else {
       // Calculate final score
-      const correctAnswers = Object.entries(answers).filter(([index, answer]) => {
-        const q = questions[parseInt(index)];
-        return answer === q.correctAnswer;
-      }).length + (isCorrect ? 1 : 0);
+      const correctAnswers =
+        Object.entries(answers).filter(([index, answer]) => {
+          const q = questions[parseInt(index)];
+          return answer === q.correctAnswer;
+        }).length + (isCorrect ? 1 : 0);
 
       const finalScore = Math.round((correctAnswers / questions.length) * 100);
       setScore(finalScore);
       setQuizComplete(true);
-      
+
       // Save quiz attempt
       saveQuizAttempt(finalScore);
       onComplete(finalScore);
@@ -62,13 +67,10 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
 
   const saveQuizAttempt = async (finalScore: number) => {
     try {
-      await apiCall('/quiz-attempts', {
-        method: 'POST',
-        body: JSON.stringify({
-          quiz_id: lessonId,
-          answers,
-          score: finalScore
-        }),
+      await quizApi.submitAttempt({
+        quiz_id: lessonId,
+        answers,
+        score: finalScore,
       });
     } catch (error) {
       console.error('Error saving quiz attempt:', error);
@@ -86,30 +88,30 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
 
   if (quizComplete) {
     return (
-      <Card className="max-w-2xl mx-auto">
-        <CardContent className="p-12 text-center space-y-6">
-          <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center">
-            <Trophy className="h-10 w-10 text-white" />
+      <Card className='max-w-2xl mx-auto'>
+        <CardContent className='p-12 text-center space-y-6'>
+          <div className='mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center'>
+            <Trophy className='h-10 w-10 text-white' />
           </div>
-          
+
           <div>
-            <h2 className="mb-2">Quiz Complete!</h2>
-            <p className="text-4xl font-bold text-primary mb-2">{score}%</p>
-            <p className="text-muted-foreground">
-              You got {Object.entries(answers).filter(([index, answer]) => {
+            <h2 className='mb-2'>Quiz Complete!</h2>
+            <p className='text-4xl font-bold text-primary mb-2'>{score}%</p>
+            <p className='text-muted-foreground'>
+              You got{' '}
+              {Object.entries(answers).filter(([index, answer]) => {
                 const q = questions[parseInt(index)];
                 return answer === q.correctAnswer;
-              }).length + (isCorrect ? 1 : 0)} out of {questions.length} questions correct
+              }).length + (isCorrect ? 1 : 0)}{' '}
+              out of {questions.length} questions correct
             </p>
           </div>
 
-          <div className="flex items-center justify-center gap-4">
-            <Button onClick={handleRetry} variant="outline">
+          <div className='flex items-center justify-center gap-4'>
+            <Button onClick={handleRetry} variant='outline'>
               Try Again
             </Button>
-            <Button onClick={() => onComplete(score)}>
-              Continue
-            </Button>
+            <Button onClick={() => onComplete(score)}>Continue</Button>
           </div>
         </CardContent>
       </Card>
@@ -119,20 +121,20 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
   if (!question) {
     return (
       <Card>
-        <CardContent className="p-12 text-center">
-          <p className="text-muted-foreground">No questions available</p>
+        <CardContent className='p-12 text-center'>
+          <p className='text-muted-foreground'>No questions available</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium">Progress</span>
-            <span className="text-sm font-medium">
+        <CardContent className='p-6'>
+          <div className='flex items-center justify-between mb-2'>
+            <span className='text-sm font-medium'>Progress</span>
+            <span className='text-sm font-medium'>
               Question {currentQuestion + 1} of {questions.length}
             </span>
           </div>
@@ -144,9 +146,9 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
         <CardHeader>
           <CardTitle>{question.question}</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className='space-y-6'>
           <RadioGroup value={selectedAnswer} onValueChange={handleAnswerSelect}>
-            <div className="space-y-3">
+            <div className='space-y-3'>
               {question.options.map((option: string, index: number) => (
                 <div
                   key={index}
@@ -155,43 +157,51 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
                       ? option === question.correctAnswer
                         ? 'border-green-500 bg-green-50 dark:bg-green-950/20'
                         : option === selectedAnswer
-                        ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
-                        : 'border-border'
+                          ? 'border-red-500 bg-red-50 dark:bg-red-950/20'
+                          : 'border-border'
                       : selectedAnswer === option
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:border-primary/50'
                   }`}
                 >
-                  <RadioGroupItem 
-                    value={option} 
+                  <RadioGroupItem
+                    value={option}
                     id={`option-${index}`}
                     disabled={showResult}
                   />
-                  <Label 
+                  <Label
                     htmlFor={`option-${index}`}
-                    className="flex-1 cursor-pointer"
+                    className='flex-1 cursor-pointer'
                   >
                     {option}
                   </Label>
                   {showResult && option === question.correctAnswer && (
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
+                    <CheckCircle2 className='h-5 w-5 text-green-500' />
                   )}
-                  {showResult && option === selectedAnswer && option !== question.correctAnswer && (
-                    <XCircle className="h-5 w-5 text-red-500" />
-                  )}
+                  {showResult &&
+                    option === selectedAnswer &&
+                    option !== question.correctAnswer && (
+                      <XCircle className='h-5 w-5 text-red-500' />
+                    )}
                 </div>
               ))}
             </div>
           </RadioGroup>
 
           {showResult && (
-            <Card className={isCorrect ? 'bg-green-50 dark:bg-green-950/20 border-green-200' : 'bg-red-50 dark:bg-red-950/20 border-red-200'}>
-              <CardContent className="p-4">
-                <p className="font-medium mb-2">
+            <Card
+              className={
+                isCorrect
+                  ? 'bg-green-50 dark:bg-green-950/20 border-green-200'
+                  : 'bg-red-50 dark:bg-red-950/20 border-red-200'
+              }
+            >
+              <CardContent className='p-4'>
+                <p className='font-medium mb-2'>
                   {isCorrect ? '✓ Correct!' : '✗ Incorrect'}
                 </p>
                 {question.explanation && (
-                  <p className="text-sm text-muted-foreground">
+                  <p className='text-sm text-muted-foreground'>
                     {question.explanation}
                   </p>
                 )}
@@ -199,17 +209,16 @@ export function InteractiveQuiz({ quiz, lessonId, onComplete }: InteractiveQuizP
             </Card>
           )}
 
-          <div className="flex justify-end">
+          <div className='flex justify-end'>
             {!showResult ? (
-              <Button 
-                onClick={handleSubmitAnswer}
-                disabled={!selectedAnswer}
-              >
+              <Button onClick={handleSubmitAnswer} disabled={!selectedAnswer}>
                 Submit Answer
               </Button>
             ) : (
               <Button onClick={handleNextQuestion}>
-                {currentQuestion < questions.length - 1 ? 'Next Question' : 'View Results'}
+                {currentQuestion < questions.length - 1
+                  ? 'Next Question'
+                  : 'View Results'}
               </Button>
             )}
           </div>

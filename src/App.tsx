@@ -151,15 +151,22 @@ if (typeof window !== 'undefined') {
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<string>('landing');
+  // Check for hidden psychologist signup link (?join=psychologist)
+  const isPsychologistLink =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).get('join') === 'psychologist';
+
+  const [currentPage, setCurrentPage] = useState<string>(
+    isPsychologistLink ? 'auth' : 'landing',
+  );
   const [pageData, setPageData] = useState<any>(null);
   const [authMode, setAuthMode] = useState<
     'login' | 'signup' | 'signup-choice' | 'psychologist-signup'
-  >('signup-choice');
+  >(isPsychologistLink ? 'psychologist-signup' : 'signup-choice');
 
   useEffect(() => {
     if (!loading) {
-      if (user && currentPage === 'landing') {
+      if (user && (currentPage === 'landing' || currentPage === 'auth')) {
         setCurrentPage('dashboard');
       } else if (
         !user &&
@@ -175,6 +182,10 @@ function AppContent() {
   const handleNavigate = (page: string, data?: any) => {
     setCurrentPage(page);
     setPageData(data || null);
+    // Set the auth mode when entering the auth flow
+    if (page === 'auth') {
+      setAuthMode(data?.authMode ?? 'signup-choice');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -195,7 +206,7 @@ function AppContent() {
         return (
           <div className='container py-16'>
             {authMode === 'login' ? (
-              <LoginForm onToggleMode={() => setAuthMode('signup')} />
+              <LoginForm onToggleMode={() => setAuthMode('signup-choice')} />
             ) : authMode === 'signup-choice' ? (
               <SignupChoice
                 onSelectRegular={() => setAuthMode('signup')}
@@ -208,11 +219,7 @@ function AppContent() {
                 onBack={() => setAuthMode('signup-choice')}
               />
             ) : (
-              <SignupChoice
-                onSelectRegular={() => setAuthMode('signup')}
-                onSelectPsychologist={() => setAuthMode('psychologist-signup')}
-                onToggleMode={() => setAuthMode('login')}
-              />
+              <SignupForm onToggleMode={() => setAuthMode('login')} />
             )}
           </div>
         );

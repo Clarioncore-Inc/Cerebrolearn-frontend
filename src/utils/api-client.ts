@@ -13,7 +13,7 @@ import type {
   PlatformSettings,
 } from '../types/database';
 
-const BASE_URL = 'http://localhost:8000/api';
+const BASE_URL = 'https://backened-core.onrender.com/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -40,15 +40,8 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    
-    // For 401 errors, return error object instead of throwing - backend may not be configured
-    if (response.status === 401) {
-      console.log(`Backend endpoint ${endpoint} returned 401 - using fallback data`);
-      return { error: 'Unauthorized', status: 401 } as T;
-    }
-    
-    throw new Error(error.error || `HTTP ${response.status}`);
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || error.error || error.message || `HTTP ${response.status}`);
   }
 
   return response.json();
@@ -114,6 +107,9 @@ export const coursesApi = {
       body: JSON.stringify(updates),
     }),
 
+  delete: (courseId: string) =>
+    request<{ success: boolean }>(`/courses/${courseId}`, { method: 'DELETE' }),
+
   getReviews: (courseId: string) =>
     request<Review[]>(`/courses/${courseId}/reviews`),
 };
@@ -154,6 +150,12 @@ export const enrollmentsApi = {
     }),
 
   getMy: () => request<Enrollment[]>('/enrollments/'),
+
+  getByCourse: (courseId: string) =>
+    request<{ enrollments: any[] }>(`/enrollments/course/${courseId}`),
+
+  remove: (enrollmentId: string) =>
+    request<{ success: boolean }>(`/enrollments/${enrollmentId}`, { method: 'DELETE' }),
 };
 
 // ========================================
