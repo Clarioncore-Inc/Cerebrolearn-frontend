@@ -157,12 +157,12 @@ function AppContent() {
     new URLSearchParams(window.location.search).get('join') === 'psychologist';
 
   const [currentPage, setCurrentPage] = useState<string>(
-    isPsychologistLink ? 'auth' : 'landing',
+    isPsychologistLink ? 'psychologist-signup' : 'landing',
   );
   const [pageData, setPageData] = useState<any>(null);
   const [authMode, setAuthMode] = useState<
     'login' | 'signup' | 'signup-choice' | 'psychologist-signup'
-  >(isPsychologistLink ? 'psychologist-signup' : 'signup-choice');
+  >('signup-choice');
 
   useEffect(() => {
     if (!loading) {
@@ -172,7 +172,8 @@ function AppContent() {
         !user &&
         currentPage !== 'landing' &&
         currentPage !== 'auth' &&
-        currentPage !== 'catalog'
+        currentPage !== 'catalog' &&
+        currentPage !== 'psychologist-signup'
       ) {
         setCurrentPage('landing');
       }
@@ -519,7 +520,14 @@ function AppContent() {
         return <SignupChoice onNavigate={handleNavigate} />;
 
       case 'psychologist-signup':
-        return <PsychologistSignupForm onNavigate={handleNavigate} />;
+        return (
+          <div className='container py-16'>
+            <PsychologistSignupForm
+              onToggleMode={() => handleNavigate('auth', { authMode: 'login' })}
+              onBack={() => handleNavigate('landing')}
+            />
+          </div>
+        );
 
       case 'psychologist-dashboard':
         return <PsychologistDashboard onNavigate={handleNavigate} />;

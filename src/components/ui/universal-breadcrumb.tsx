@@ -15,13 +15,12 @@ interface BreadcrumbItem {
   data?: any;
 }
 
-export function UniversalBreadcrumb({ 
-  currentPage, 
-  pageData, 
-  onNavigate, 
-  className = '' 
+export function UniversalBreadcrumb({
+  currentPage,
+  pageData,
+  onNavigate,
+  className = '',
 }: UniversalBreadcrumbProps) {
-  
   const getBreadcrumbs = (): BreadcrumbItem[] => {
     const crumbs: BreadcrumbItem[] = [];
 
@@ -31,10 +30,17 @@ export function UniversalBreadcrumb({
     }
 
     // Course-related breadcrumbs
-    if (currentPage === 'course-detail' || currentPage === 'course-detail-page') {
+    if (
+      currentPage === 'course-detail' ||
+      currentPage === 'course-detail-page'
+    ) {
       crumbs.push({ label: 'Courses', page: 'catalog' });
       if (pageData?.category) {
-        crumbs.push({ label: pageData.category, page: 'category', data: { category: pageData.category } });
+        crumbs.push({
+          label: pageData.category,
+          page: 'category',
+          data: { category: pageData.category },
+        });
       }
       if (pageData?.title) {
         crumbs.push({ label: pageData.title, page: currentPage });
@@ -47,7 +53,11 @@ export function UniversalBreadcrumb({
     else if (currentPage === 'lesson') {
       crumbs.push({ label: 'Courses', page: 'catalog' });
       if (pageData?.courseTitle) {
-        crumbs.push({ label: pageData.courseTitle, page: 'course-detail', data: { courseId: pageData.courseId } });
+        crumbs.push({
+          label: pageData.courseTitle,
+          page: 'course-detail',
+          data: { courseId: pageData.courseId },
+        });
       }
       if (pageData?.lessonTitle) {
         crumbs.push({ label: pageData.lessonTitle, page: currentPage });
@@ -70,7 +80,11 @@ export function UniversalBreadcrumb({
     else if (currentPage === 'subcategory') {
       crumbs.push({ label: 'Courses', page: 'catalog' });
       if (pageData?.category) {
-        crumbs.push({ label: pageData.category, page: 'category', data: { category: pageData.category } });
+        crumbs.push({
+          label: pageData.category,
+          page: 'category',
+          data: { category: pageData.category },
+        });
       }
       if (pageData?.subcategory) {
         crumbs.push({ label: pageData.subcategory, page: currentPage });
@@ -87,12 +101,16 @@ export function UniversalBreadcrumb({
     // IQ Test breadcrumbs
     else if (currentPage === 'iq-test-landing') {
       crumbs.push({ label: 'IQ Test', page: currentPage });
-    }
-    else if (currentPage === 'iq-test' || currentPage === 'iq-test-interface') {
+    } else if (
+      currentPage === 'iq-test' ||
+      currentPage === 'iq-test-interface'
+    ) {
       crumbs.push({ label: 'IQ Test', page: 'iq-test-landing' });
       crumbs.push({ label: 'Test in Progress', page: currentPage });
-    }
-    else if (currentPage === 'iq-test-results' || currentPage === 'enhanced-iq-results') {
+    } else if (
+      currentPage === 'iq-test-results' ||
+      currentPage === 'enhanced-iq-results'
+    ) {
       crumbs.push({ label: 'IQ Test', page: 'iq-test-landing' });
       crumbs.push({ label: 'Results', page: currentPage });
     }
@@ -100,8 +118,10 @@ export function UniversalBreadcrumb({
     // Psychologist breadcrumbs
     else if (currentPage === 'browse-psychologists') {
       crumbs.push({ label: 'Psychologists', page: currentPage });
-    }
-    else if (currentPage === 'appointment-booking' || currentPage === 'enhanced-appointment-booking') {
+    } else if (
+      currentPage === 'appointment-booking' ||
+      currentPage === 'enhanced-appointment-booking'
+    ) {
       crumbs.push({ label: 'Psychologists', page: 'browse-psychologists' });
       if (pageData?.psychologistName) {
         crumbs.push({ label: pageData.psychologistName, page: currentPage });
@@ -111,10 +131,12 @@ export function UniversalBreadcrumb({
     }
 
     // Student Sessions
-    else if (currentPage === 'student-sessions' || currentPage === 'enhanced-therapy-dashboard') {
+    else if (
+      currentPage === 'student-sessions' ||
+      currentPage === 'enhanced-therapy-dashboard'
+    ) {
       crumbs.push({ label: 'My Sessions', page: currentPage });
-    }
-    else if (currentPage === 'my-therapy-progress') {
+    } else if (currentPage === 'my-therapy-progress') {
       crumbs.push({ label: 'My Sessions', page: 'student-sessions' });
       crumbs.push({ label: 'Progress', page: currentPage });
     }
@@ -122,8 +144,7 @@ export function UniversalBreadcrumb({
     // Profile & Settings
     else if (currentPage === 'profile') {
       crumbs.push({ label: 'My Profile', page: currentPage });
-    }
-    else if (currentPage === 'settings') {
+    } else if (currentPage === 'settings') {
       crumbs.push({ label: 'Settings', page: currentPage });
     }
 
@@ -136,13 +157,11 @@ export function UniversalBreadcrumb({
     else if (currentPage === 'payment') {
       crumbs.push({ label: 'Courses', page: 'catalog' });
       crumbs.push({ label: 'Payment', page: currentPage });
-    }
-    else if (currentPage === 'payment-confirmation') {
+    } else if (currentPage === 'payment-confirmation') {
       crumbs.push({ label: 'Courses', page: 'catalog' });
       crumbs.push({ label: 'Payment', page: 'payment' });
       crumbs.push({ label: 'Confirmation', page: currentPage });
-    }
-    else if (currentPage === 'student-payment-history') {
+    } else if (currentPage === 'student-payment-history') {
       crumbs.push({ label: 'Payment History', page: currentPage });
     }
 
@@ -151,19 +170,20 @@ export function UniversalBreadcrumb({
       const pageName = currentPage.replace('creator-', '').replace(/-/g, ' ');
       crumbs.push({ label: 'Creator Studio', page: 'creator-dashboard' });
       if (currentPage !== 'creator-dashboard') {
-        crumbs.push({ 
-          label: pageName.charAt(0).toUpperCase() + pageName.slice(1), 
-          page: currentPage 
+        crumbs.push({
+          label: pageName.charAt(0).toUpperCase() + pageName.slice(1),
+          page: currentPage,
         });
       }
-    }
-    else if (currentPage.startsWith('instructor-')) {
-      const pageName = currentPage.replace('instructor-', '').replace(/-/g, ' ');
+    } else if (currentPage.startsWith('instructor-')) {
+      const pageName = currentPage
+        .replace('instructor-', '')
+        .replace(/-/g, ' ');
       crumbs.push({ label: 'Instructor', page: 'instructor-dashboard' });
       if (currentPage !== 'instructor-dashboard') {
-        crumbs.push({ 
-          label: pageName.charAt(0).toUpperCase() + pageName.slice(1), 
-          page: currentPage 
+        crumbs.push({
+          label: pageName.charAt(0).toUpperCase() + pageName.slice(1),
+          page: currentPage,
         });
       }
     }
@@ -173,28 +193,46 @@ export function UniversalBreadcrumb({
 
   const breadcrumbs = getBreadcrumbs();
 
-  // Don't show breadcrumbs on landing or dashboard
-  if (currentPage === 'landing' || currentPage === 'dashboard' || breadcrumbs.length === 0) {
+  // Don't show breadcrumbs on landing, dashboard, or any auth pages
+  const nocrumbPages = [
+    'landing',
+    'dashboard',
+    'auth',
+    'psychologist-signup',
+    'signup-choice',
+  ];
+  if (nocrumbPages.includes(currentPage) || breadcrumbs.length === 0) {
     return null;
   }
 
   return (
-    <div className={`sticky top-20 z-20 border-b bg-card/50 backdrop-blur-sm ${className}`}>
-      <div className="container py-3">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm">
+    <div
+      className={`sticky top-20 z-20 border-b bg-card/50 backdrop-blur-sm ${className}`}
+    >
+      <div className='container py-3'>
+        <nav
+          aria-label='Breadcrumb'
+          className='flex items-center gap-2 text-sm'
+        >
           {breadcrumbs.map((crumb, index) => (
-            <div key={crumb.page + index} className="flex items-center gap-2">
+            <div key={crumb.page + index} className='flex items-center gap-2'>
               {index > 0 && (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <ChevronRight
+                  className='h-4 w-4 text-muted-foreground'
+                  aria-hidden='true'
+                />
               )}
               {index === breadcrumbs.length - 1 ? (
-                <span className="font-medium text-foreground" aria-current="page">
+                <span
+                  className='font-medium text-foreground'
+                  aria-current='page'
+                >
                   {crumb.label}
                 </span>
               ) : (
                 <button
                   onClick={() => onNavigate(crumb.page, crumb.data)}
-                  className="text-muted-foreground hover:text-foreground transition-colors hover:underline"
+                  className='text-muted-foreground hover:text-foreground transition-colors hover:underline'
                 >
                   {crumb.label}
                 </button>
