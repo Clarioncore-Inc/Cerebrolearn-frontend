@@ -86,10 +86,17 @@ export const coursesApi = {
   create: (data: {
     title: string;
     description: string;
-    org_id?: string;
-    public?: boolean;
     category: string;
-    level: string;
+    level?: string;
+    org_id?: string;
+    is_public?: boolean;
+    cover_image?: string;
+    subcategory?: string;
+    price?: number;
+    currency?: string;
+    estimated_hours?: number;
+    tags?: string[];
+    status?: string;
   }) =>
     request<Course>('/courses/', {
       method: 'POST',

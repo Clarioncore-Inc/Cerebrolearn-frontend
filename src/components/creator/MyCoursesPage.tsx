@@ -96,7 +96,24 @@ export function MyCoursesPage({
     try {
       // Fetch creator's courses (both published and draft)
       const data = await creatorApi.getCourses();
-      setCourses(data || []);
+      // Normalise API field names to what the UI expects
+      const normalised = (data || []).map((c: any) => ({
+        ...c,
+        // backend returns total_reviews; UI uses reviews
+        reviews: c.reviews ?? c.total_reviews ?? 0,
+        // backend returns public; UI uses is_public (and vice-versa)
+        is_public: c.is_public ?? c.public ?? false,
+        // backend returns estimated_hours; UI uses duration string
+        duration:
+          c.duration ?? (c.estimated_hours ? `${c.estimated_hours}h` : '0h'),
+        // lesson count not returned by /creator/courses — default to 0
+        lessons: c.lessons ?? 0,
+        // revenue not returned by this endpoint — default to 0
+        revenue: c.revenue ?? 0,
+        // completion % not returned — default to 0
+        completion: c.completion ?? 0,
+      }));
+      setCourses(normalised);
     } catch (error) {
       console.error('Error loading courses:', error);
       // Mock data for demo

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Navbar } from './components/layout/Navbar';
@@ -149,44 +150,62 @@ if (typeof window !== 'undefined') {
   );
 }
 
+// Map URL pathname → page key used in the renderPage() switch
+function pathToPage(pathname: string): string {
+  if (pathname === '/' || pathname === '') return 'landing';
+  // Strip leading slash
+  return pathname.slice(1);
+}
+
+// Map page key → URL pathname
+function pageToPath(page: string): string {
+  if (page === 'landing') return '/';
+  return '/' + page;
+}
+
 function AppContent() {
   const { user, profile, loading } = useAuth();
-  // Check for hidden psychologist signup link (?join=psychologist)
-  const isPsychologistLink =
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('join') === 'psychologist';
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [currentPage, setCurrentPage] = useState<string>(
-    isPsychologistLink ? 'psychologist-signup' : 'landing',
-  );
-  const [pageData, setPageData] = useState<any>(null);
+  // Derive current page from the URL
+  const currentPage = pathToPage(location.pathname);
+  // pageData travels as router state (survives back/forward)
+  const pageData: any = location.state ?? null;
+
   const [authMode, setAuthMode] = useState<
     'login' | 'signup' | 'signup-choice' | 'psychologist-signup'
-  >('signup-choice');
+  >(pageData?.authMode ?? 'signup-choice');
 
+  // Handle hidden psychologist signup link (?join=psychologist)
   useEffect(() => {
-    if (!loading) {
-      if (user && (currentPage === 'landing' || currentPage === 'auth')) {
-        setCurrentPage('dashboard');
-      } else if (
-        !user &&
-        currentPage !== 'landing' &&
-        currentPage !== 'auth' &&
-        currentPage !== 'catalog' &&
-        currentPage !== 'psychologist-signup'
-      ) {
-        setCurrentPage('landing');
-      }
+    const params = new URLSearchParams(location.search);
+    if (params.get('join') === 'psychologist') {
+      navigate(pageToPath('psychologist-signup'), { replace: true });
+    }
+  }, []);
+
+  // Auth guard: redirect after login/logout
+  useEffect(() => {
+    if (loading) return;
+    if (user && (currentPage === 'landing' || currentPage === 'auth')) {
+      navigate(pageToPath('dashboard'), { replace: true });
+    } else if (
+      !user &&
+      currentPage !== 'landing' &&
+      currentPage !== 'auth' &&
+      currentPage !== 'catalog' &&
+      currentPage !== 'psychologist-signup'
+    ) {
+      navigate(pageToPath('landing'), { replace: true });
     }
   }, [user, loading]);
 
   const handleNavigate = (page: string, data?: any) => {
-    setCurrentPage(page);
-    setPageData(data || null);
-    // Set the auth mode when entering the auth flow
     if (page === 'auth') {
       setAuthMode(data?.authMode ?? 'signup-choice');
     }
+    navigate(pageToPath(page), { state: data || null });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -793,10 +812,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }

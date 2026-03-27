@@ -341,25 +341,21 @@ export function CourseCreationWizard({
 
     setLoading(true);
     try {
-      // Create the course
+      // Create the course — fields mapped to the POST /api/courses/ schema
       const courseData = {
         title,
         description: fullDescription,
-        short_description: shortDescription,
         category,
         level,
-        public: isPublic,
-        status: 'draft',
-        estimated_duration: estimatedDuration,
+        org_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        is_public: isPublic,
         price: pricing === 'paid' ? parseFloat(price) : 0,
-        certificate_enabled: certificateEnabled,
-        learning_objectives: learningObjectives
-          .filter((obj) => obj.text.trim())
-          .map((obj) => obj.text),
-        prerequisites: prerequisites
-          .filter((pre) => pre.text.trim())
-          .map((pre) => pre.text),
+        currency: 'USD',
+        estimated_hours: estimatedDuration
+          ? parseFloat(estimatedDuration)
+          : undefined,
         tags: tags,
+        status: 'draft',
       };
 
       const result = await coursesApi.create(courseData);
@@ -848,19 +844,25 @@ export function CourseCreationWizard({
             </CardHeader>
             <CardContent className='space-y-6'>
               <div className='space-y-2'>
-                <Label htmlFor='estimatedDuration'>Estimated Duration *</Label>
+                <Label htmlFor='estimatedDuration'>Estimated Hours *</Label>
                 <div className='flex gap-2'>
                   <Clock className='h-5 w-5 mt-2 text-muted-foreground' />
                   <Input
                     id='estimatedDuration'
+                    type='number'
+                    min='0'
+                    step='0.5'
                     value={estimatedDuration}
                     onChange={(e) => setEstimatedDuration(e.target.value)}
-                    placeholder='e.g., 8 weeks, 40 hours, 3 months'
+                    placeholder='e.g., 10'
                     className={
                       errors.estimatedDuration ? 'border-destructive' : ''
                     }
                   />
                 </div>
+                <p className='text-xs text-muted-foreground'>
+                  Total course duration in hours
+                </p>
                 {errors.estimatedDuration && (
                   <p className='text-sm text-destructive'>
                     {errors.estimatedDuration}

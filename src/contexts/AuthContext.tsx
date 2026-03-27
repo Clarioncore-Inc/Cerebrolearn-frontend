@@ -126,17 +126,105 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
-  const signInWithGoogle = async () => {
-    console.warn(
-      '[Auth] Google sign-in is not yet implemented in the FastAPI backend.',
-    );
-    throw new Error('Google sign-in is not yet available.');
+  const signInWithGoogle = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+        | string
+        | undefined;
+      if (!clientId) {
+        reject(
+          new Error(
+            'Google sign-in is not configured. Please set VITE_GOOGLE_CLIENT_ID.',
+          ),
+        );
+        return;
+      }
+
+      const handleCredential = async (response: { credential: string }) => {
+        try {
+          // Decode the Google ID token (JWT) to get user info — no secret needed for decoding
+          const payload = JSON.parse(atob(response.credential.split('.')[1]));
+          const { email, name, sub } = payload as {
+            email: string;
+            name: string;
+            sub: string;
+          };
+          const derivedPassword = `google_${sub}`;
+
+          try {
+            // Returning user — try login first
+            const result = await authApi.login({
+              email,
+              password: derivedPassword,
+            });
+            localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+            setUser(result.user);
+            setProfile(result.user as unknown as UserProfile);
+          } catch {
+            // New user — create account then login
+            await authApi.signup({
+              email,
+              password: derivedPassword,
+              full_name: name,
+              role: 'learner',
+            });
+            const result = await authApi.login({
+              email,
+              password: derivedPassword,
+            });
+            localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+            setUser(result.user);
+            setProfile(result.user as unknown as UserProfile);
+          }
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      const init = () => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const google = (window as any).google;
+        google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredential,
+        });
+        google.accounts.id.prompt(
+          (notification: {
+            isNotDisplayed: () => boolean;
+            isSkippedMoment: () => boolean;
+          }) => {
+            if (
+              notification.isNotDisplayed() ||
+              notification.isSkippedMoment()
+            ) {
+              // Fallback: render a popup manually
+              google.accounts.id.renderButton(
+                document.createElement('div'),
+                {},
+              );
+            }
+          },
+        );
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      if ((window as any).google?.accounts) {
+        init();
+      } else {
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        script.onload = init;
+        script.onerror = () =>
+          reject(new Error('Failed to load Google Identity Services.'));
+        document.head.appendChild(script);
+      }
+    });
   };
 
   const signInWithFacebook = async () => {
-    console.warn(
-      '[Auth] Facebook sign-in is not yet implemented in the FastAPI backend.',
-    );
     throw new Error('Facebook sign-in is not yet available.');
   };
 
