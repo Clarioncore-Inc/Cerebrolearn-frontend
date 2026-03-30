@@ -87,6 +87,11 @@ export const coursesApi = {
     title: string;
     description: string;
     category: string;
+    // new schema fields
+    sub_title?: string;
+    rating?: number;
+    total_reviews?: number;
+    total_enrollments?: number;
     level?: string;
     org_id?: string;
     is_public?: boolean;
@@ -97,8 +102,25 @@ export const coursesApi = {
     estimated_hours?: number;
     tags?: string[];
     status?: string;
+    course_goals?: string[];
+    learning_objectives?: string[];
+    prerequisites?: string[];
+    who_this_course_is_for?: string;
+    enable_discussions?: boolean;
+    enable_reviews?: boolean;
+    enable_certificates?: boolean;
+    maximum_students?: number;
+    sections?: Array<{
+      title: string;
+      lessons: Array<{
+        title: string;
+        type?: string;
+        duration?: string;
+        content?: string;
+      }>;
+    }>;
   }) =>
-    request<Course>('/courses/', {
+    request<Course>('/courses/bulk', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

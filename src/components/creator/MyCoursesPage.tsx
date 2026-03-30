@@ -116,77 +116,6 @@ export function MyCoursesPage({
       setCourses(normalised);
     } catch (error) {
       console.error('Error loading courses:', error);
-      // Mock data for demo
-      setCourses([
-        {
-          id: '1',
-          title: 'Complete React Development Course',
-          description: 'Master React from basics to advanced concepts',
-          status: 'published',
-          level: 'Intermediate',
-          category: 'Technology',
-          price: 49.99,
-          enrollments: 1250,
-          rating: 4.9,
-          reviews: 324,
-          revenue: 62487.5,
-          lessons: 48,
-          duration: '12 hours',
-          lastUpdated: '2 days ago',
-          completion: 100,
-        },
-        {
-          id: '2',
-          title: 'Advanced TypeScript Patterns',
-          description: 'Learn advanced TypeScript patterns and best practices',
-          status: 'published',
-          level: 'Advanced',
-          category: 'Technology',
-          price: 39.99,
-          enrollments: 890,
-          rating: 4.8,
-          reviews: 201,
-          revenue: 35591.1,
-          lessons: 36,
-          duration: '8 hours',
-          lastUpdated: '5 days ago',
-          completion: 100,
-        },
-        {
-          id: '3',
-          title: 'Web Development Bootcamp 2024',
-          description: 'Complete web development course from scratch',
-          status: 'draft',
-          level: 'Beginner',
-          category: 'Technology',
-          price: 79.99,
-          enrollments: 0,
-          rating: 0,
-          reviews: 0,
-          revenue: 0,
-          lessons: 24,
-          duration: '6 hours',
-          lastUpdated: '1 day ago',
-          completion: 65,
-        },
-        {
-          id: '4',
-          title: 'UI/UX Design Masterclass',
-          description: 'Learn modern UI/UX design principles',
-          status: 'published',
-          level: 'Intermediate',
-          category: 'Design',
-          price: 59.99,
-          enrollments: 567,
-          rating: 4.7,
-          reviews: 142,
-          revenue: 34014.33,
-          lessons: 32,
-          duration: '10 hours',
-          lastUpdated: '1 week ago',
-          completion: 100,
-        },
-      ]);
     } finally {
       setLoading(false);
     }
@@ -520,7 +449,7 @@ export function MyCoursesPage({
                       <div className='flex items-baseline gap-1'>
                         <DollarSign className='w-3.5 h-3.5 text-emerald-600' />
                         <span className='font-bold text-gray-900'>
-                          {course.price?.toFixed(2) || '0.00'}
+                          {course.price}
                         </span>
                       </div>
                     </div>

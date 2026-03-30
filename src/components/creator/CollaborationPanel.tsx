@@ -51,6 +51,7 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Collaborator {
   id: string;
@@ -84,17 +85,22 @@ export function CollaborationPanel({
   onAddCollaborator,
   onRemoveCollaborator,
 }: CollaborationPanelProps) {
+  const { user, profile } = useAuth();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newCollabEmail, setNewCollabEmail] = useState('');
   const [newCollabRole, setNewCollabRole] = useState<
     'co-creator' | 'reviewer' | 'verifier'
   >('reviewer');
 
+  const ownerEmail = user?.email ?? profile?.email ?? '';
+  const ownerName =
+    profile?.full_name ?? (ownerEmail ? ownerEmail.split('@')[0] : 'You');
+
   const [collaborators, setCollaborators] = useState<Collaborator[]>([
     {
       id: '1',
-      name: 'You',
-      email: 'creator@cerebrolearn.com',
+      name: ownerName,
+      email: ownerEmail,
       role: 'owner',
       addedAt: new Date().toISOString(),
     },

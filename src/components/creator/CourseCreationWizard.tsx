@@ -135,11 +135,13 @@ export function CourseCreationWizard({
   const handleNext = () => {
     if (validateStep(currentStep)) {
       setCurrentStep((prev) => Math.min(prev + 1, 5));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handlePrevious = () => {
     setCurrentStep((prev) => Math.max(prev - 1, 1));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const ACCEPTED_IMAGE_TYPES = [
@@ -295,71 +297,52 @@ export function CourseCreationWizard({
     setIsPublishing(true);
 
     try {
-      // Prepare course data
-      const courseId = `course-${Date.now()}`;
-      const course = {
-        id: courseId,
+      const result = await coursesApi.create({
         title: courseData.title,
-        subtitle: courseData.subtitle,
+        sub_title: courseData.subtitle || undefined,
         description: courseData.description,
         category: courseData.category,
-        subcategory: courseData.subcategory,
-        level: courseData.level,
-        language: courseData.language,
-        sections: courseData.sections.filter(
-          (s) => s.title && s.lessons.length > 0,
-        ),
-        learningObjectives: courseData.learningObjectives.filter((obj) =>
-          obj.trim(),
-        ),
-        requirements: courseData.requirements.filter((req) => req.trim()),
-        targetAudience: courseData.targetAudience,
-        priceType: courseData.priceType,
+        level: courseData.level || undefined,
+        org_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+        is_public: true,
+        subcategory: courseData.subcategory || undefined,
         price:
-          courseData.priceType === 'paid' ? parseFloat(courseData.price) : 0,
-        currency: courseData.currency,
-        discountPrice: courseData.discountPrice
-          ? parseFloat(courseData.discountPrice)
-          : null,
-        allowReviews: courseData.allowReviews,
-        enableCertificate: courseData.enableCertificate,
-        enableDiscussions: courseData.enableDiscussions,
-        maxStudents: courseData.maxStudents
-          ? parseInt(courseData.maxStudents)
-          : null,
+          courseData.priceType === 'paid' && courseData.price
+            ? parseFloat(courseData.price)
+            : 0,
+        currency: courseData.currency || 'USD',
+        estimated_hours: 0,
+        tags: courseData.tags.filter((t) => t.trim()),
         status: 'published',
-        public: true,
-        instructorId: user?.id || 'demo-instructor',
-        instructorName:
-          user?.user_metadata?.name || user?.email || 'Demo Instructor',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        enrollments: 0,
-        rating: 0,
-        reviews: 0,
-        image:
-          'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop',
-      };
+        course_goals: courseData.courseGoals.filter((g) => g.trim()),
+        learning_objectives: courseData.learningObjectives.filter((o) =>
+          o.trim(),
+        ),
+        prerequisites: courseData.requirements.filter((p) => p.trim()),
+        who_this_course_is_for: courseData.targetAudience || undefined,
+        enable_discussions: courseData.enableDiscussions,
+        enable_reviews: courseData.allowReviews,
+        enable_certificates: courseData.enableCertificate,
+        maximum_students: courseData.maxStudents
+          ? parseInt(courseData.maxStudents)
+          : 0,
+        sections: courseData.sections
+          .filter((s) => s.title.trim())
+          .map((s) => ({
+            title: s.title,
+            lessons: s.lessons
+              .filter((l) => l.title.trim())
+              .map((l) => ({
+                title: l.title,
+                type: l.type || 'video',
+                duration: l.duration || '',
+                content: l.content || '',
+              })),
+          })),
+      });
 
-      // Use dummy data mode - save to localStorage
-      try {
-        const existingCourses = JSON.parse(
-          localStorage.getItem('cerebrolearn_courses') || '[]',
-        );
-        existingCourses.push(course);
-        localStorage.setItem(
-          'cerebrolearn_courses',
-          JSON.stringify(existingCourses),
-        );
-
-        toast.success('Course published successfully! 🎉');
-        onComplete?.(course);
-      } catch (storageError) {
-        // If localStorage fails, just complete with success
-        console.log('LocalStorage not available, using in-memory mode');
-        toast.success('Course published successfully! 🎉');
-        onComplete?.(course);
-      }
+      toast.success('Course published successfully! 🎉');
+      onComplete?.(result);
     } catch (error) {
       console.error('Error publishing course:', error);
       toast.error(
@@ -382,6 +365,7 @@ export function CourseCreationWizard({
     try {
       const result = await coursesApi.create({
         title: courseData.title,
+        sub_title: courseData.subtitle || undefined,
         description: courseData.description || courseData.subtitle || '',
         category: courseData.category || 'general',
         level: courseData.level || undefined,
@@ -393,8 +377,34 @@ export function CourseCreationWizard({
             ? parseFloat(courseData.price)
             : 0,
         currency: courseData.currency || 'USD',
+        estimated_hours: 0,
         tags: courseData.tags.filter((t) => t.trim()),
         status: 'draft',
+        course_goals: courseData.courseGoals.filter((g) => g.trim()),
+        learning_objectives: courseData.learningObjectives.filter((o) =>
+          o.trim(),
+        ),
+        prerequisites: courseData.requirements.filter((p) => p.trim()),
+        who_this_course_is_for: courseData.targetAudience || undefined,
+        enable_discussions: courseData.enableDiscussions,
+        enable_reviews: courseData.allowReviews,
+        enable_certificates: courseData.enableCertificate,
+        maximum_students: courseData.maxStudents
+          ? parseInt(courseData.maxStudents)
+          : 0,
+        sections: courseData.sections
+          .filter((s) => s.title.trim())
+          .map((s) => ({
+            title: s.title,
+            lessons: s.lessons
+              .filter((l) => l.title.trim())
+              .map((l) => ({
+                title: l.title,
+                type: l.type || 'video',
+                duration: l.duration || '',
+                content: l.content || '',
+              })),
+          })),
       });
 
       toast.success('Course saved as draft! 📝');
@@ -427,7 +437,7 @@ export function CourseCreationWizard({
               type='button'
               onClick={handleSaveAsDraft}
               disabled={isSavingDraft}
-              className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+              className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
             >
               {isSavingDraft ? 'Saving...' : 'Save as Draft'}
             </button>
@@ -652,9 +662,9 @@ export function CourseCreationWizard({
                       <SelectValue placeholder='Select difficulty level' />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value='Beginner'>Beginner</SelectItem>
-                      <SelectItem value='Intermediate'>Intermediate</SelectItem>
-                      <SelectItem value='Advanced'>Advanced</SelectItem>
+                      <SelectItem value='beginner'>Beginner</SelectItem>
+                      <SelectItem value='intermediate'>Intermediate</SelectItem>
+                      <SelectItem value='advanced'>Advanced</SelectItem>
                       <SelectItem value='All Levels'>All Levels</SelectItem>
                     </SelectContent>
                   </Select>
