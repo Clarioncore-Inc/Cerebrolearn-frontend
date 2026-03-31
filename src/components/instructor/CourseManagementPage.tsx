@@ -51,7 +51,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { enrollmentsApi } from '../../utils/api-client';
+import { enrollmentsApi, coursesApi } from '../../utils/api-client';
 import { CourseLearnersTab } from './CourseLearnersTab';
 import { ReviewSystem } from '../courses/ReviewSystem';
 
@@ -81,10 +81,11 @@ interface Chapter {
 }
 
 export function CourseManagementPage({
-  course,
+  course: initialCourse,
   onNavigate,
   onBack,
 }: CourseManagementPageProps) {
+  const [course, setCourse] = useState<any>(initialCourse);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -199,6 +200,87 @@ export function CourseManagementPage({
   });
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await coursesApi.update(course.id, {
+        title: courseData.title,
+        description: courseData.description,
+        category: courseData.category,
+        level: courseData.level.toLowerCase() as any,
+        course_goals: courseData.goals,
+        prerequisites: courseData.requirements,
+        sections: chapters.map((ch) => ({
+          title: ch.title,
+          lessons: ch.lessons.map((l) => ({
+            title: l.title,
+            type: l.type,
+            duration: l.duration?.toString() || '',
+            content: l.content || '',
+          })),
+        })),
+      } as any);
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      toast.success('Course saved successfully!');
+    } catch (error) {
+      console.error('Error saving course:', error);
+      toast.error('Failed to save course. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Fetch fresh course data via /course/{id} (no enrollments) on mount
+  useEffect(() => {
+    if (!initialCourse?.id) return;
+    coursesApi
+      .getForEdit(initialCourse.id)
+      .then((raw) => {
+        const fc = raw as any;
+        setCourse(fc);
+        setCourseData({
+          title: fc.title || '',
+          description: fc.description || '',
+          goals:
+            (fc.course_goals?.length > 0 ? fc.course_goals : null) ||
+            (fc.goals?.length > 0 ? fc.goals : null) ||
+            [],
+          requirements:
+            (fc.prerequisites?.length > 0 ? fc.prerequisites : null) ||
+            (fc.requirements?.length > 0 ? fc.requirements : null) ||
+            [],
+          category: fc.category || 'Programming',
+          level: fc.level || 'Beginner',
+          language: fc.language || 'English',
+        });
+        if (fc.sections?.length > 0) {
+          setChapters(
+            fc.sections.map((section: any, index: number) => ({
+              id: section.id || `chapter-${index + 1}`,
+              title: section.title || `Chapter ${index + 1}`,
+              order: index + 1,
+              expanded: index === 0,
+              lessons:
+                section.lessons?.map((lesson: any, lessonIndex: number) => ({
+                  id: lesson.id || `${section.id}-${lessonIndex + 1}`,
+                  title: lesson.title || `Lesson ${lessonIndex + 1}`,
+                  type: lesson.type || 'text',
+                  duration: lesson.duration || 10,
+                  order: lessonIndex + 1,
+                  chapterId: section.id || `chapter-${index + 1}`,
+                  content: lesson.content || '',
+                })) || [],
+            })),
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch course for editing:', err);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCourse?.id]);
 
   const toggleChapter = (chapterId: string) => {
     setChapters(
@@ -397,14 +479,28 @@ export function CourseManagementPage({
           <div className='flex gap-3'>
             <Button
               variant='outline'
-              onClick={() => onNavigate('course', course)}
+              onClick={() =>
+                onNavigate('course-detail', {
+                  courseId: course.id,
+                  category: course.category,
+                  subcategory: course.subcategory,
+                })
+              }
             >
               <Eye className='mr-2 h-4 w-4' />
               Preview
             </Button>
-            <Button className='bg-primary'>
-              <Save className='mr-2 h-4 w-4' />
-              Save Changes
+            <Button
+              className='bg-primary'
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+              ) : (
+                <Save className='mr-2 h-4 w-4' />
+              )}
+              {isSaving ? 'Saving…' : 'Save Changes'}
             </Button>
           </div>
         </div>
@@ -923,34 +1019,16 @@ export function CourseManagementPage({
                     <label className='text-sm font-medium mb-2 block'>
                       Category
                     </label>
-                    <Select
+                    <Input
                       value={courseData.category}
-                      onValueChange={(value) =>
-                        setCourseData({ ...courseData, category: value })
+                      onChange={(e) =>
+                        setCourseData({
+                          ...courseData,
+                          category: e.target.value,
+                        })
                       }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder='Select category' />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value='Programming'>Programming</SelectItem>
-                        <SelectItem value='Business'>Business</SelectItem>
-                        <SelectItem value='Design'>Design</SelectItem>
-                        <SelectItem value='Marketing'>Marketing</SelectItem>
-                        <SelectItem value='Data Science'>
-                          Data Science
-                        </SelectItem>
-                        <SelectItem value='Personal Development'>
-                          Personal Development
-                        </SelectItem>
-                        <SelectItem value='Photography'>Photography</SelectItem>
-                        <SelectItem value='Music'>Music</SelectItem>
-                        <SelectItem value='Health & Fitness'>
-                          Health & Fitness
-                        </SelectItem>
-                        <SelectItem value='Language'>Language</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      placeholder='e.g. Computer Science'
+                    />
                   </div>
                   {/* <div>
                     <label className="text-sm font-medium mb-2 block">Level</label>

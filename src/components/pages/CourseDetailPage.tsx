@@ -81,6 +81,7 @@ function normaliseCourse(data: any) {
     hours: data.estimated_hours ? `${data.estimated_hours}h` : '0h',
     lessons: totalLessons,
     price: parseFloat(data.price) || 0,
+    discount: data.discount ? parseFloat(data.discount) : null,
     image: data.cover_image || '',
     instructor: {
       name: 'Course Instructor',
@@ -131,6 +132,7 @@ const EMPTY_COURSE = {
   hours: '',
   lessons: 0,
   price: 0,
+  discount: null as number | null,
   language: 'English',
   lastUpdated: '',
   image: '',
@@ -149,6 +151,7 @@ export function CourseDetailPage({
   const { user, profile } = useAuth();
   const isInstructor =
     profile?.role === 'instructor' ||
+    (profile?.role as string) === 'trainer' ||
     profile?.role === 'org_admin' ||
     profile?.role === 'admin';
   const [enrolled, setEnrolled] = useState(false);
@@ -382,14 +385,22 @@ export function CourseDetailPage({
 
                 <CardContent className='p-6 space-y-4'>
                   <div className='flex items-baseline justify-between'>
-                    <div>
+                    <div className='flex items-baseline gap-2'>
                       <span className='text-3xl font-bold'>
-                        ${course.price}
+                        ${course.discount ?? course.price}
                       </span>
+                      {course.discount && (
+                        <span className='text-lg text-muted-foreground line-through'>
+                          ${course.price}
+                        </span>
+                      )}
                     </div>
-                    <Badge variant='secondary' className='text-xs'>
-                      Limited Time Offer
-                    </Badge>
+                    {course.discount && (
+                      <Badge variant='secondary' className='text-xs'>
+                        {Math.round((1 - course.discount / course.price) * 100)}
+                        % OFF
+                      </Badge>
+                    )}
                   </div>
 
                   {!isInstructor &&
@@ -472,7 +483,12 @@ export function CourseDetailPage({
                       <Share2 className='w-4 h-4 mr-1' />
                       Share
                     </Button>
-                    <Button variant='outline' size='sm' className='flex-1'>
+                    <Button
+                      variant='outline'
+                      size='sm'
+                      className='flex-1'
+                      disabled
+                    >
                       <Download className='w-4 h-4 mr-1' />
                       Gift
                     </Button>
@@ -674,7 +690,10 @@ export function CourseDetailPage({
                       </div>
                     </div>
 
-                    <Button className='mt-4'>
+                    <Button
+                      className='mt-4'
+                      onClick={() => onNavigate('catalog')}
+                    >
                       View All Courses
                       <ArrowRight className='w-4 h-4 ml-2' />
                     </Button>

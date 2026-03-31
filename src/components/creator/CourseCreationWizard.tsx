@@ -184,15 +184,36 @@ export function CourseCreationWizard({
           return false;
         }
         return true;
-      case 2:
+      case 2: {
+        const hasGoal = courseData.courseGoals.some((g) => g.trim());
+        if (!hasGoal) {
+          toast.error('Please add at least one course goal');
+          return false;
+        }
+        const hasObjective = courseData.learningObjectives.some((o) =>
+          o.trim(),
+        );
+        if (!hasObjective) {
+          toast.error('Please add at least one learning objective');
+          return false;
+        }
+        return true;
+      }
+      case 3: {
+        const hasSection = courseData.sections.some((s) => s.title.trim());
+        if (!hasSection) {
+          toast.error('Please add at least one section');
+          return false;
+        }
         const hasLessons = courseData.sections.some(
           (s) => s.lessons.length > 0,
         );
         if (!hasLessons) {
-          toast.error('Please add at least one lesson');
+          toast.error('Please add at least one lesson to a section');
           return false;
         }
         return true;
+      }
       case 4:
         if (courseData.priceType === 'paid' && !courseData.price) {
           toast.error('Please set a price');
@@ -310,6 +331,10 @@ export function CourseCreationWizard({
           courseData.priceType === 'paid' && courseData.price
             ? parseFloat(courseData.price)
             : 0,
+        discount:
+          courseData.priceType === 'paid' && courseData.discountPrice
+            ? parseFloat(courseData.discountPrice)
+            : undefined,
         currency: courseData.currency || 'USD',
         estimated_hours: 0,
         tags: courseData.tags.filter((t) => t.trim()),
@@ -376,6 +401,10 @@ export function CourseCreationWizard({
           courseData.priceType === 'paid' && courseData.price
             ? parseFloat(courseData.price)
             : 0,
+        discount:
+          courseData.priceType === 'paid' && courseData.discountPrice
+            ? parseFloat(courseData.discountPrice)
+            : undefined,
         currency: courseData.currency || 'USD',
         estimated_hours: 0,
         tags: courseData.tags.filter((t) => t.trim()),
@@ -665,7 +694,7 @@ export function CourseCreationWizard({
                       <SelectItem value='beginner'>Beginner</SelectItem>
                       <SelectItem value='intermediate'>Intermediate</SelectItem>
                       <SelectItem value='advanced'>Advanced</SelectItem>
-                      <SelectItem value='All Levels'>All Levels</SelectItem>
+                      <SelectItem value='all_levels'>All Levels</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

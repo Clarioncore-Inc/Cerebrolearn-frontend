@@ -112,6 +112,8 @@ export function MyCoursesPage({
         revenue: c.revenue ?? 0,
         // completion % not returned — default to 0
         completion: c.completion ?? 0,
+        // discount price from API
+        discount: c.discount ?? null,
       }));
       setCourses(normalised);
     } catch (error) {
@@ -447,10 +449,28 @@ export function MyCoursesPage({
                         {course.category}
                       </Badge>
                       <div className='flex items-baseline gap-1'>
-                        <DollarSign className='w-3.5 h-3.5 text-emerald-600' />
-                        <span className='font-bold text-gray-900'>
-                          {course.price}
-                        </span>
+                        {course.price === 0 ? (
+                          <span className='font-bold text-emerald-600'>
+                            Free
+                          </span>
+                        ) : course.discount ? (
+                          <>
+                            <DollarSign className='w-3.5 h-3.5 text-emerald-600' />
+                            <span className='font-bold text-gray-900'>
+                              {course.discount}
+                            </span>
+                            <span className='text-sm text-muted-foreground line-through ml-1'>
+                              ${course.price}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <DollarSign className='w-3.5 h-3.5 text-emerald-600' />
+                            <span className='font-bold text-gray-900'>
+                              {course.price}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -742,30 +762,19 @@ export function MyCoursesPage({
                           </div>
                         )}
 
-                        {course.status === 'published' && (
-                          <div className='flex items-center gap-6 mt-4 pt-4 border-t'>
-                            <div>
-                              <p className='text-xs text-muted-foreground'>
-                                Revenue
-                              </p>
-                              <p className='text-lg font-bold text-emerald-600'>
-                                ${(course.revenue || 0).toLocaleString()}
-                              </p>
+                        {course.status === 'published' &&
+                          course.revenue > 0 && (
+                            <div className='flex items-center gap-6 mt-4 pt-4 border-t'>
+                              <div>
+                                <p className='text-xs text-muted-foreground'>
+                                  Revenue
+                                </p>
+                                <p className='text-lg font-bold text-emerald-600'>
+                                  ${(course.revenue || 0).toLocaleString()}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className='text-xs text-muted-foreground'>
-                                Completion Rate
-                              </p>
-                              <p className='text-lg font-bold'>68%</p>
-                            </div>
-                            <div>
-                              <p className='text-xs text-muted-foreground'>
-                                Avg. Watch Time
-                              </p>
-                              <p className='text-lg font-bold'>8.5h</p>
-                            </div>
-                          </div>
-                        )}
+                          )}
                       </div>
                     </div>
                   </CardContent>

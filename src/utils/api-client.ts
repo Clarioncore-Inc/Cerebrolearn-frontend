@@ -98,6 +98,7 @@ export const coursesApi = {
     cover_image?: string;
     subcategory?: string;
     price?: number;
+    discount?: number;
     currency?: string;
     estimated_hours?: number;
     tags?: string[];
@@ -130,8 +131,11 @@ export const coursesApi = {
   getById: (courseId: string) =>
     request<Course & { lessons: Lesson[] }>(`/courses/${courseId}`),
 
+  getForEdit: (courseId: string) =>
+    request<Course>(`/courses/${courseId}`),
+
   update: (courseId: string, updates: Partial<Course>) =>
-    request<Course>(`/courses/${courseId}`, {
+    request<Course>(`/courses/${courseId}/bulk`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     }),
