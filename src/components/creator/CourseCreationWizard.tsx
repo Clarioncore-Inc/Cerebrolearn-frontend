@@ -14,6 +14,8 @@ import {
   Plus,
   GripVertical,
   Image as ImageIcon,
+  Info,
+  ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -28,9 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select';
-import { AIAssistPanel } from './AIAssistPanel';
 import { CollaborationPanel } from './CollaborationPanel';
-import { AIKnowledgeGapDetector } from './AIKnowledgeGapDetector';
 import { CollaborativePreview } from './CollaborativePreview';
 import { AICourseGenerator } from './AICourseGenerator';
 
@@ -51,7 +51,7 @@ export function CourseCreationWizard({
     'choice',
   );
   const [currentStep, setCurrentStep] = useState(1);
-  const [isPublishing, setIsPublishing] = useState(false);
+
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
   const [courseData, setCourseData] = useState({
@@ -283,101 +283,6 @@ export function CourseCreationWizard({
     }));
   };
 
-  const handlePublish = async () => {
-    // Validate all required fields
-    if (!courseData.title.trim()) {
-      toast.error('Course title is required');
-      return;
-    }
-    if (!courseData.description.trim()) {
-      toast.error('Course description is required');
-      return;
-    }
-    if (!courseData.category) {
-      toast.error('Please select a category');
-      return;
-    }
-    if (!courseData.level) {
-      toast.error('Please select a difficulty level');
-      return;
-    }
-    if (
-      courseData.learningObjectives.filter((obj) => obj.trim()).length === 0
-    ) {
-      toast.error('At least one learning objective is required');
-      return;
-    }
-    if (
-      courseData.sections.filter((s) => s.title && s.lessons.length > 0)
-        .length === 0
-    ) {
-      toast.error('At least one section with lessons is required');
-      return;
-    }
-
-    setIsPublishing(true);
-
-    try {
-      const result = await coursesApi.create({
-        title: courseData.title,
-        sub_title: courseData.subtitle || undefined,
-        description: courseData.description,
-        category: courseData.category,
-        level: courseData.level || undefined,
-        org_id: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-        is_public: true,
-        subcategory: courseData.subcategory || undefined,
-        price:
-          courseData.priceType === 'paid' && courseData.price
-            ? parseFloat(courseData.price)
-            : 0,
-        discount:
-          courseData.priceType === 'paid' && courseData.discountPrice
-            ? parseFloat(courseData.discountPrice)
-            : undefined,
-        currency: courseData.currency || 'USD',
-        estimated_hours: 0,
-        tags: courseData.tags.filter((t) => t.trim()),
-        status: 'published',
-        course_goals: courseData.courseGoals.filter((g) => g.trim()),
-        learning_objectives: courseData.learningObjectives.filter((o) =>
-          o.trim(),
-        ),
-        prerequisites: courseData.requirements.filter((p) => p.trim()),
-        who_this_course_is_for: courseData.targetAudience || undefined,
-        enable_discussions: courseData.enableDiscussions,
-        enable_reviews: courseData.allowReviews,
-        enable_certificates: courseData.enableCertificate,
-        maximum_students: courseData.maxStudents
-          ? parseInt(courseData.maxStudents)
-          : 0,
-        sections: courseData.sections
-          .filter((s) => s.title.trim())
-          .map((s) => ({
-            title: s.title,
-            lessons: s.lessons
-              .filter((l) => l.title.trim())
-              .map((l) => ({
-                title: l.title,
-                type: l.type || 'video',
-                duration: l.duration || '',
-                content: l.content || '',
-              })),
-          })),
-      });
-
-      toast.success('Course published successfully! 🎉');
-      onComplete?.(result);
-    } catch (error) {
-      console.error('Error publishing course:', error);
-      toast.error(
-        `Failed to publish course: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
-    } finally {
-      setIsPublishing(false);
-    }
-  };
-
   const handleSaveAsDraft = async () => {
     // Basic validation - only require title
     if (!courseData.title.trim()) {
@@ -436,7 +341,10 @@ export function CourseCreationWizard({
           })),
       });
 
-      toast.success('Course saved as draft! 📝');
+      toast.success(
+        'Course saved as draft! Go to Edit Course to add your content and publish when ready.',
+        { duration: 6000 },
+      );
       onComplete?.(result);
     } catch (error) {
       console.error('Error saving draft:', error);
@@ -543,24 +451,6 @@ export function CourseCreationWizard({
                 />
               </div>
 
-              {/* AI Title Assist - Optional, Non-intrusive */}
-              {courseData.category && courseData.level && (
-                <AIAssistPanel
-                  type='title'
-                  context={{
-                    category: courseData.category,
-                    level: courseData.level,
-                  }}
-                  onAccept={(suggestion) => {
-                    setCourseData((prev) => ({ ...prev, title: suggestion }));
-                    toast.success(
-                      'Title suggestion applied! You can edit it anytime.',
-                    );
-                  }}
-                  onReject={() => toast.info('Suggestion dismissed')}
-                />
-              )}
-
               {/* Subtitle */}
               <div>
                 <Label className='block text-sm font-medium text-gray-700 mb-2'>
@@ -598,27 +488,6 @@ export function CourseCreationWizard({
                   className='w-full px-4 py-3 border border-gray-300 rounded-[8px] focus:ring-2 focus:ring-[#395192] focus:border-transparent resize-none'
                 />
               </div>
-
-              {/* AI Description Assist - Optional, Non-intrusive */}
-              {courseData.category && courseData.level && (
-                <AIAssistPanel
-                  type='description'
-                  context={{
-                    category: courseData.category,
-                    level: courseData.level,
-                  }}
-                  onAccept={(suggestion) => {
-                    setCourseData((prev) => ({
-                      ...prev,
-                      description: suggestion,
-                    }));
-                    toast.success(
-                      'Description suggestion applied! You can edit it anytime.',
-                    );
-                  }}
-                  onReject={() => toast.info('Suggestion dismissed')}
-                />
-              )}
 
               {/* Category & Subcategory */}
               <div className='grid grid-cols-2 gap-4'>
@@ -991,56 +860,21 @@ export function CourseCreationWizard({
                 </button>
               </div>
 
-              {/* AI Structure Generator - Optional */}
-              {courseData.sections.length === 0 &&
-                courseData.title &&
-                courseData.category && (
-                  <AIAssistPanel
-                    type='structure'
-                    context={{
-                      title: courseData.title,
-                      category: courseData.category,
-                      level: courseData.level,
-                    }}
-                    onAccept={(suggestion) => {
-                      const generatedSections = suggestion.modules.map(
-                        (mod: any, index: number) => ({
-                          id: Date.now().toString() + index,
-                          title: mod.title,
-                          description: mod.outcome,
-                          lessons: mod.lessons.map(
-                            (lessonTitle: string, lIndex: number) => ({
-                              id: Date.now().toString() + index + lIndex,
-                              title: lessonTitle,
-                              type: 'video',
-                              duration: '',
-                              content: '',
-                            }),
-                          ),
-                        }),
-                      );
-                      setCourseData((prev) => ({
-                        ...prev,
-                        sections: generatedSections,
-                      }));
-                      toast.success(
-                        'Course structure generated! You can edit any section.',
-                      );
-                    }}
-                  />
-                )}
-
-              {/* AI Knowledge Gap Detector */}
-              {courseData.sections.length > 0 && (
-                <AIKnowledgeGapDetector
-                  courseData={courseData}
-                  onApplySuggestion={(gapId, suggestion) => {
-                    toast.success(
-                      'Suggestion noted! You can implement it as needed.',
-                    );
-                  }}
-                />
-              )}
+              {/* Info Banner */}
+              <div className='flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4'>
+                <Info className='w-5 h-5 text-blue-500 mt-0.5 shrink-0' />
+                <p className='text-sm text-blue-800'>
+                  <span className='font-semibold'>
+                    You're building the course layout here.
+                  </span>{' '}
+                  Define your sections and lesson titles. After creating the
+                  course, go to{' '}
+                  <span className='font-semibold'>
+                    Edit Course → Curriculum
+                  </span>{' '}
+                  to upload your videos and actual content.
+                </p>
+              </div>
 
               {courseData.sections.map((section, sectionIndex) => (
                 <div
@@ -1524,12 +1358,12 @@ export function CourseCreationWizard({
               </button>
             ) : (
               <button
-                onClick={handlePublish}
-                disabled={isPublishing}
-                className='px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
+                onClick={handleSaveAsDraft}
+                disabled={isSavingDraft}
+                className='px-6 py-3 bg-[#395192] text-white rounded-lg hover:bg-[#2d4178] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
               >
                 <CheckCircle className='w-5 h-5' />
-                {isPublishing ? 'Publishing...' : 'Publish Course'}
+                {isSavingDraft ? 'Creating...' : 'Create Course'}
               </button>
             )}
           </div>

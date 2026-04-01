@@ -12,20 +12,24 @@ import { cn } from '../ui/utils';
 interface CourseCreatorDashboardProps {
   onNavigate: (page: string, data?: any) => void;
   currentPage?: string;
+  initialSelectedCourse?: any;
 }
 
 export function CourseCreatorDashboard({
   onNavigate,
   currentPage = 'creator-dashboard',
+  initialSelectedCourse = null,
 }: CourseCreatorDashboardProps) {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<any>(null);
+  const [selectedCourse, setSelectedCourse] = useState<any>(
+    initialSelectedCourse,
+  );
   const sidebarWidth = useSidebarWidth();
 
   // Reset local UI state whenever the top-level page changes (e.g. sidebar navigation)
   useEffect(() => {
     setShowCreateWizard(false);
-    setSelectedCourse(null);
+    setSelectedCourse(initialSelectedCourse ?? null);
   }, [currentPage]);
 
   // If showing create wizard, render it full-screen
