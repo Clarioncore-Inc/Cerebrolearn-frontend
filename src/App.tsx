@@ -304,7 +304,15 @@ function AppContent() {
           <CourseCreatorDashboard
             onNavigate={handleNavigate}
             currentPage='creator-courses'
-            initialSelectedCourse={pageData?.courseEdit ?? null}
+          />
+        );
+
+      case 'creator-course-edit':
+        return (
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-course-edit'
+            initialSelectedCourse={pageData ?? null}
           />
         );
 
@@ -435,12 +443,10 @@ function AppContent() {
             course={pageData.course}
             onSave={(lesson) => {
               console.log('Lesson saved:', lesson);
-              handleNavigate('creator-courses', {
-                courseEdit: pageData.course,
-              });
+              handleNavigate('creator-course-edit', pageData.course);
             }}
             onCancel={() =>
-              handleNavigate('creator-courses', { courseEdit: pageData.course })
+              handleNavigate('creator-course-edit', pageData.course)
             }
           />
         ) : (

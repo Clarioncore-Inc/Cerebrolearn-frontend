@@ -21,15 +21,11 @@ export function CourseCreatorDashboard({
   initialSelectedCourse = null,
 }: CourseCreatorDashboardProps) {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<any>(
-    initialSelectedCourse,
-  );
   const sidebarWidth = useSidebarWidth();
 
   // Reset local UI state whenever the top-level page changes (e.g. sidebar navigation)
   useEffect(() => {
     setShowCreateWizard(false);
-    setSelectedCourse(initialSelectedCourse ?? null);
   }, [currentPage]);
 
   // If showing create wizard, render it full-screen
@@ -47,9 +43,13 @@ export function CourseCreatorDashboard({
           )}
         >
           <CourseCreationChoice
-            onComplete={(course) => {
+            onSaveDraftComplete={() => {
               setShowCreateWizard(false);
               onNavigate('creator-courses');
+            }}
+            onPublishComplete={(courseData) => {
+              setShowCreateWizard(false);
+              onNavigate('creator-course-edit', courseData);
             }}
             onCancel={() => {
               setShowCreateWizard(false);
@@ -61,12 +61,12 @@ export function CourseCreatorDashboard({
     );
   }
 
-  // If a course is selected for editing, show the Course Management Page
-  if (selectedCourse) {
+  // Dedicated edit-course route — has its own URL (/creator-course-edit)
+  if (currentPage === 'creator-course-edit' && initialSelectedCourse) {
     return (
       <div className='flex'>
         <CourseCreatorSidebar
-          currentPage={currentPage}
+          currentPage='creator-courses'
           onNavigate={onNavigate}
         />
         <div
@@ -76,12 +76,9 @@ export function CourseCreatorDashboard({
           )}
         >
           <CourseManagementPage
-            course={selectedCourse}
+            course={initialSelectedCourse}
             onNavigate={onNavigate}
-            onBack={() => {
-              setSelectedCourse(null);
-              onNavigate('creator-courses');
-            }}
+            onBack={() => onNavigate('creator-courses')}
           />
         </div>
       </div>
@@ -106,7 +103,7 @@ export function CourseCreatorDashboard({
                   if (page === 'creator-create-course') {
                     setShowCreateWizard(true);
                   } else if (page === 'course-edit' && data) {
-                    setSelectedCourse(data);
+                    onNavigate('creator-course-edit', data);
                   } else {
                     onNavigate(page, data);
                   }
@@ -118,7 +115,7 @@ export function CourseCreatorDashboard({
               <MyCoursesPage
                 onNavigate={(page, data) => {
                   if (page === 'course-edit' && data) {
-                    setSelectedCourse(data);
+                    onNavigate('creator-course-edit', data);
                   } else {
                     onNavigate(page, data);
                   }
@@ -129,10 +126,10 @@ export function CourseCreatorDashboard({
 
             {currentPage === 'creator-create-course' && (
               <CourseCreationChoice
-                onComplete={(course) => {
-                  setShowCreateWizard(false);
-                  onNavigate('creator-courses');
-                }}
+                onSaveDraftComplete={() => onNavigate('creator-courses')}
+                onPublishComplete={(courseData) =>
+                  onNavigate('creator-course-edit', courseData)
+                }
                 onCancel={() => onNavigate('creator-courses')}
               />
             )}

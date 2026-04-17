@@ -7,11 +7,16 @@ import { AICourseGenerator } from './AICourseGenerator';
 import { CourseCreationWizard } from './CourseCreationWizard';
 
 interface CourseCreationChoiceProps {
-  onComplete?: (courseData: any) => void;
+  onSaveDraftComplete?: (courseData: any) => void;
+  onPublishComplete?: (courseData: any) => void;
   onCancel?: () => void;
 }
 
-export function CourseCreationChoice({ onComplete, onCancel }: CourseCreationChoiceProps) {
+export function CourseCreationChoice({
+  onSaveDraftComplete,
+  onPublishComplete,
+  onCancel,
+}: CourseCreationChoiceProps) {
   const [creationMode, setCreationMode] = useState<'choice' | 'manual' | 'ai'>('choice');
   const [aiGeneratedData, setAiGeneratedData] = useState<any>(null);
 
@@ -142,7 +147,8 @@ export function CourseCreationChoice({ onComplete, onCancel }: CourseCreationCho
       <div className="max-w-6xl mx-auto px-4">
         <CourseCreationWizard
           initialData={aiGeneratedData}
-          onComplete={onComplete}
+          onSaveDraftComplete={onSaveDraftComplete}
+          onPublishComplete={onPublishComplete}
           onCancel={() => {
             if (aiGeneratedData) {
               // If coming from AI generation, ask for confirmation

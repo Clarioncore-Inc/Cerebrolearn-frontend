@@ -359,6 +359,61 @@ export const adminApi = {
     }),
 };
 
+// ========================================
+// STORAGE API
+// ========================================
+export const storageApi = {
+  start: (data: {
+    file_type: string;
+    filename: string;
+    mime_type: string;
+    create_type: string;
+  }) =>
+    request<{
+      id: string;
+      url: string;
+      fields: Record<string, string>;
+    }>('/storages/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  get: (id: string) =>
+    request<{ id: string; url: string }>(`/storages/${id}`),
+};
+
+// ========================================
+// PSYCHOLOGIST API
+// ========================================
+export const psychologistApi = {
+  register: (data: {
+    email: string;
+    full_name: string;
+    password: string;
+    hourly_rate: number;
+    bio: string;
+    license_number: string;
+    years_of_experience: string;
+    specialization: string;
+    about_you: string;
+    location: string;
+  }) =>
+    request<{ success: boolean }>('/psychologist/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateProfile: (data: {
+    qualifications: string;
+    certifications?: string;
+    is_approved?: boolean;
+  }) =>
+    request<any>('/psychologist/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
 // Export all APIs
 export const api = {
   auth: authApi,
@@ -374,6 +429,8 @@ export const api = {
   organizations: organizationsApi,
   payments: paymentsApi,
   admin: adminApi,
+  psychologist: psychologistApi,
+  storage: storageApi,
 };
 
 export default api;

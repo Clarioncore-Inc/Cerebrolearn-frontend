@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { coursesApi, enrollmentsApi } from '../../utils/api-client';
+import { coursesApi, enrollmentsApi, storageApi } from '../../utils/api-client';
 import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
@@ -57,7 +57,7 @@ interface CourseDetailPageProps {
 }
 
 // Helper to normalise an API course response into the shape this page renders
-function normaliseCourse(data: any) {
+function normaliseCourse(data: any, imageUrl = '') {
   const sections: any[] = data.sections || [];
   const totalLessons = sections.reduce(
     (acc: number, s: any) => acc + (s.lessons?.length || 0),
@@ -82,7 +82,7 @@ function normaliseCourse(data: any) {
     lessons: totalLessons,
     price: parseFloat(data.price) || 0,
     discount: data.discount ? parseFloat(data.discount) : null,
-    image: data.cover_image || '',
+    image: imageUrl,
     instructor: {
       name: 'Course Instructor',
       title: '',
@@ -110,6 +110,34 @@ function normaliseCourse(data: any) {
     })),
     reviews: [],
   };
+}
+
+async function resolveCourseImage(coverImage: any): Promise<string> {
+  if (!coverImage) return '';
+
+  if (typeof coverImage === 'string') {
+    if (/^https?:\/\//i.test(coverImage)) return coverImage;
+    try {
+      const storage = await storageApi.get(coverImage);
+      return storage.url || '';
+    } catch {
+      return '';
+    }
+  }
+
+  if (typeof coverImage === 'object') {
+    if (coverImage.url) return coverImage.url;
+    if (coverImage.id) {
+      try {
+        const storage = await storageApi.get(coverImage.id);
+        return storage.url || '';
+      } catch {
+        return '';
+      }
+    }
+  }
+
+  return '';
 }
 
 const EMPTY_COURSE = {
@@ -166,7 +194,8 @@ export function CourseDetailPage({
       setLoading(true);
       try {
         const data = await coursesApi.getById(courseId);
-        setCourse(normaliseCourse(data));
+        const imageUrl = await resolveCourseImage(data.cover_image);
+        setCourse(normaliseCourse(data, imageUrl));
       } catch (error) {
         console.error('Error loading course:', error);
         toast.error('Failed to load course details');
@@ -371,11 +400,17 @@ export function CourseDetailPage({
             <div>
               <Card className='sticky top-24 border-2 shadow-xl'>
                 <div className='aspect-video relative overflow-hidden'>
-                  <img
-                    src={course.image}
-                    alt={course.title}
-                    className='w-full h-full object-cover'
-                  />
+                  {course.image ? (
+                    <img
+                      src={course.image}
+                      alt={course.title}
+                      className='w-full h-full object-cover'
+                    />
+                  ) : (
+                    <div className='w-full h-full bg-gradient-to-br from-primary/25 to-secondary/20 flex items-center justify-center'>
+                      <BookOpen className='w-16 h-16 text-primary/50' />
+                    </div>
+                  )}
                   <div className='absolute inset-0 bg-black/40 flex items-center justify-center'>
                     <div className='w-20 h-20 rounded-full bg-white/90 flex items-center justify-center hover:scale-110 transition-transform cursor-pointer'>
                       <Play className='w-10 h-10 text-primary ml-1' />

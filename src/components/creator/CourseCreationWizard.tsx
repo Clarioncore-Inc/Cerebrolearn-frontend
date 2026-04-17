@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { coursesApi } from '../../utils/api-client';
+import { coursesApi, storageApi } from '../../utils/api-client';
 import {
   BookOpen,
   Video,
@@ -35,13 +35,15 @@ import { CollaborativePreview } from './CollaborativePreview';
 import { AICourseGenerator } from './AICourseGenerator';
 
 interface CourseCreationWizardProps {
-  onComplete?: (courseData: any) => void;
+  onSaveDraftComplete?: (courseData: any) => void;
+  onPublishComplete?: (courseData: any) => void;
   onCancel?: () => void;
   initialData?: any;
 }
 
 export function CourseCreationWizard({
-  onComplete,
+  onSaveDraftComplete,
+  onPublishComplete,
   onCancel,
   initialData,
 }: CourseCreationWizardProps) {
@@ -54,6 +56,9 @@ export function CourseCreationWizard({
 
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+  // Local object-URL used only for the <img> preview (revoked when cleared)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [courseData, setCourseData] = useState({
     // Step 1: Basic Info
     title: initialData?.title || '',
@@ -64,6 +69,12 @@ export function CourseCreationWizard({
     level: initialData?.level || '',
     language: initialData?.language || 'English',
     thumbnail: initialData?.thumbnail || (null as File | null),
+    // Presigned POST data returned by storages/start — S3 upload happens at save time
+    thumbnailStorage: null as {
+      id: string;
+      url: string;
+      fields: Record<string, string>;
+    } | null,
     previewVideo: initialData?.previewVideo || (null as File | null),
     tags: initialData?.tags || [''], // New: Course tags
 
@@ -151,7 +162,7 @@ export function CourseCreationWizard({
     'image/avif',
   ];
 
-  const handleThumbnailFile = (file: File) => {
+  const handleThumbnailFile = async (file: File) => {
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       toast.error('Please upload a JPEG, PNG, WebP, or AVIF image');
       return;
@@ -160,8 +171,41 @@ export function CourseCreationWizard({
       toast.error('Image must be smaller than 5 MB');
       return;
     }
-    setCourseData((prev) => ({ ...prev, thumbnail: file }));
-    toast.success('Thumbnail uploaded');
+
+    // Revoke any previous preview URL to avoid memory leaks
+    if (thumbnailPreview) URL.revokeObjectURL(thumbnailPreview);
+    const previewUrl = URL.createObjectURL(file);
+    setThumbnailPreview(previewUrl);
+    setCourseData((prev) => ({
+      ...prev,
+      thumbnail: file,
+      thumbnailStorage: null,
+    }));
+    setIsUploadingThumbnail(true);
+
+    try {
+      // Call storages/start — get the presigned S3 details (id, url, fields)
+      // The actual S3 upload happens when the user clicks Save / Publish
+      const storageResult = await storageApi.start({
+        file_type: file.type.split('/')[0], // e.g. "image"
+        filename: file.name,
+        mime_type: file.type,
+        create_type: 'post',
+      });
+      setCourseData((prev) => ({ ...prev, thumbnailStorage: storageResult }));
+    } catch (error) {
+      console.error('Error preparing thumbnail:', error);
+      toast.error('Failed to prepare thumbnail. Please try again.');
+      URL.revokeObjectURL(previewUrl);
+      setThumbnailPreview(null);
+      setCourseData((prev) => ({
+        ...prev,
+        thumbnail: null,
+        thumbnailStorage: null,
+      }));
+    } finally {
+      setIsUploadingThumbnail(false);
+    }
   };
 
   const validateStep = (step: number) => {
@@ -283,7 +327,7 @@ export function CourseCreationWizard({
     }));
   };
 
-  const handleSaveAsDraft = async () => {
+  const handleSubmitCourse = async (mode: 'draft' | 'publish') => {
     // Basic validation - only require title
     if (!courseData.title.trim()) {
       toast.error('Course title is required to save as draft');
@@ -293,6 +337,19 @@ export function CourseCreationWizard({
     setIsSavingDraft(true);
 
     try {
+      // Upload thumbnail to S3 if the user selected one
+      let coverImageId: string | undefined;
+      if (courseData.thumbnail && courseData.thumbnailStorage) {
+        const { id, url, fields } = courseData.thumbnailStorage;
+        const formData = new FormData();
+        Object.entries(fields).forEach(([key, value]) =>
+          formData.append(key, value),
+        );
+        formData.append('file', courseData.thumbnail);
+        await fetch(url, { method: 'POST', body: formData });
+        coverImageId = id;
+      }
+
       const result = await coursesApi.create({
         title: courseData.title,
         sub_title: courseData.subtitle || undefined,
@@ -310,6 +367,7 @@ export function CourseCreationWizard({
           courseData.priceType === 'paid' && courseData.discountPrice
             ? parseFloat(courseData.discountPrice)
             : undefined,
+        cover_image: coverImageId,
         currency: courseData.currency || 'USD',
         estimated_hours: 0,
         tags: courseData.tags.filter((t) => t.trim()),
@@ -341,11 +399,16 @@ export function CourseCreationWizard({
           })),
       });
 
-      toast.success(
-        'Course saved as draft! Go to Edit Course to add your content and publish when ready.',
-        { duration: 6000 },
-      );
-      onComplete?.(result);
+      if (mode === 'draft') {
+        toast.success('Course saved as draft!');
+        onSaveDraftComplete?.(result);
+      } else {
+        toast.success(
+          'Course saved as draft! Please edit the course to add your content and publish when ready.',
+          { duration: 6000 },
+        );
+        onPublishComplete?.(result);
+      }
     } catch (error) {
       console.error('Error saving draft:', error);
       toast.error(
@@ -372,7 +435,7 @@ export function CourseCreationWizard({
           <div className='flex items-center gap-3'>
             <button
               type='button'
-              onClick={handleSaveAsDraft}
+                onClick={() => handleSubmitCourse('draft')}
               disabled={isSavingDraft}
               className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
             >
@@ -595,12 +658,39 @@ export function CourseCreationWizard({
                 <Label className='block text-sm font-medium text-gray-700 mb-2'>
                   Course Thumbnail
                 </Label>
+
+                {/* Preview: show selected image before upload */}
+                {thumbnailPreview && (
+                  <div className='relative mb-3 rounded-[8px] overflow-hidden border border-gray-200 w-full max-w-sm'>
+                    <img
+                      src={thumbnailPreview}
+                      alt='Course thumbnail preview'
+                      className='w-full object-cover aspect-video'
+                    />
+                    <button
+                      type='button'
+                      onClick={() => {
+                        URL.revokeObjectURL(thumbnailPreview);
+                        setThumbnailPreview(null);
+                        setCourseData((prev) => ({
+                          ...prev,
+                          thumbnail: null,
+                          thumbnailStorage: null,
+                        }));
+                      }}
+                      className='absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1'
+                    >
+                      <X className='w-4 h-4' />
+                    </button>
+                  </div>
+                )}
+
                 <div
                   className={`border-2 border-dashed rounded-[8px] p-8 text-center transition-colors ${
                     isDraggingThumbnail
                       ? 'border-[#395192] bg-[#395192]/5'
                       : 'border-gray-300 hover:border-[#395192]'
-                  }`}
+                  } ${isUploadingThumbnail ? 'opacity-60 pointer-events-none' : ''}`}
                   onDragOver={(e) => {
                     e.preventDefault();
                     setIsDraggingThumbnail(true);
@@ -620,32 +710,49 @@ export function CourseCreationWizard({
                     if (file) handleThumbnailFile(file);
                   }}
                 >
-                  <ImageIcon className='w-12 h-12 text-gray-400 mx-auto mb-3' />
-                  <input
-                    type='file'
-                    accept='image/jpeg,image/png,image/webp,image/avif'
-                    onChange={(e) => {
-                      if (e.target.files?.[0])
-                        handleThumbnailFile(e.target.files[0]);
-                    }}
-                    className='hidden'
-                    id='thumbnail-upload'
-                  />
-                  <label htmlFor='thumbnail-upload' className='cursor-pointer'>
-                    <p className='text-gray-700 mb-1'>
-                      <span className='text-[#395192] hover:underline'>
-                        Click to upload
-                      </span>{' '}
-                      or drag and drop
-                    </p>
-                    <p className='text-sm text-gray-500'>
-                      JPEG, PNG, WebP or AVIF · max 5 MB · recommended 1280×720
-                    </p>
-                  </label>
-                  {courseData.thumbnail && (
-                    <p className='mt-2 text-sm text-green-600'>
-                      ✓ {courseData.thumbnail.name}
-                    </p>
+                  {isUploadingThumbnail ? (
+                    <div className='flex flex-col items-center gap-2'>
+                      <div className='animate-spin rounded-full h-10 w-10 border-b-2 border-[#395192]' />
+                      <p className='text-sm text-gray-500'>
+                        Preparing thumbnail…
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <ImageIcon className='w-12 h-12 text-gray-400 mx-auto mb-3' />
+                      <input
+                        type='file'
+                        accept='image/jpeg,image/png,image/webp,image/avif'
+                        onChange={(e) => {
+                          if (e.target.files?.[0])
+                            handleThumbnailFile(e.target.files[0]);
+                        }}
+                        className='hidden'
+                        id='thumbnail-upload'
+                      />
+                      <label
+                        htmlFor='thumbnail-upload'
+                        className='cursor-pointer'
+                      >
+                        <p className='text-gray-700 mb-1'>
+                          <span className='text-[#395192] hover:underline'>
+                            {thumbnailPreview
+                              ? 'Replace image'
+                              : 'Click to upload'}
+                          </span>{' '}
+                          or drag and drop
+                        </p>
+                        <p className='text-sm text-gray-500'>
+                          JPEG, PNG, WebP or AVIF · max 5 MB · recommended
+                          1280×720
+                        </p>
+                      </label>
+                      {courseData.thumbnail && thumbnailPreview && (
+                        <p className='mt-2 text-sm text-green-600'>
+                          ✓ {courseData.thumbnail.name}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -1358,7 +1465,7 @@ export function CourseCreationWizard({
               </button>
             ) : (
               <button
-                onClick={handleSaveAsDraft}
+                onClick={() => handleSubmitCourse('publish')}
                 disabled={isSavingDraft}
                 className='px-6 py-3 bg-[#395192] text-white rounded-lg hover:bg-[#2d4178] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
               >

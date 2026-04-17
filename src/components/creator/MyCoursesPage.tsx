@@ -61,13 +61,60 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { toast } from 'sonner@2.0.3';
-import { creatorApi, coursesApi } from '../../utils/api-client';
+import { creatorApi, coursesApi, storageApi } from '../../utils/api-client';
 import svgPaths from '../../imports/svg-1fzm63qep0';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
 
 interface MyCoursesPageProps {
   onNavigate: (page: string, data?: any) => void;
   onCreateCourse?: () => void;
+}
+
+function hasFilledText(value: any) {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function hasFilledArray(value: any) {
+  return Array.isArray(value) && value.some((item) => `${item ?? ''}`.trim());
+}
+
+function hasCurriculum(course: any) {
+  if (Array.isArray(course.sections) && course.sections.length > 0) {
+    const hasNamedSection = course.sections.some((section: any) =>
+      hasFilledText(section?.title),
+    );
+    const hasLesson = course.sections.some(
+      (section: any) =>
+        Array.isArray(section?.lessons) && section.lessons.length > 0,
+    );
+    return hasNamedSection && hasLesson;
+  }
+
+  return Number(course.lessons || 0) > 0;
+}
+
+function hasPricingConfigured(course: any) {
+  const price = Number(course.price ?? 0);
+  return price === 0 || price > 0;
+}
+
+function calculateCourseSetupCompletion(course: any) {
+  const checks = [
+    hasFilledText(course.title),
+    hasFilledText(course.description),
+    hasFilledText(course.category),
+    hasFilledText(course.level),
+    !!course.cover_image,
+    hasFilledArray(course.course_goals ?? course.courseGoals),
+    hasFilledArray(course.learning_objectives ?? course.learningObjectives),
+    hasFilledArray(course.prerequisites ?? course.requirements),
+    hasFilledText(course.who_this_course_is_for ?? course.targetAudience),
+    hasCurriculum(course),
+    hasPricingConfigured(course),
+  ];
+
+  const completedChecks = checks.filter(Boolean).length;
+  return Math.round((completedChecks / checks.length) * 100);
 }
 
 export function MyCoursesPage({
@@ -99,23 +146,50 @@ export function MyCoursesPage({
       // Normalise API field names to what the UI expects
       const normalised = (data || []).map((c: any) => ({
         ...c,
-        // backend returns total_reviews; UI uses reviews
         reviews: c.reviews ?? c.total_reviews ?? 0,
-        // backend returns public; UI uses is_public (and vice-versa)
         is_public: c.is_public ?? c.public ?? false,
-        // backend returns estimated_hours; UI uses duration string
         duration:
           c.duration ?? (c.estimated_hours ? `${c.estimated_hours}h` : '0h'),
-        // lesson count not returned by /creator/courses — default to 0
         lessons: c.lessons ?? 0,
-        // revenue not returned by this endpoint — default to 0
         revenue: c.revenue ?? 0,
-        // completion % not returned — default to 0
-        completion: c.completion ?? 0,
-        // discount price from API
+        completion:
+          c.status === 'draft'
+            ? calculateCourseSetupCompletion(c)
+            : typeof c.completion === 'number'
+              ? c.completion
+              : 0,
         discount: c.discount ?? null,
+        imageUrl: null as string | null,
       }));
-      setCourses(normalised);
+
+      // Fetch image URLs in parallel for courses that have a cover_image storage ID.
+      // cover_image may be a plain string ID or an object like { id, url, ... }
+      const withImages = await Promise.all(
+        normalised.map(async (course: any) => {
+          if (!course.cover_image) return course;
+
+          const coverImage = course.cover_image;
+
+          // If the object already contains a URL, use it directly
+          if (typeof coverImage === 'object' && coverImage.url) {
+            return { ...course, imageUrl: coverImage.url };
+          }
+
+          // Extract the ID — handle both string and object forms
+          const storageId =
+            typeof coverImage === 'string' ? coverImage : coverImage.id;
+          if (!storageId) return course;
+
+          try {
+            const storage = await storageApi.get(storageId);
+            return { ...course, imageUrl: storage.url };
+          } catch {
+            return course; // silently fall back to gradient if fetch fails
+          }
+        }),
+      );
+
+      setCourses(withImages);
     } catch (error) {
       console.error('Error loading courses:', error);
     } finally {
@@ -377,27 +451,21 @@ export function MyCoursesPage({
                 >
                   {/* Course Image */}
                   <div className='relative h-[200px] overflow-clip'>
-                    <div className='absolute inset-0 bg-gradient-to-br from-primary/40 via-secondary/30 to-primary/20'>
-                      <div className='absolute inset-0 opacity-20'>
-                        <div
-                          className='absolute inset-0'
-                          style={{
-                            backgroundImage:
-                              'radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0)',
-                            backgroundSize: '40px 40px',
-                          }}
-                        ></div>
+                    {course.imageUrl ? (
+                      <img
+                        src={course.imageUrl}
+                        alt={course.title}
+                        className='absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500'
+                      />
+                    ) : (
+                      <div className='absolute inset-0 bg-gradient-to-br from-primary/40 via-secondary/30 to-primary/20'>
+                        <div className='absolute inset-0 flex items-center justify-center'>
+                          <div className='w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300'>
+                            <BookOpen className='h-8 w-8 text-white drop-shadow-lg' />
+                          </div>
+                        </div>
                       </div>
-                      {/* Animated gradient overlay */}
-                      <div className='absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500'></div>
-                    </div>
-
-                    {/* Centered Icon */}
-                    <div className='absolute inset-0 flex items-center justify-center'>
-                      <div className='w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-all duration-300'>
-                        <BookOpen className='h-8 w-8 text-white drop-shadow-lg' />
-                      </div>
-                    </div>
+                    )}
 
                     {/* Status Badge - Top Left */}
                     <div className='absolute top-3 left-3'>
@@ -536,7 +604,7 @@ export function MyCoursesPage({
                       <div className='mb-3 bg-amber-50 rounded-lg p-3 border border-amber-200'>
                         <div className='flex items-center justify-between text-xs mb-1.5'>
                           <span className='font-medium text-amber-700'>
-                            Course Completion
+                            Course Setup Progress
                           </span>
                           <span className='font-bold text-amber-900'>
                             {course.completion || 0}%
@@ -645,8 +713,18 @@ export function MyCoursesPage({
                 >
                   <CardContent className='p-6'>
                     <div className='flex items-center gap-6'>
-                      <div className='w-32 h-32 bg-gradient-to-br from-primary/20 to-secondary/20 rounded-lg flex items-center justify-center flex-shrink-0'>
-                        <BookOpen className='w-12 h-12 text-primary opacity-50' />
+                      <div className='w-32 h-32 rounded-lg flex-shrink-0 overflow-hidden'>
+                        {course.imageUrl ? (
+                          <img
+                            src={course.imageUrl}
+                            alt={course.title}
+                            className='w-full h-full object-cover'
+                          />
+                        ) : (
+                          <div className='w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center'>
+                            <BookOpen className='w-12 h-12 text-primary opacity-50' />
+                          </div>
+                        )}
                       </div>
 
                       <div className='flex-1 min-w-0'>
@@ -757,7 +835,7 @@ export function MyCoursesPage({
                               className='h-2'
                             />
                             <p className='text-xs text-muted-foreground mt-1'>
-                              {course.completion}% complete
+                              {course.completion}% setup complete
                             </p>
                           </div>
                         )}
