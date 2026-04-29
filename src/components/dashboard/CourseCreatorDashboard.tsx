@@ -21,11 +21,13 @@ export function CourseCreatorDashboard({
   initialSelectedCourse = null,
 }: CourseCreatorDashboardProps) {
   const [showCreateWizard, setShowCreateWizard] = useState(false);
+  const [wizardInitialData, setWizardInitialData] = useState<any>(null);
   const sidebarWidth = useSidebarWidth();
 
   // Reset local UI state whenever the top-level page changes (e.g. sidebar navigation)
   useEffect(() => {
     setShowCreateWizard(false);
+    setWizardInitialData(null);
   }, [currentPage]);
 
   // If showing create wizard, render it full-screen
@@ -43,16 +45,20 @@ export function CourseCreatorDashboard({
           )}
         >
           <CourseCreationChoice
+            initialData={wizardInitialData}
             onSaveDraftComplete={() => {
               setShowCreateWizard(false);
+              setWizardInitialData(null);
               onNavigate('creator-courses');
             }}
             onPublishComplete={(courseData) => {
               setShowCreateWizard(false);
+              setWizardInitialData(null);
               onNavigate('creator-course-edit', courseData);
             }}
             onCancel={() => {
               setShowCreateWizard(false);
+              setWizardInitialData(null);
               onNavigate('creator-courses');
             }}
           />
@@ -114,13 +120,19 @@ export function CourseCreatorDashboard({
             {currentPage === 'creator-courses' && (
               <MyCoursesPage
                 onNavigate={(page, data) => {
-                  if (page === 'course-edit' && data) {
+                  if (page === 'course-edit-draft' && data) {
+                    setWizardInitialData(data);
+                    setShowCreateWizard(true);
+                  } else if (page === 'course-edit' && data) {
                     onNavigate('creator-course-edit', data);
                   } else {
                     onNavigate(page, data);
                   }
                 }}
-                onCreateCourse={() => setShowCreateWizard(true)}
+                onCreateCourse={() => {
+                  setWizardInitialData(null);
+                  setShowCreateWizard(true);
+                }}
               />
             )}
 

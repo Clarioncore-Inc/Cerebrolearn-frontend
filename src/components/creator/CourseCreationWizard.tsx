@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { coursesApi, storageApi } from '../../utils/api-client';
+import { coursesApi, storageApi, lessonsApi } from '../../utils/api-client';
 import {
   BookOpen,
   Video,
@@ -16,6 +16,23 @@ import {
   Image as ImageIcon,
   Info,
   ArrowRight,
+  Heading,
+  Type,
+  Trash2,
+  Save,
+  Edit,
+  Heading1,
+  Heading2,
+  Heading3,
+  CheckSquare,
+  AlertCircle,
+  Lightbulb,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Copy,
+  Play,
+  Link2,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
@@ -41,6 +58,114 @@ interface CourseCreationWizardProps {
   initialData?: any;
 }
 
+// ─── helper: map a wizard lesson + its blocks → /lessons/ POST body ──────────
+function buildLessonApiPayload(
+  lesson: any,
+  sectionId: string,
+  position: number,
+) {
+  const blocks: any[] = lesson.blocks || [];
+
+  const blocksOfType = (type: string) => blocks.filter((b) => b.type === type);
+
+  // Determine the primary kind from the lesson's blocks (first block wins)
+  const primaryBlock = blocks[0];
+  const kind: string = primaryBlock?.type ?? lesson.type ?? 'text';
+
+  return {
+    section_id: sectionId,
+    title: lesson.title || 'Untitled Lesson',
+    kind,
+    content: '',
+    position,
+    duration_minutes: lesson.duration
+      ? parseInt(String(lesson.duration), 10) || 0
+      : 0,
+    is_free: false,
+    xp_reward: lesson.xp ?? 100,
+    difficulty: (lesson.difficulty || 'beginner').toLowerCase(),
+
+    heading_content: blocksOfType('heading').map((b, i) => ({
+      position: i,
+      text: b.content.text || '',
+      level: b.content.level || 1,
+    })),
+
+    text_content: blocksOfType('text').map((b, i) => ({
+      position: i,
+      body: b.content.text || '',
+      estimated_read_minutes: 0,
+      attachment_ids: [],
+    })),
+
+    video_content: blocksOfType('video').map((b, i) => ({
+      position: i,
+      external_url: b.content.url || '',
+      duration_seconds: 0,
+      allow_download: true,
+    })),
+
+    image_content: blocksOfType('image').map((b, i) => ({
+      position: i,
+      caption: b.content.caption || '',
+      alt_text: b.content.alt || '',
+    })),
+
+    code_content: blocksOfType('code').map((b, i) => ({
+      position: i,
+      code: b.content.code || '',
+      language: b.content.language || 'javascript',
+      show_line_numbers: true,
+    })),
+
+    hint_content: blocksOfType('hint').map((b, i) => ({
+      position: i,
+      text: b.content.text || '',
+      is_collapsible: true,
+    })),
+
+    callout_content: blocksOfType('callout').map((b, i) => ({
+      position: i,
+      text: b.content.text || '',
+      callout_type: b.content.type || 'info',
+    })),
+
+    quiz_content: blocksOfType('quiz').map((b, i) => ({
+      position: i,
+      passing_score: 70,
+      max_attempts: 3,
+      time_limit_minutes: 0,
+      shuffle_questions: false,
+      show_correct_answers: true,
+      questions: [
+        {
+          position: 0,
+          question_type: b.content.questionType || 'single_choice',
+          text: b.content.question || '',
+          explanation: b.content.explanation || '',
+          points: b.content.points || 1,
+          options: (b.content.options || []).map((opt: string, j: number) => ({
+            text: opt,
+            is_correct: (b.content.correctAnswers || []).includes(j),
+          })),
+        },
+      ],
+    })),
+
+    problem_content: blocksOfType('problem').map((b, i) => ({
+      position: i,
+      statement: b.content.question || '',
+      starter_code: '',
+      solution_code: b.content.solution || '',
+      language: 'python',
+      time_limit_seconds: 30,
+      memory_limit_mb: 256,
+      hints: b.content.hints || [],
+      test_cases: [],
+    })),
+  };
+}
+
 export function CourseCreationWizard({
   onSaveDraftComplete,
   onPublishComplete,
@@ -57,6 +182,13 @@ export function CourseCreationWizard({
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isDraggingThumbnail, setIsDraggingThumbnail] = useState(false);
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
+
+  // Lesson editor modal state
+  const [editingLessonModal, setEditingLessonModal] = useState<{
+    sectionId: string;
+    lesson: any;
+    isNew?: boolean;
+  } | null>(null);
   // Local object-URL used only for the <img> preview (revoked when cleared)
   const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null);
   const [courseData, setCourseData] = useState({
@@ -94,16 +226,7 @@ export function CourseCreationWizard({
         title: '',
         description: '',
         outcome: '',
-        lessons: [
-          {
-            id: '1',
-            title: '',
-            type: 'video',
-            duration: '',
-            content: '',
-            order: 1,
-          },
-        ],
+        lessons: [],
         order: 1,
       },
     ],
@@ -111,9 +234,7 @@ export function CourseCreationWizard({
       {
         id: '1',
         title: '',
-        lessons: [
-          { id: '1', title: '', type: 'video', duration: '', content: '' },
-        ],
+        lessons: [],
       },
     ],
     assessments: initialData?.assessments || [], // New: Course-level assessments
@@ -131,6 +252,19 @@ export function CourseCreationWizard({
     enableDiscussions: initialData?.enableDiscussions || true,
     maxStudents: initialData?.maxStudents || '',
   });
+
+  const [collaborators, setCollaborators] = useState<
+    Array<{ email: string; role: string }>
+  >(
+    Array.isArray(initialData?.collaborators)
+      ? initialData.collaborators
+          .map((c: any) => ({
+            email: c.user?.email ?? c.email ?? '',
+            role: c.role,
+          }))
+          .filter((c: { email: string }) => c.email)
+      : [],
+  );
 
   const steps = [
     { id: 1, name: 'Basic Info', icon: BookOpen },
@@ -283,7 +417,20 @@ export function CourseCreationWizard({
     }));
   };
 
-  const addLesson = (sectionId: string) => {
+  // Track which lessons are expanded to show content blocks
+  const [expandedLessons, setExpandedLessons] = useState<Set<string>>(
+    new Set(),
+  );
+  const toggleLessonExpand = (lessonId: string) =>
+    setExpandedLessons((prev) => {
+      const next = new Set(prev);
+      next.has(lessonId) ? next.delete(lessonId) : next.add(lessonId);
+      return next;
+    });
+
+  const addLesson = (sectionId: string, type = 'video') => {
+    const newId = Date.now().toString();
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
     setCourseData((prev) => ({
       ...prev,
       sections: prev.sections.map((section) =>
@@ -293,15 +440,105 @@ export function CourseCreationWizard({
               lessons: [
                 ...section.lessons,
                 {
-                  id: Date.now().toString(),
-                  title: '',
-                  type: 'video',
+                  id: newId,
+                  title: `New ${label} Lesson`,
+                  type,
                   duration: '',
                   content: '',
+                  blocks: [] as { id: string; type: string; content: string }[],
                 },
               ],
             }
           : section,
+      ),
+    }));
+    // Auto-expand the new lesson so user can start editing
+    setExpandedLessons((prev) => new Set(prev).add(newId));
+  };
+
+  const addBlockToLesson = (
+    sectionId: string,
+    lessonId: string,
+    blockType: string,
+  ) => {
+    setCourseData((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              lessons: s.lessons.map((l: any) =>
+                l.id === lessonId
+                  ? {
+                      ...l,
+                      blocks: [
+                        ...(l.blocks || []),
+                        {
+                          id: Date.now().toString(),
+                          type: blockType,
+                          content: '',
+                        },
+                      ],
+                    }
+                  : l,
+              ),
+            }
+          : s,
+      ),
+    }));
+  };
+
+  const updateLessonBlock = (
+    sectionId: string,
+    lessonId: string,
+    blockId: string,
+    content: string,
+  ) => {
+    setCourseData((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              lessons: s.lessons.map((l: any) =>
+                l.id === lessonId
+                  ? {
+                      ...l,
+                      blocks: (l.blocks || []).map((b: any) =>
+                        b.id === blockId ? { ...b, content } : b,
+                      ),
+                    }
+                  : l,
+              ),
+            }
+          : s,
+      ),
+    }));
+  };
+
+  const removeLessonBlock = (
+    sectionId: string,
+    lessonId: string,
+    blockId: string,
+  ) => {
+    setCourseData((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              lessons: s.lessons.map((l: any) =>
+                l.id === lessonId
+                  ? {
+                      ...l,
+                      blocks: (l.blocks || []).filter(
+                        (b: any) => b.id !== blockId,
+                      ),
+                    }
+                  : l,
+              ),
+            }
+          : s,
       ),
     }));
   };
@@ -325,6 +562,29 @@ export function CourseCreationWizard({
           : section,
       ),
     }));
+  };
+
+  // Save changes from the lesson editor modal back into wizard state
+  const saveLessonFromModal = (updatedLesson: any) => {
+    if (!editingLessonModal) return;
+    const { sectionId, isNew } = editingLessonModal;
+    setCourseData((prev) => ({
+      ...prev,
+      sections: prev.sections.map((s: any) =>
+        s.id === sectionId
+          ? {
+              ...s,
+              lessons: isNew
+                ? [...s.lessons, { ...updatedLesson }]
+                : s.lessons.map((l: any) =>
+                    l.id === updatedLesson.id ? { ...l, ...updatedLesson } : l,
+                  ),
+            }
+          : s,
+      ),
+    }));
+    setEditingLessonModal(null);
+    toast.success(isNew ? 'Lesson added' : 'Lesson updated');
   };
 
   const handleSubmitCourse = async (mode: 'draft' | 'publish') => {
@@ -384,20 +644,39 @@ export function CourseCreationWizard({
         maximum_students: courseData.maxStudents
           ? parseInt(courseData.maxStudents)
           : 0,
+        collaborators: collaborators,
         sections: courseData.sections
-          .filter((s) => s.title.trim())
-          .map((s) => ({
-            title: s.title,
-            lessons: s.lessons
-              .filter((l) => l.title.trim())
-              .map((l) => ({
-                title: l.title,
-                type: l.type || 'video',
-                duration: l.duration || '',
-                content: l.content || '',
-              })),
-          })),
+          .filter((s: any) => s.title.trim())
+          .map((s: any) => ({ title: s.title })),
       });
+
+      // ── Create lessons for each section ──────────────────────────
+      // The bulk response includes the created sections in order.
+      const createdSections: any[] = (result as any).sections ?? [];
+
+      if (createdSections.length > 0) {
+        const filteredSections = courseData.sections.filter((s: any) =>
+          s.title.trim(),
+        );
+
+        for (let si = 0; si < filteredSections.length; si++) {
+          const wizardSection = filteredSections[si];
+          const backendSection = createdSections[si];
+          if (!backendSection?.id) continue;
+
+          const lessonsToCreate = wizardSection.lessons.filter((l: any) =>
+            l.title?.trim(),
+          );
+
+          await Promise.all(
+            lessonsToCreate.map((lesson: any, li: number) =>
+              lessonsApi.create(
+                buildLessonApiPayload(lesson, backendSection.id, li),
+              ),
+            ),
+          );
+        }
+      }
 
       if (mode === 'draft') {
         toast.success('Course saved as draft!');
@@ -435,7 +714,7 @@ export function CourseCreationWizard({
           <div className='flex items-center gap-3'>
             <button
               type='button'
-                onClick={() => handleSubmitCourse('draft')}
+              onClick={() => handleSubmitCourse('draft')}
               disabled={isSavingDraft}
               className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
             >
@@ -769,7 +1048,7 @@ export function CourseCreationWizard({
               {/* Course Goals */}
               <div>
                 <Label className='block text-sm font-medium text-gray-700 mb-2'>
-                  Course Goals (High-Level Outcomes)
+                  Course Goals (High-Level Outcomes) *
                 </Label>
                 <p className='text-sm text-gray-500 mb-3'>
                   What will learners be able to do by the end of this course?
@@ -967,22 +1246,6 @@ export function CourseCreationWizard({
                 </button>
               </div>
 
-              {/* Info Banner */}
-              <div className='flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-lg p-4'>
-                <Info className='w-5 h-5 text-blue-500 mt-0.5 shrink-0' />
-                <p className='text-sm text-blue-800'>
-                  <span className='font-semibold'>
-                    You're building the course layout here.
-                  </span>{' '}
-                  Define your sections and lesson titles. After creating the
-                  course, go to{' '}
-                  <span className='font-semibold'>
-                    Edit Course → Curriculum
-                  </span>{' '}
-                  to upload your videos and actual content.
-                </p>
-              </div>
-
               {courseData.sections.map((section, sectionIndex) => (
                 <div
                   key={section.id}
@@ -1016,99 +1279,272 @@ export function CourseCreationWizard({
                   </div>
 
                   {/* Lessons */}
-                  <div className='ml-9 space-y-3'>
-                    {section.lessons.map((lesson, lessonIndex) => (
-                      <div
-                        key={lesson.id}
-                        className='flex items-center gap-3 bg-gray-50 p-3 rounded-[8px]'
-                      >
-                        <GripVertical className='w-4 h-4 text-gray-400 cursor-move' />
-                        <Input
-                          type='text'
-                          value={lesson.title}
-                          onChange={(e) => {
-                            setCourseData((prev) => ({
-                              ...prev,
-                              sections: prev.sections.map((s) =>
-                                s.id === section.id
-                                  ? {
-                                      ...s,
-                                      lessons: s.lessons.map((l) =>
-                                        l.id === lesson.id
-                                          ? { ...l, title: e.target.value }
-                                          : l,
-                                      ),
-                                    }
-                                  : s,
-                              ),
-                            }));
-                          }}
-                          placeholder={`Lesson ${lessonIndex + 1} Title`}
-                          className='flex-1'
-                        />
-                        <Select
-                          value={lesson.type}
-                          onValueChange={(e) => {
-                            setCourseData((prev) => ({
-                              ...prev,
-                              sections: prev.sections.map((sec) =>
-                                sec.id === section.id
-                                  ? {
-                                      ...sec,
-                                      lessons: sec.lessons.map((l) =>
-                                        l.id === lesson.id
-                                          ? { ...l, type: e }
-                                          : l,
-                                      ),
-                                    }
-                                  : sec,
-                              ),
-                            }));
-                          }}
+                  <div className='ml-9 space-y-2'>
+                    {section.lessons.map((lesson: any) => {
+                      const blocks: any[] = lesson.blocks || [];
+
+                      return (
+                        <div
+                          key={lesson.id}
+                          className='rounded-lg border border-gray-200 bg-white'
                         >
-                          <SelectTrigger className='w-[150px]'>
-                            <SelectValue placeholder='Content Type' />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value='video'>Video</SelectItem>
-                            <SelectItem value='text'>Text</SelectItem>
-                            <SelectItem value='quiz'>Quiz</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          type='text'
-                          value={lesson.duration}
-                          onChange={(e) => {
-                            setCourseData((prev) => ({
-                              ...prev,
-                              sections: prev.sections.map((s) =>
-                                s.id === section.id
-                                  ? {
-                                      ...s,
-                                      lessons: s.lessons.map((l) =>
-                                        l.id === lesson.id
-                                          ? { ...l, duration: e.target.value }
-                                          : l,
+                          {/* Compact lesson row */}
+                          <div className='flex items-center gap-3 p-3 group'>
+                            <GripVertical className='w-4 h-4 text-gray-400 cursor-move' />
+                            <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-[#395192]/10 text-[#395192]'>
+                              <BookOpen className='w-4 h-4' />
+                            </div>
+                            <div className='flex-1 min-w-0'>
+                              <p className='font-medium truncate text-sm'>
+                                {lesson.title || 'Untitled Lesson'}
+                              </p>
+                              {lesson.duration && (
+                                <p className='text-xs text-gray-500'>
+                                  {lesson.duration}
+                                </p>
+                              )}
+                            </div>
+                            <div className='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  setEditingLessonModal({
+                                    sectionId: section.id,
+                                    lesson,
+                                  })
+                                }
+                                className='p-1.5 rounded hover:bg-gray-100 text-gray-500'
+                                title='Edit lesson'
+                              >
+                                <Edit className='w-4 h-4' />
+                              </button>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  removeLesson(section.id, lesson.id)
+                                }
+                                className='p-1.5 rounded hover:bg-red-50 text-red-500'
+                                title='Delete'
+                              >
+                                <Trash2 className='w-4 h-4' />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Expanded editor — now handled by WizardLessonModal */}
+                          {false && (
+                            <div className='px-4 pb-4 pt-2 border-t border-gray-100 space-y-3'>
+                              {/* Title + type + duration row */}
+                              <div className='flex gap-3'>
+                                <Input
+                                  value={lesson.title}
+                                  onChange={(e) => {
+                                    setCourseData((prev) => ({
+                                      ...prev,
+                                      sections: prev.sections.map((s: any) =>
+                                        s.id === section.id
+                                          ? {
+                                              ...s,
+                                              lessons: s.lessons.map(
+                                                (l: any) =>
+                                                  l.id === lesson.id
+                                                    ? {
+                                                        ...l,
+                                                        title: e.target.value,
+                                                      }
+                                                    : l,
+                                              ),
+                                            }
+                                          : s,
                                       ),
+                                    }));
+                                  }}
+                                  placeholder='Lesson title'
+                                  className='flex-1'
+                                />
+                                <Input
+                                  value={lesson.duration}
+                                  onChange={(e) => {
+                                    setCourseData((prev) => ({
+                                      ...prev,
+                                      sections: prev.sections.map((s: any) =>
+                                        s.id === section.id
+                                          ? {
+                                              ...s,
+                                              lessons: s.lessons.map(
+                                                (l: any) =>
+                                                  l.id === lesson.id
+                                                    ? {
+                                                        ...l,
+                                                        duration:
+                                                          e.target.value,
+                                                      }
+                                                    : l,
+                                              ),
+                                            }
+                                          : s,
+                                      ),
+                                    }));
+                                  }}
+                                  placeholder='Duration (e.g. 10 min)'
+                                  className='w-36'
+                                />
+                              </div>
+
+                              {/* Content blocks */}
+                              {blocks.map((block: any) => (
+                                <div
+                                  key={block.id}
+                                  className='flex items-start gap-2'
+                                >
+                                  <div className='mt-2 shrink-0'>
+                                    {block.type === 'heading' && (
+                                      <Heading className='w-4 h-4 text-purple-500' />
+                                    )}
+                                    {block.type === 'text' && (
+                                      <Type className='w-4 h-4 text-blue-500' />
+                                    )}
+                                    {block.type === 'video' && (
+                                      <Video className='w-4 h-4 text-red-500' />
+                                    )}
+                                    {block.type === 'code' && (
+                                      <Code className='w-4 h-4 text-green-500' />
+                                    )}
+                                  </div>
+                                  {block.type === 'heading' ? (
+                                    <Input
+                                      value={block.content}
+                                      onChange={(e) =>
+                                        updateLessonBlock(
+                                          section.id,
+                                          lesson.id,
+                                          block.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder='Heading text…'
+                                      className='flex-1 font-semibold'
+                                    />
+                                  ) : block.type === 'text' ? (
+                                    <textarea
+                                      value={block.content}
+                                      onChange={(e) =>
+                                        updateLessonBlock(
+                                          section.id,
+                                          lesson.id,
+                                          block.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder='Write your content…'
+                                      rows={3}
+                                      className='flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                                    />
+                                  ) : block.type === 'video' ? (
+                                    <Input
+                                      value={block.content}
+                                      onChange={(e) =>
+                                        updateLessonBlock(
+                                          section.id,
+                                          lesson.id,
+                                          block.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder='Video URL (YouTube, Vimeo, etc.)'
+                                      className='flex-1'
+                                    />
+                                  ) : block.type === 'code' ? (
+                                    <textarea
+                                      value={block.content}
+                                      onChange={(e) =>
+                                        updateLessonBlock(
+                                          section.id,
+                                          lesson.id,
+                                          block.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      placeholder='// Enter your code…'
+                                      rows={4}
+                                      className='flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono resize-y bg-gray-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                                    />
+                                  ) : null}
+                                  <button
+                                    type='button'
+                                    onClick={() =>
+                                      removeLessonBlock(
+                                        section.id,
+                                        lesson.id,
+                                        block.id,
+                                      )
                                     }
-                                  : s,
-                              ),
-                            }));
-                          }}
-                          placeholder='Duration'
-                          className='w-24'
-                        />
-                        <button
-                          onClick={() => removeLesson(section.id, lesson.id)}
-                          className='p-2 text-red-600 hover:bg-red-100 rounded'
-                        >
-                          <X className='w-4 h-4' />
-                        </button>
-                      </div>
-                    ))}
+                                    className='mt-2 p-1 text-gray-400 hover:text-red-500 rounded'
+                                  >
+                                    <Trash2 className='w-3.5 h-3.5' />
+                                  </button>
+                                </div>
+                              ))}
+
+                              {/* Add block buttons */}
+                              <div className='flex items-center gap-2 pt-1'>
+                                <span className='text-xs text-gray-400 mr-1'>
+                                  Add:
+                                </span>
+                                {[
+                                  {
+                                    type: 'heading',
+                                    icon: Heading,
+                                    label: 'Heading',
+                                  },
+                                  { type: 'text', icon: Type, label: 'Text' },
+                                  {
+                                    type: 'video',
+                                    icon: Video,
+                                    label: 'Video',
+                                  },
+                                  { type: 'code', icon: Code, label: 'Code' },
+                                ].map((b) => (
+                                  <button
+                                    key={b.type}
+                                    type='button'
+                                    onClick={() =>
+                                      addBlockToLesson(
+                                        section.id,
+                                        lesson.id,
+                                        b.type,
+                                      )
+                                    }
+                                    className='flex items-center gap-1 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition-colors'
+                                  >
+                                    <b.icon className='w-3 h-3' />
+                                    {b.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {/* Add Lesson button */}
                     <button
-                      onClick={() => addLesson(section.id)}
-                      className='flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-[8px] hover:bg-gray-50 w-full'
+                      type='button'
+                      onClick={() => {
+                        setEditingLessonModal({
+                          sectionId: section.id,
+                          isNew: true,
+                          lesson: {
+                            id: Date.now().toString(),
+                            title: '',
+                            type: 'video',
+                            duration: '',
+                            blocks: [],
+                          },
+                        });
+                      }}
+                      className='flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
                     >
                       <Plus className='w-4 h-4' />
                       Add Lesson
@@ -1283,6 +1719,8 @@ export function CourseCreationWizard({
               {/* Collaboration Panel */}
               <CollaborationPanel
                 isOwner={true}
+                initialCollaborators={collaborators}
+                onCollaboratorsChange={setCollaborators}
                 onAddCollaborator={(collab) => {
                   toast.success(`${collab.name} added as ${collab.role}`);
                 }}
@@ -1473,6 +1911,1290 @@ export function CourseCreationWizard({
                 {isSavingDraft ? 'Creating...' : 'Create Course'}
               </button>
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Lesson Editor Modal ─────────────────────────────────── */}
+      {editingLessonModal && (
+        <WizardLessonModal
+          lesson={editingLessonModal.lesson}
+          isNew={editingLessonModal.isNew}
+          onSave={saveLessonFromModal}
+          onClose={() => setEditingLessonModal(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Inline lesson editor modal — full LessonEditor experience but
+   saves locally (no backend calls) since the course is not yet created.
+   ══════════════════════════════════════════════════════════════════ */
+interface WizardLessonModalProps {
+  lesson: any;
+  isNew?: boolean;
+  onSave: (lesson: any) => void;
+  onClose: () => void;
+}
+
+function WizardLessonModal({
+  lesson,
+  isNew = false,
+  onSave,
+  onClose,
+}: WizardLessonModalProps) {
+  type BlockType =
+    | 'heading'
+    | 'text'
+    | 'image'
+    | 'video'
+    | 'code'
+    | 'quiz'
+    | 'hint'
+    | 'callout'
+    | 'problem';
+
+  interface Block {
+    id: string;
+    type: BlockType;
+    content: any;
+    order: number;
+  }
+
+  const [title, setTitle] = useState<string>(lesson?.title || '');
+  const [duration, setDuration] = useState<string>(lesson?.duration || '');
+  const [xp, setXp] = useState<number>(lesson?.xp ?? 100);
+  const [difficulty, setDifficulty] = useState<string>(
+    lesson?.difficulty || 'Beginner',
+  );
+  const [activeView, setActiveView] = useState<'edit' | 'preview'>('edit');
+  const [blocks, setBlocks] = useState<Block[]>(
+    lesson?.blocks?.length
+      ? lesson.blocks
+      : [
+          {
+            id: '1',
+            type: 'heading',
+            content: { text: '', level: 1 },
+            order: 1,
+          },
+          { id: '2', type: 'text', content: { text: '' }, order: 2 },
+        ],
+  );
+
+  // Video upload state
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoStorage, setVideoStorage] = useState<{
+    id: string;
+    url: string;
+    fields: Record<string, string>;
+  } | null>(null);
+  const [isPreparingVideo, setIsPreparingVideo] = useState(false);
+
+  // Image upload state
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageStorage, setImageStorage] = useState<{
+    id: string;
+    url: string;
+    fields: Record<string, string>;
+  } | null>(null);
+  const [isPreparingImage, setIsPreparingImage] = useState(false);
+  const [currentImageBlockId, setCurrentImageBlockId] = useState<string | null>(
+    null,
+  );
+
+  /* ── block helpers ─────────────────────────────────────────────── */
+  const getDefaultContent = (type: BlockType) => {
+    switch (type) {
+      case 'heading':
+        return { text: '', level: 2 };
+      case 'text':
+        return { text: '' };
+      case 'image':
+        return {
+          url: '',
+          alt: '',
+          caption: '',
+          imageId: '',
+          uploadedImageUrl: '',
+          imageFileName: '',
+        };
+      case 'video':
+        return {
+          url: '',
+          title: '',
+          videoFileName: '',
+          videoReady: false,
+          videoId: '',
+          uploadedVideoUrl: '',
+        };
+      case 'code':
+        return { code: '// Write your code here', language: 'javascript' };
+      case 'quiz':
+        return {
+          questionType: 'single_choice', // single_choice or multiple_choice
+          question: '',
+          options: ['Option 1', 'Option 2', 'Option 3', 'Option 4'],
+          correctAnswers: [], // Array of indices for correct answers (supports multiple)
+          points: 1,
+          mandatory: true,
+          explanation: '',
+        };
+      case 'hint':
+        return { text: 'Hint text' };
+      case 'callout':
+        return { text: 'Important note', type: 'info' };
+      case 'problem':
+        return {
+          question: 'Problem statement',
+          steps: ['Step 1', 'Step 2'],
+          solution: '',
+          hints: [],
+        };
+      default:
+        return {};
+    }
+  };
+
+  const handleVideoFile = async (file: File, blockId: string) => {
+    if (!file.type.startsWith('video/')) {
+      toast.error('Please upload a valid video file (MP4, WebM, MOV, AVI)');
+      return;
+    }
+    setVideoFile(file);
+    setVideoStorage(null);
+    setIsPreparingVideo(true);
+    try {
+      const result = await storageApi.start({
+        file_type: 'video',
+        filename: file.name,
+        mime_type: file.type,
+        create_type: 'post',
+      });
+      setVideoStorage(result);
+
+      // Update block with video info
+      updateBlock(blockId, {
+        url: '',
+        title: '',
+        videoFileName: file.name,
+        videoReady: true,
+        videoId: result.id,
+        uploadedVideoUrl: URL.createObjectURL(file),
+      });
+
+      toast.success(
+        'Video ready! It will be uploaded when you save the lesson.',
+      );
+    } catch (err) {
+      console.error('Error preparing video upload:', err);
+      toast.error('Failed to prepare video upload. Please try again.');
+      setVideoFile(null);
+    } finally {
+      setIsPreparingVideo(false);
+    }
+  };
+
+  const handleImageFile = async (file: File, blockId: string) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, GIF, WebP)');
+      return;
+    }
+    setImageFile(file);
+    setImageStorage(null);
+    setCurrentImageBlockId(blockId);
+    setIsPreparingImage(true);
+    try {
+      const result = await storageApi.start({
+        file_type: 'image',
+        filename: file.name,
+        mime_type: file.type,
+        create_type: 'post',
+      });
+      setImageStorage(result);
+
+      // Create a preview URL
+      const previewUrl = URL.createObjectURL(file);
+
+      // Update the block with image info
+      updateBlock(blockId, {
+        url: '',
+        alt: '',
+        caption: '',
+        imageId: result.id,
+        uploadedImageUrl: previewUrl,
+        imageFileName: file.name,
+      });
+
+      toast.success(
+        'Image ready! It will be uploaded when you save the lesson.',
+      );
+    } catch (err) {
+      console.error('Error preparing image upload:', err);
+      toast.error('Failed to prepare image. Please try again.');
+      setImageFile(null);
+    } finally {
+      setIsPreparingImage(false);
+      setCurrentImageBlockId(null);
+    }
+  };
+
+  const addBlock = (type: BlockType) => {
+    setBlocks((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        type,
+        order: prev.length + 1,
+        content: getDefaultContent(type),
+      },
+    ]);
+  };
+
+  const updateBlock = (id: string, content: any) =>
+    setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, content } : b)));
+
+  const deleteBlock = (id: string) =>
+    setBlocks((prev) => prev.filter((b) => b.id !== id));
+
+  const moveBlock = (id: string, dir: 'up' | 'down') => {
+    const idx = blocks.findIndex((b) => b.id === id);
+    if (idx === -1) return;
+    if (dir === 'up' && idx === 0) return;
+    if (dir === 'down' && idx === blocks.length - 1) return;
+    const next = [...blocks];
+    const target = dir === 'up' ? idx - 1 : idx + 1;
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setBlocks(next.map((b, i) => ({ ...b, order: i + 1 })));
+  };
+
+  const duplicateBlock = (id: string) => {
+    const block = blocks.find((b) => b.id === id);
+    if (!block) return;
+    setBlocks((prev) => [
+      ...prev,
+      { ...block, id: Date.now().toString(), order: prev.length + 1 },
+    ]);
+  };
+
+  const getBlockIcon = (type: BlockType, level?: number) => {
+    switch (type) {
+      case 'heading':
+        return level === 3 ? (
+          <Heading3 className='w-4 h-4' />
+        ) : level === 2 ? (
+          <Heading2 className='w-4 h-4' />
+        ) : (
+          <Heading1 className='w-4 h-4' />
+        );
+      case 'text':
+        return <Type className='w-4 h-4' />;
+      case 'image':
+        return <ImageIcon className='w-4 h-4' />;
+      case 'video':
+        return <Video className='w-4 h-4' />;
+      case 'code':
+        return <Code className='w-4 h-4' />;
+      case 'quiz':
+        return <CheckSquare className='w-4 h-4' />;
+      case 'hint':
+        return <Lightbulb className='w-4 h-4' />;
+      case 'callout':
+        return <AlertCircle className='w-4 h-4' />;
+      case 'problem':
+        return <Calculator className='w-4 h-4' />;
+      default:
+        return <FileText className='w-4 h-4' />;
+    }
+  };
+
+  /* ── block editor renderer ─────────────────────────────────────── */
+  const renderBlockEditor = (block: Block) => {
+    switch (block.type) {
+      case 'heading':
+        return (
+          <div className='space-y-3'>
+            <div className='flex gap-2'>
+              {[1, 2, 3].map((lvl) => (
+                <button
+                  key={lvl}
+                  type='button'
+                  onClick={() =>
+                    updateBlock(block.id, { ...block.content, level: lvl })
+                  }
+                  className={`px-3 py-1 rounded border text-sm font-bold ${block.content.level === lvl ? 'bg-[#395192] text-white border-[#395192]' : 'border-gray-300 hover:bg-gray-50'}`}
+                >
+                  H{lvl}
+                </button>
+              ))}
+            </div>
+            <input
+              value={block.content.text}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  text: e.target.value,
+                })
+              }
+              className='w-full px-3 py-2 border rounded-md text-xl font-bold focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              placeholder='Heading text'
+            />
+          </div>
+        );
+
+      case 'text':
+        return (
+          <textarea
+            value={block.content.text}
+            onChange={(e) =>
+              updateBlock(block.id, { ...block.content, text: e.target.value })
+            }
+            rows={5}
+            className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+            placeholder='Write your content here…'
+          />
+        );
+
+      case 'image':
+        return (
+          <div className='space-y-3'>
+            {/* Show uploaded image preview */}
+            {block.content.uploadedImageUrl && (
+              <div className='space-y-3'>
+                <div className='relative rounded-lg overflow-hidden border'>
+                  <img
+                    src={block.content.uploadedImageUrl}
+                    alt={block.content.alt || 'Uploaded image'}
+                    className='w-full object-cover'
+                  />
+                </div>
+                <div className='flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg'>
+                  <ImageIcon className='w-5 h-5 text-green-600 shrink-0' />
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-sm text-green-700 truncate'>
+                      {block.content.imageFileName}
+                    </p>
+                    <p className='text-xs text-green-600 mt-0.5'>
+                      ✓ Ready to upload
+                    </p>
+                  </div>
+                  <button
+                    type='button'
+                    title='Remove image'
+                    onClick={() => {
+                      updateBlock(block.id, {
+                        url: '',
+                        alt: '',
+                        caption: '',
+                        imageId: '',
+                        uploadedImageUrl: '',
+                        imageFileName: '',
+                      });
+                    }}
+                    className='text-gray-400 hover:text-gray-600'
+                  >
+                    <X className='w-4 h-4' />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Upload button */}
+            {!block.content.uploadedImageUrl && (
+              <div
+                className='border-2 border-dashed rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer'
+                onClick={() =>
+                  document.getElementById(`image-upload-${block.id}`)?.click()
+                }
+              >
+                {isPreparingImage && currentImageBlockId === block.id ? (
+                  <div className='flex flex-col items-center gap-2'>
+                    <div className='h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent' />
+                    <p className='text-sm text-muted-foreground'>
+                      Preparing image...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className='w-8 h-8 mx-auto mb-1 text-gray-400' />
+                    <p className='text-sm text-gray-600'>
+                      Click to upload image
+                    </p>
+                    <p className='text-xs text-gray-400 mt-1'>
+                      PNG, JPG, GIF, WebP up to 10MB
+                    </p>
+                  </>
+                )}
+                <input
+                  id={`image-upload-${block.id}`}
+                  type='file'
+                  accept='image/*'
+                  className='hidden'
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleImageFile(file, block.id);
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Divider */}
+            {!block.content.uploadedImageUrl && (
+              <div className='relative'>
+                <div className='absolute inset-0 flex items-center'>
+                  <div className='w-full border-t' />
+                </div>
+                <div className='relative flex justify-center text-xs uppercase'>
+                  <span className='bg-white px-2 text-gray-400'>or</span>
+                </div>
+              </div>
+            )}
+
+            {/* External URL */}
+            {!block.content.uploadedImageUrl && (
+              <input
+                value={block.content.url}
+                onChange={(e) =>
+                  updateBlock(block.id, {
+                    ...block.content,
+                    url: e.target.value,
+                  })
+                }
+                className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                placeholder='https://example.com/image.jpg'
+              />
+            )}
+
+            {/* Alt text and Caption */}
+            <input
+              value={block.content.alt}
+              onChange={(e) =>
+                updateBlock(block.id, { ...block.content, alt: e.target.value })
+              }
+              className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              placeholder='Alt text (for accessibility)'
+            />
+            <input
+              value={block.content.caption}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  caption: e.target.value,
+                })
+              }
+              className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              placeholder='Caption'
+            />
+          </div>
+        );
+
+      case 'video':
+        return (
+          <div className='space-y-4'>
+            {/* Uploaded video preview */}
+            {block.content.videoFileName ? (
+              <div className='space-y-3'>
+                <div className='flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg'>
+                  <Video className='w-5 h-5 text-green-600 shrink-0' />
+                  <div className='flex-1 min-w-0'>
+                    <p className='text-sm text-green-700 truncate'>
+                      {block.content.videoFileName}
+                    </p>
+                    <p className='text-xs text-green-600 mt-0.5'>
+                      ✓ Ready to upload
+                    </p>
+                  </div>
+                  {isPreparingVideo && (
+                    <div className='flex items-center gap-1 text-xs text-muted-foreground'>
+                      <div className='h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent' />
+                      Preparing…
+                    </div>
+                  )}
+                  <button
+                    type='button'
+                    title='Remove video'
+                    onClick={() => {
+                      setVideoFile(null);
+                      setVideoStorage(null);
+                      updateBlock(block.id, {
+                        url: '',
+                        title: '',
+                        videoFileName: '',
+                        videoReady: false,
+                        videoId: '',
+                        uploadedVideoUrl: '',
+                      });
+                    }}
+                    className='text-gray-400 hover:text-gray-600'
+                  >
+                    <X className='w-4 h-4' />
+                  </button>
+                </div>
+
+                {/* Video preview if available */}
+                {block.content.uploadedVideoUrl && (
+                  <div className='relative aspect-video bg-black rounded-lg overflow-hidden'>
+                    <video
+                      src={block.content.uploadedVideoUrl}
+                      controls
+                      className='w-full h-full'
+                    >
+                      Your browser does not support the video tag.
+                    </video>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                className='border-2 border-dashed rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer'
+                onClick={() =>
+                  document.getElementById(`video-upload-${block.id}`)?.click()
+                }
+              >
+                <Upload className='w-8 h-8 mx-auto mb-1 text-gray-400' />
+                <p className='text-sm text-gray-600'>Click to upload a video</p>
+                <p className='text-xs text-gray-400 mt-1'>
+                  MP4, WebM, MOV, AVI
+                </p>
+                <input
+                  id={`video-upload-${block.id}`}
+                  type='file'
+                  accept='video/*'
+                  className='hidden'
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleVideoFile(file, block.id);
+                    }
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Divider */}
+            <div className='relative'>
+              <div className='absolute inset-0 flex items-center'>
+                <div className='w-full border-t' />
+              </div>
+              <div className='relative flex justify-center text-xs uppercase'>
+                <span className='bg-white px-2 text-gray-400'>or</span>
+              </div>
+            </div>
+
+            {/* External URL */}
+            <div className='flex items-center gap-2'>
+              <Link2 className='w-4 h-4 text-gray-400 shrink-0' />
+              <input
+                value={block.content.url}
+                onChange={(e) =>
+                  updateBlock(block.id, {
+                    ...block.content,
+                    url: e.target.value,
+                  })
+                }
+                className='flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                placeholder='YouTube, Vimeo, or direct video URL'
+              />
+            </div>
+          </div>
+        );
+
+      case 'code':
+        return (
+          <div className='space-y-2'>
+            <select
+              value={block.content.language}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  language: e.target.value,
+                })
+              }
+              className='px-3 py-2 rounded-md border bg-white text-sm'
+            >
+              {['javascript', 'python', 'java', 'cpp', 'html', 'css'].map(
+                (lang) => (
+                  <option key={lang} value={lang}>
+                    {lang}
+                  </option>
+                ),
+              )}
+            </select>
+            <textarea
+              value={block.content.code}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  code: e.target.value,
+                })
+              }
+              rows={8}
+              className='w-full px-3 py-2 border rounded-md text-sm font-mono resize-y bg-gray-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              placeholder='// Write your code here'
+            />
+          </div>
+        );
+
+      case 'quiz':
+        const questionType = block.content.questionType || 'single_choice';
+        const correctAnswers = block.content.correctAnswers || [];
+        const isSingleChoice = questionType === 'single_choice';
+        const isMultipleChoice = questionType === 'multiple_choice';
+        const showOptions = isSingleChoice || isMultipleChoice;
+
+        const updateCorrectAnswer = (index: number, checked: boolean) => {
+          if (isSingleChoice) {
+            if (!checked) return;
+            // For single choice, only one answer can be correct.
+            updateBlock(block.id, {
+              ...block.content,
+              correctAnswers: [index],
+            });
+          } else if (isMultipleChoice) {
+            // For multiple choice, each checkbox can be toggled independently.
+            const newCorrectAnswers = checked
+              ? [...correctAnswers, index]
+              : correctAnswers.filter((i: number) => i !== index);
+            updateBlock(block.id, {
+              ...block.content,
+              correctAnswers: newCorrectAnswers,
+            });
+          }
+        };
+
+        return (
+          <div className='space-y-4'>
+            {/* Header with question type label and mandatory toggle */}
+            <div className='flex items-center justify-between'>
+              <h4 className='text-sm font-medium text-gray-700'>
+                {questionType === 'single_choice' &&
+                  'Single choice (Radio button)'}
+                {questionType === 'multiple_choice' &&
+                  'Multiple choice (Checkboxes)'}
+              </h4>
+              <label className='flex items-center gap-2 text-sm text-gray-600'>
+                <span>Mandatory</span>
+                <button
+                  type='button'
+                  onClick={() =>
+                    updateBlock(block.id, {
+                      ...block.content,
+                      mandatory: !block.content.mandatory,
+                    })
+                  }
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                    block.content.mandatory ? 'bg-[#395192]' : 'bg-gray-300'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      block.content.mandatory
+                        ? 'translate-x-5'
+                        : 'translate-x-0.5'
+                    }`}
+                  />
+                </button>
+              </label>
+            </div>
+
+            {/* Question type and points selectors */}
+            <div className='grid grid-cols-2 gap-3'>
+              <div>
+                <label className='block text-xs font-medium text-gray-600 mb-1'>
+                  Question type
+                </label>
+                <select
+                  value={questionType}
+                  onChange={(e) =>
+                    updateBlock(block.id, {
+                      ...block.content,
+                      questionType: e.target.value,
+                      // Reset correct answers when changing type
+                      correctAnswers: [],
+                    })
+                  }
+                  className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192] bg-white'
+                >
+                  <option value='single_choice'>
+                    Single choice (Radio button)
+                  </option>
+                  <option value='multiple_choice'>
+                    Multiple choice (Checkboxes)
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label className='block text-xs font-medium text-gray-600 mb-1'>
+                  Points
+                </label>
+                <select
+                  value={block.content.points || 1}
+                  onChange={(e) =>
+                    updateBlock(block.id, {
+                      ...block.content,
+                      points: parseInt(e.target.value),
+                    })
+                  }
+                  className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192] bg-white'
+                >
+                  <option value='1'>1 point</option>
+                  <option value='2'>2 points</option>
+                  <option value='3'>3 points</option>
+                  <option value='5'>5 points</option>
+                  <option value='10'>10 points</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Question text area */}
+            <div>
+              <textarea
+                value={block.content.question || ''}
+                onChange={(e) =>
+                  updateBlock(block.id, {
+                    ...block.content,
+                    question: e.target.value,
+                  })
+                }
+                rows={3}
+                className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                placeholder='Enter your question here...'
+              />
+            </div>
+
+            {/* Options (only for single and multiple choice) */}
+            {showOptions && (
+              <div className='space-y-2'>
+                {block.content.options.map((opt: string, i: number) => (
+                  <div key={i}>
+                    <label className='block text-xs font-medium text-gray-600 mb-1'>
+                      Option {i + 1}
+                    </label>
+                    <div className='flex items-center gap-3'>
+                      <input
+                        type={isSingleChoice ? 'radio' : 'checkbox'}
+                        name={`quiz-correct-${block.id}`}
+                        checked={correctAnswers.includes(i)}
+                        onChange={(e) =>
+                          updateCorrectAnswer(i, e.target.checked)
+                        }
+                        className='h-4 w-4 accent-[#395192]'
+                      />
+                      <input
+                        value={opt}
+                        onChange={(e) => {
+                          const opts = [...block.content.options];
+                          opts[i] = e.target.value;
+                          updateBlock(block.id, {
+                            ...block.content,
+                            options: opts,
+                          });
+                        }}
+                        className='flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                        placeholder={`Option ${i + 1}`}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                {/* Add another option button */}
+                <button
+                  type='button'
+                  onClick={() =>
+                    updateBlock(block.id, {
+                      ...block.content,
+                      options: [
+                        ...block.content.options,
+                        `Option ${block.content.options.length + 1}`,
+                      ],
+                    })
+                  }
+                  className='text-sm text-[#395192] hover:underline flex items-center gap-1 font-medium'
+                >
+                  Add another option
+                </button>
+              </div>
+            )}
+
+            {/* Explanation */}
+            <div>
+              <label className='block text-xs font-medium text-gray-600 mb-1'>
+                Explanation (optional)
+              </label>
+              <textarea
+                value={block.content.explanation || ''}
+                onChange={(e) =>
+                  updateBlock(block.id, {
+                    ...block.content,
+                    explanation: e.target.value,
+                  })
+                }
+                rows={2}
+                className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                placeholder='Explanation shown after answering (optional)'
+              />
+            </div>
+          </div>
+        );
+
+      case 'hint':
+        return (
+          <div className='p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded'>
+            <div className='flex items-start gap-2'>
+              <Lightbulb className='w-4 h-4 text-yellow-600 shrink-0 mt-1' />
+              <textarea
+                value={block.content.text}
+                onChange={(e) =>
+                  updateBlock(block.id, {
+                    ...block.content,
+                    text: e.target.value,
+                  })
+                }
+                rows={3}
+                className='flex-1 bg-transparent border-0 text-sm resize-y focus:outline-none'
+                placeholder='Hint text'
+              />
+            </div>
+          </div>
+        );
+
+      case 'callout':
+        return (
+          <div className='space-y-2'>
+            <select
+              value={block.content.type}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  type: e.target.value,
+                })
+              }
+              className='px-3 py-2 rounded-md border bg-white text-sm'
+            >
+              {['info', 'warning', 'success', 'error'].map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <div
+              className={`p-4 border-l-4 rounded ${block.content.type === 'info' ? 'bg-blue-50 border-blue-400' : block.content.type === 'warning' ? 'bg-yellow-50 border-yellow-400' : block.content.type === 'success' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}
+            >
+              <textarea
+                value={block.content.text}
+                onChange={(e) =>
+                  updateBlock(block.id, {
+                    ...block.content,
+                    text: e.target.value,
+                  })
+                }
+                rows={3}
+                className='w-full bg-transparent border-0 text-sm resize-y focus:outline-none'
+                placeholder='Callout text'
+              />
+            </div>
+          </div>
+        );
+
+      case 'problem':
+        return (
+          <div className='space-y-3'>
+            <input
+              value={block.content.question}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  question: e.target.value,
+                })
+              }
+              className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              placeholder='Problem statement'
+            />
+            {block.content.steps.map((step: string, i: number) => (
+              <input
+                key={i}
+                value={step}
+                onChange={(e) => {
+                  const steps = [...block.content.steps];
+                  steps[i] = e.target.value;
+                  updateBlock(block.id, { ...block.content, steps });
+                }}
+                className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                placeholder={`Step ${i + 1}`}
+              />
+            ))}
+            <button
+              type='button'
+              onClick={() =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  steps: [
+                    ...block.content.steps,
+                    `Step ${block.content.steps.length + 1}`,
+                  ],
+                })
+              }
+              className='text-xs text-[#395192] hover:underline flex items-center gap-1'
+            >
+              <Plus className='w-3 h-3' /> Add step
+            </button>
+            <textarea
+              value={block.content.solution}
+              onChange={(e) =>
+                updateBlock(block.id, {
+                  ...block.content,
+                  solution: e.target.value,
+                })
+              }
+              rows={4}
+              className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              placeholder='Final solution'
+            />
+          </div>
+        );
+
+      default:
+        return <p className='text-gray-400 text-sm'>Unknown block type</p>;
+    }
+  };
+
+  /* ── preview renderer ──────────────────────────────────────────── */
+  const renderBlockPreview = (block: Block) => {
+    switch (block.type) {
+      case 'heading': {
+        const sizes: Record<number, string> = {
+          1: 'text-3xl',
+          2: 'text-2xl',
+          3: 'text-xl',
+        };
+        return (
+          <p className={`font-bold ${sizes[block.content.level] || 'text-xl'}`}>
+            {block.content.text}
+          </p>
+        );
+      }
+      case 'text':
+        return (
+          <p className='whitespace-pre-wrap text-sm'>{block.content.text}</p>
+        );
+      case 'image':
+        return block.content.url ? (
+          <img
+            src={block.content.url}
+            alt={block.content.alt}
+            className='rounded-lg w-full'
+          />
+        ) : (
+          <div className='border-2 border-dashed rounded-lg p-8 text-center text-gray-400'>
+            <ImageIcon className='w-8 h-8 mx-auto mb-1' />
+            <p className='text-sm'>Image</p>
+          </div>
+        );
+      case 'video':
+        return block.content.url ? (
+          <div className='aspect-video bg-black rounded-lg flex items-center justify-center'>
+            <Play className='w-12 h-12 text-white' />
+          </div>
+        ) : (
+          <div className='aspect-video border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400'>
+            <Video className='w-8 h-8 mb-1' />
+            <p className='text-sm'>Video</p>
+          </div>
+        );
+      case 'code':
+        return (
+          <div className='bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto'>
+            <div className='text-gray-400 text-xs mb-2'>
+              {block.content.language}
+            </div>
+            <pre>{block.content.code}</pre>
+          </div>
+        );
+      case 'quiz':
+        const previewCorrectAnswers: number[] =
+          block.content.correctAnswers || [];
+        return (
+          <div className='border rounded-lg p-4 space-y-2'>
+            <p className='font-semibold text-sm'>{block.content.question}</p>
+            {block.content.options.map((opt: string, i: number) => (
+              <div
+                key={i}
+                className={`p-2 rounded border text-sm ${previewCorrectAnswers.includes(i) ? 'border-green-500 bg-green-50' : ''}`}
+              >
+                {opt}
+              </div>
+            ))}
+          </div>
+        );
+      case 'hint':
+        return (
+          <div className='p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded flex gap-2'>
+            <Lightbulb className='w-4 h-4 text-yellow-600 shrink-0 mt-0.5' />
+            <p className='text-sm'>{block.content.text}</p>
+          </div>
+        );
+      case 'callout':
+        return (
+          <div
+            className={`p-4 border-l-4 rounded text-sm ${block.content.type === 'info' ? 'bg-blue-50 border-blue-400' : block.content.type === 'warning' ? 'bg-yellow-50 border-yellow-400' : block.content.type === 'success' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}
+          >
+            {block.content.text}
+          </div>
+        );
+      case 'problem':
+        return (
+          <div className='border rounded-lg p-4 space-y-1'>
+            <p className='font-semibold text-sm'>{block.content.question}</p>
+            {block.content.steps.map((s: string, i: number) => (
+              <p key={i} className='text-sm text-gray-600'>
+                • {s}
+              </p>
+            ))}
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const handleSave = () => {
+    onSave({
+      id: lesson.id,
+      title,
+      type: lesson.type,
+      duration,
+      xp,
+      difficulty,
+      blocks,
+    });
+  };
+
+  /* ── render ─────────────────────────────────────────────────────── */
+  return (
+    <div className='fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto p-4'>
+      <div className='bg-white rounded-xl shadow-2xl w-full max-w-5xl my-8'>
+        {/* Modal header */}
+        <div className='flex items-center justify-between px-6 py-4 border-b'>
+          <div className='flex items-center gap-3'>
+            <h2 className='text-lg font-semibold'>
+              {isNew ? 'Add Lesson' : 'Edit Lesson'}
+            </h2>
+          </div>
+          <div className='flex items-center gap-2'>
+            <button
+              type='button'
+              onClick={() =>
+                setActiveView(activeView === 'edit' ? 'preview' : 'edit')
+              }
+              className='flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50'
+            >
+              <Eye className='w-4 h-4' />
+              {activeView === 'edit' ? 'Preview' : 'Edit'}
+            </button>
+            <button
+              type='button'
+              onClick={handleSave}
+              className='flex items-center gap-1.5 px-4 py-1.5 text-sm bg-[#395192] text-white rounded-lg hover:bg-[#2d4178]'
+            >
+              <Save className='w-4 h-4' />
+              Save Lesson
+            </button>
+            <button
+              type='button'
+              onClick={onClose}
+              className='p-1.5 rounded-lg hover:bg-gray-100'
+            >
+              <X className='w-5 h-5' />
+            </button>
+          </div>
+        </div>
+
+        <div className='grid lg:grid-cols-12 gap-0'>
+          {/* ── Main content ───────────────────────────────────── */}
+          <div className='lg:col-span-8 p-6 space-y-4 border-r'>
+            {/* Title row */}
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className='w-full text-2xl font-bold border-0 border-b border-gray-200 pb-2 focus:outline-none focus:border-[#395192]'
+              placeholder='Lesson Title'
+            />
+
+            {activeView === 'edit' ? (
+              <>
+                {/* Content blocks */}
+                {blocks.map((block) => (
+                  <div
+                    key={block.id}
+                    className='border rounded-xl bg-white group'
+                  >
+                    {/* Block header */}
+                    <div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50 rounded-t-xl'>
+                      <div className='flex items-center gap-2'>
+                        <div
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center ${block.type === 'heading' ? 'bg-blue-500/10 text-blue-500' : block.type === 'quiz' ? 'bg-purple-500/10 text-purple-500' : block.type === 'code' ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}
+                        >
+                          {getBlockIcon(block.type, block.content?.level)}
+                        </div>
+                        <span className='text-sm font-medium capitalize'>
+                          {block.type}
+                        </span>
+                      </div>
+                      <div className='flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity'>
+                        <button
+                          type='button'
+                          onClick={() => moveBlock(block.id, 'up')}
+                          className='p-1 rounded hover:bg-gray-200'
+                        >
+                          <ChevronUp className='w-3.5 h-3.5' />
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => moveBlock(block.id, 'down')}
+                          className='p-1 rounded hover:bg-gray-200'
+                        >
+                          <ChevronDown className='w-3.5 h-3.5' />
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => duplicateBlock(block.id)}
+                          className='p-1 rounded hover:bg-gray-200'
+                        >
+                          <Copy className='w-3.5 h-3.5' />
+                        </button>
+                        <button
+                          type='button'
+                          onClick={() => deleteBlock(block.id)}
+                          className='p-1 rounded hover:bg-red-50 text-red-500'
+                        >
+                          <Trash2 className='w-3.5 h-3.5' />
+                        </button>
+                      </div>
+                    </div>
+                    {/* Block editor */}
+                    <div className='p-4'>{renderBlockEditor(block)}</div>
+                  </div>
+                ))}
+
+                {/* Add block toolbar */}
+                <div className='border-2 border-dashed rounded-xl p-4'>
+                  <p className='text-xs font-medium text-gray-500 mb-3'>
+                    Add Content Block:
+                  </p>
+                  <div className='flex flex-wrap gap-2'>
+                    {(
+                      [
+                        { type: 'heading', icon: Heading1, label: 'Heading' },
+                        { type: 'text', icon: Type, label: 'Text' },
+                        { type: 'image', icon: ImageIcon, label: 'Image' },
+                        { type: 'video', icon: Video, label: 'Video' },
+                        { type: 'code', icon: Code, label: 'Code' },
+                        { type: 'quiz', icon: CheckSquare, label: 'Quiz' },
+                        { type: 'hint', icon: Lightbulb, label: 'Hint' },
+                        {
+                          type: 'callout',
+                          icon: AlertCircle,
+                          label: 'Callout',
+                        },
+                        { type: 'problem', icon: Calculator, label: 'Problem' },
+                      ] as {
+                        type: BlockType;
+                        icon: React.ElementType;
+                        label: string;
+                      }[]
+                    ).map((b) => (
+                      <button
+                        key={b.type}
+                        type='button'
+                        onClick={() => addBlock(b.type)}
+                        className='flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50 transition-colors'
+                      >
+                        <b.icon className='w-3.5 h-3.5' />
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Preview */
+              <div className='space-y-4 p-2'>
+                <h1 className='text-3xl font-extrabold'>{title}</h1>
+                {blocks.map((block) => (
+                  <div key={block.id}>{renderBlockPreview(block)}</div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Sidebar ────────────────────────────────────────── */}
+          <div className='lg:col-span-4 p-6 space-y-6'>
+            <div>
+              <h3 className='text-sm font-semibold mb-3'>Lesson Settings</h3>
+              <div className='space-y-4'>
+                <div>
+                  <label className='text-xs font-medium text-gray-600 mb-1 block'>
+                    Duration
+                  </label>
+                  <input
+                    type='text'
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                    placeholder='e.g. 15 min'
+                  />
+                </div>
+                <div>
+                  <label className='text-xs font-medium text-gray-600 mb-1 block'>
+                    XP Reward
+                  </label>
+                  <input
+                    type='number'
+                    value={xp}
+                    onChange={(e) => setXp(Number(e.target.value))}
+                    className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                    placeholder='100'
+                    min={0}
+                  />
+                </div>
+                <div>
+                  <label className='text-xs font-medium text-gray-600 mb-1 block'>
+                    Difficulty
+                  </label>
+                  <select
+                    value={difficulty}
+                    onChange={(e) => setDifficulty(e.target.value)}
+                    className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192] bg-white'
+                  >
+                    <option>Beginner</option>
+                    <option>Intermediate</option>
+                    <option>Advanced</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className='text-sm font-semibold mb-3'>Quick Tips</h3>
+              <div className='space-y-2 text-xs text-gray-500'>
+                <div className='flex gap-2'>
+                  <Lightbulb className='w-4 h-4 text-yellow-500 shrink-0' />
+                  <p>Add hints for challenging problems</p>
+                </div>
+                <div className='flex gap-2'>
+                  <Lightbulb className='w-4 h-4 text-yellow-500 shrink-0' />
+                  <p>Include code examples with explanations</p>
+                </div>
+                <div className='flex gap-2'>
+                  <Lightbulb className='w-4 h-4 text-yellow-500 shrink-0' />
+                  <p>Break long lessons into shorter sections</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -49,11 +49,14 @@ import {
   Check,
   AlertCircle,
   Loader2,
+  X,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { enrollmentsApi, coursesApi } from '../../utils/api-client';
+import { enrollmentsApi, coursesApi, storageApi } from '../../utils/api-client';
 import { CourseLearnersTab } from './CourseLearnersTab';
 import { ReviewSystem } from '../courses/ReviewSystem';
+import { CollaborationPanel } from '../creator/CollaborationPanel';
 
 interface CourseManagementPageProps {
   course: any;
@@ -94,8 +97,24 @@ export function CourseManagementPage({
   const [editingLesson, setEditingLesson] = useState<string | null>(null);
   const [enrolledStudents, setEnrolledStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [loadingCourse, setLoadingCourse] = useState(true);
 
-  // Convert course sections to chapters format, or use default mock data
+  // Cover image upload state
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState<string>(() => {
+    return course.cover_image_url || course.cover_image?.url || '';
+  });
+  const [coverImageId, setCoverImageId] = useState<string>(() => {
+    return (
+      course.cover_image_id ||
+      course.cover_image?.id ||
+      course.cover_image ||
+      ''
+    );
+  });
+  const [isUploadingCoverImage, setIsUploadingCoverImage] = useState(false);
+
+  // Convert course sections to chapters format
   const initialChapters =
     course?.sections?.length > 0
       ? course.sections.map((section: any, index: number) => ({
@@ -107,79 +126,28 @@ export function CourseManagementPage({
             section.lessons?.map((lesson: any, lessonIndex: number) => ({
               id: lesson.id || `${section.id}-${lessonIndex + 1}`,
               title: lesson.title || `Lesson ${lessonIndex + 1}`,
-              type: lesson.type || 'text',
-              duration: lesson.duration || 10,
+              kind: lesson.kind,
+              type: lesson.kind || lesson.type || 'text',
+              duration_minutes: lesson.duration_minutes,
+              duration: lesson.duration_minutes || lesson.duration || 0,
+              xp_reward: lesson.xp_reward,
+              difficulty: lesson.difficulty,
               order: lessonIndex + 1,
               chapterId: section.id || `chapter-${index + 1}`,
               content: lesson.content || '',
+              heading_content: lesson.heading_content || [],
+              text_content: lesson.text_content || [],
+              video_content: lesson.video_content || [],
+              image_content: lesson.image_content || [],
+              code_content: lesson.code_content || [],
+              hint_content: lesson.hint_content || [],
+              callout_content: lesson.callout_content || [],
+              quiz_content: lesson.quiz_content || [],
+              problem_content: lesson.problem_content || [],
+              interactive_content: lesson.interactive_content || [],
             })) || [],
         }))
-      : [
-          {
-            id: '1',
-            title: 'Introduction to Course',
-            order: 1,
-            expanded: true,
-            lessons: [
-              {
-                id: '1-1',
-                title: 'Welcome & Course Overview',
-                type: 'video',
-                duration: 5,
-                order: 1,
-                chapterId: '1',
-              },
-              {
-                id: '1-2',
-                title: 'Getting Started Guide',
-                type: 'text',
-                duration: 10,
-                order: 2,
-                chapterId: '1',
-              },
-              {
-                id: '1-3',
-                title: 'Prerequisites Check',
-                type: 'quiz',
-                duration: 15,
-                order: 3,
-                chapterId: '1',
-              },
-            ],
-          },
-          {
-            id: '2',
-            title: 'Core Concepts',
-            order: 2,
-            expanded: false,
-            lessons: [
-              {
-                id: '2-1',
-                title: 'Fundamental Principles',
-                type: 'video',
-                duration: 20,
-                order: 1,
-                chapterId: '2',
-              },
-              {
-                id: '2-2',
-                title: 'Interactive Exercise 1',
-                type: 'interactive',
-                duration: 30,
-                order: 2,
-                chapterId: '2',
-              },
-              {
-                id: '2-3',
-                title: 'Problem Set A',
-                type: 'problem',
-                duration: 45,
-                order: 3,
-                chapterId: '2',
-              },
-            ],
-          },
-        ];
+      : [];
 
   const [chapters, setChapters] = useState<Chapter[]>(initialChapters);
 
@@ -197,9 +165,64 @@ export function CourseManagementPage({
     category: course.category || 'Programming',
     level: course.level || 'Beginner',
     language: course.language || 'English',
+    price: course.price || '',
+    allowReviews: course.enable_reviews ?? true,
+    enableCertificate: course.enable_certificates ?? true,
+    enableDiscussions: course.enable_discussions ?? true,
   });
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
+  const [collaborators, setCollaborators] = useState<
+    Array<{ email: string; role: string }>
+  >(
+    Array.isArray(course.collaborators)
+      ? course.collaborators
+          .map((c: any) => ({
+            email: c.user?.email ?? c.email ?? '',
+            role: c.role,
+          }))
+          .filter((c: { email: string }) => c.email)
+      : [],
+  );
+
+  const handleCoverImageUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, GIF, WebP)');
+      return;
+    }
+
+    setIsUploadingCoverImage(true);
+    try {
+      // Start storage upload
+      const result = await storageApi.start({
+        file_type: 'image',
+        filename: file.name,
+        mime_type: file.type,
+        create_type: 'post',
+      });
+
+      // Upload to S3
+      const { id, url, fields } = result;
+      const formData = new FormData();
+      Object.entries(fields).forEach(([key, value]) =>
+        formData.append(key, value),
+      );
+      formData.append('file', file);
+      await fetch(url, { method: 'POST', body: formData });
+
+      // Update local state
+      setCoverImageFile(file);
+      setCoverImageId(id);
+      setCoverImagePreview(URL.createObjectURL(file));
+
+      toast.success('Cover image uploaded successfully!');
+    } catch (err) {
+      console.error('Error uploading cover image:', err);
+      toast.error('Failed to upload cover image. Please try again.');
+    } finally {
+      setIsUploadingCoverImage(false);
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -209,8 +232,15 @@ export function CourseManagementPage({
         description: courseData.description,
         category: courseData.category,
         level: courseData.level.toLowerCase() as any,
+        language: courseData.language,
+        price: courseData.price ? parseFloat(courseData.price) : 0,
         course_goals: courseData.goals,
         prerequisites: courseData.requirements,
+        enable_reviews: courseData.allowReviews,
+        enable_certificates: courseData.enableCertificate,
+        enable_discussions: courseData.enableDiscussions,
+        collaborators: collaborators,
+        ...(coverImageId ? { cover_image: coverImageId } : {}),
         sections: chapters.map((ch) => ({
           title: ch.title,
           lessons: ch.lessons.map((l) => ({
@@ -221,6 +251,14 @@ export function CourseManagementPage({
           })),
         })),
       } as any);
+
+      // Update course state with cover image info
+      setCourse((prev: any) => ({
+        ...prev,
+        cover_image_id: coverImageId,
+        cover_image_url: coverImagePreview,
+      }));
+
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       toast.success('Course saved successfully!');
@@ -235,6 +273,7 @@ export function CourseManagementPage({
   // Fetch fresh course data via /course/{id} (no enrollments) on mount
   useEffect(() => {
     if (!initialCourse?.id) return;
+    setLoadingCourse(true);
     coursesApi
       .getForEdit(initialCourse.id)
       .then((raw) => {
@@ -254,7 +293,34 @@ export function CourseManagementPage({
           category: fc.category || 'Programming',
           level: fc.level || 'Beginner',
           language: fc.language || 'English',
+          price: fc.price ? fc.price.toString() : '',
+          allowReviews: fc.enable_reviews ?? true,
+          enableCertificate: fc.enable_certificates ?? true,
+          enableDiscussions: fc.enable_discussions ?? true,
         });
+
+        // Hydrate collaborators from server
+        if (Array.isArray(fc.collaborators)) {
+          setCollaborators(
+            fc.collaborators
+              .map((c: any) => ({
+                email: c.user?.email ?? c.email ?? '',
+                role: c.role,
+              }))
+              .filter((c: { email: string }) => c.email),
+          );
+        }
+
+        // Update cover image state if available
+        if (fc.cover_image_id || fc.cover_image) {
+          const imageId =
+            fc.cover_image_id || fc.cover_image?.id || fc.cover_image || '';
+          const imageUrl = fc.cover_image_url || fc.cover_image?.url || '';
+
+          if (imageId) setCoverImageId(imageId);
+          if (imageUrl) setCoverImagePreview(imageUrl);
+        }
+
         if (fc.sections?.length > 0) {
           setChapters(
             fc.sections.map((section: any, index: number) => ({
@@ -266,11 +332,25 @@ export function CourseManagementPage({
                 section.lessons?.map((lesson: any, lessonIndex: number) => ({
                   id: lesson.id || `${section.id}-${lessonIndex + 1}`,
                   title: lesson.title || `Lesson ${lessonIndex + 1}`,
-                  type: lesson.type || 'text',
-                  duration: lesson.duration || 10,
+                  kind: lesson.kind,
+                  type: lesson.kind || lesson.type || 'text',
+                  duration_minutes: lesson.duration_minutes,
+                  duration: lesson.duration_minutes || lesson.duration || 0,
+                  xp_reward: lesson.xp_reward,
+                  difficulty: lesson.difficulty,
                   order: lessonIndex + 1,
                   chapterId: section.id || `chapter-${index + 1}`,
                   content: lesson.content || '',
+                  heading_content: lesson.heading_content || [],
+                  text_content: lesson.text_content || [],
+                  video_content: lesson.video_content || [],
+                  image_content: lesson.image_content || [],
+                  code_content: lesson.code_content || [],
+                  hint_content: lesson.hint_content || [],
+                  callout_content: lesson.callout_content || [],
+                  quiz_content: lesson.quiz_content || [],
+                  problem_content: lesson.problem_content || [],
+                  interactive_content: lesson.interactive_content || [],
                 })) || [],
             })),
           );
@@ -278,6 +358,10 @@ export function CourseManagementPage({
       })
       .catch((err) => {
         console.error('Failed to fetch course for editing:', err);
+        toast.error('Failed to load course data');
+      })
+      .finally(() => {
+        setLoadingCourse(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCourse?.id]);
@@ -416,6 +500,23 @@ export function CourseManagementPage({
 
     loadStudents();
   }, [course.id]);
+
+  // Delete the course
+  const handleDeleteCourse = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${course.title}"? This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      await coursesApi.delete(course.id);
+      toast.success('Course deleted successfully');
+      onNavigate('creator-courses');
+    } catch (err) {
+      console.error('Failed to delete course:', err);
+      toast.error('Failed to delete course. Please try again.');
+    }
+  };
 
   // Remove a learner from the course
   const handleRemoveLearner = async (learner: any) => {
@@ -815,153 +916,138 @@ export function CourseManagementPage({
                 </div>
               </CardHeader>
               <CardContent className='space-y-4'>
-                {chapters.map((chapter) => (
-                  <Card key={chapter.id} className='border-2'>
-                    <CardHeader className='pb-3'>
-                      <div className='flex items-center justify-between'>
-                        <div className='flex items-center gap-3 flex-1'>
-                          <GripVertical className='w-5 h-5 text-muted-foreground cursor-move' />
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() => toggleChapter(chapter.id)}
-                          >
-                            {chapter.expanded ? (
-                              <ChevronDown className='w-5 h-5' />
-                            ) : (
-                              <ChevronRight className='w-5 h-5' />
-                            )}
-                          </Button>
-                          <Input
-                            value={chapter.title}
-                            onChange={(e) => {
-                              setChapters(
-                                chapters.map((ch) =>
-                                  ch.id === chapter.id
-                                    ? { ...ch, title: e.target.value }
-                                    : ch,
-                                ),
-                              );
-                            }}
-                            placeholder='Chapter title'
-                          />
-                          <Badge variant='secondary'>
-                            {chapter.lessons.length} lessons
-                          </Badge>
-                        </div>
-                        <div className='flex gap-2'>
-                          <Button
-                            variant='ghost'
-                            size='sm'
-                            onClick={() => deleteChapter(chapter.id)}
-                          >
-                            <Trash2 className='w-4 h-4 text-red-500' />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    {chapter.expanded && (
-                      <CardContent className='space-y-2'>
-                        {chapter.lessons.map((lesson) => (
-                          <div
-                            key={lesson.id}
-                            className='flex items-center gap-3 p-3 rounded-lg bg-accent hover:bg-accent/80 transition-colors group'
-                          >
-                            <GripVertical className='w-4 h-4 text-muted-foreground cursor-move' />
-                            <div
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                lesson.type === 'video'
-                                  ? 'bg-blue-500/10 text-blue-500'
-                                  : lesson.type === 'quiz'
-                                    ? 'bg-purple-500/10 text-purple-500'
-                                    : lesson.type === 'interactive'
-                                      ? 'bg-green-500/10 text-green-500'
-                                      : 'bg-gray-500/10 text-gray-500'
-                              }`}
+                {loadingCourse ? (
+                  <div className='flex flex-col items-center justify-center py-12'>
+                    <Loader2 className='h-12 w-12 animate-spin text-primary mb-4' />
+                    <p className='text-muted-foreground'>
+                      Loading course curriculum...
+                    </p>
+                  </div>
+                ) : chapters.length === 0 ? (
+                  <div className='text-center py-12 border-2 border-dashed rounded-lg'>
+                    <div className='mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4'>
+                      <BookOpen className='h-8 w-8 text-primary' />
+                    </div>
+                    <h3 className='text-xl font-bold mb-2'>
+                      No Curriculum Yet
+                    </h3>
+                    <p className='text-muted-foreground mb-6 max-w-md mx-auto'>
+                      Start building your course by adding chapters and lessons.
+                    </p>
+                    <Button onClick={addChapter} className='bg-primary'>
+                      <Plus className='mr-2 h-4 w-4' />
+                      Add Your First Chapter
+                    </Button>
+                  </div>
+                ) : (
+                  chapters.map((chapter) => (
+                    <Card key={chapter.id} className='border-2'>
+                      <CardHeader className='pb-3'>
+                        <div className='flex items-center justify-between'>
+                          <div className='flex items-center gap-3 flex-1'>
+                            <GripVertical className='w-5 h-5 text-muted-foreground cursor-move' />
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              onClick={() => toggleChapter(chapter.id)}
                             >
-                              {getLessonIcon(lesson.type)}
-                            </div>
-                            <div className='flex-1 min-w-0'>
-                              <p className='font-medium truncate'>
-                                {lesson.title}
-                              </p>
-                              <p className='text-sm text-muted-foreground'>
-                                {lesson.type} • {lesson.duration} min
-                              </p>
-                            </div>
-                            <div className='flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                onClick={() =>
-                                  onNavigate('lesson-editor', {
-                                    lesson,
-                                    course,
-                                  })
-                                }
-                              >
-                                <Edit className='w-4 h-4' />
-                              </Button>
-                              <Button
-                                variant='ghost'
-                                size='sm'
-                                onClick={() =>
-                                  deleteLesson(chapter.id, lesson.id)
-                                }
-                              >
-                                <Trash2 className='w-4 h-4 text-red-500' />
-                              </Button>
-                            </div>
+                              {chapter.expanded ? (
+                                <ChevronDown className='w-5 h-5' />
+                              ) : (
+                                <ChevronRight className='w-5 h-5' />
+                              )}
+                            </Button>
+                            <Input
+                              value={chapter.title}
+                              onChange={(e) => {
+                                setChapters(
+                                  chapters.map((ch) =>
+                                    ch.id === chapter.id
+                                      ? { ...ch, title: e.target.value }
+                                      : ch,
+                                  ),
+                                );
+                              }}
+                              placeholder='Chapter title'
+                            />
+                            <Badge variant='secondary'>
+                              {chapter.lessons.length} lessons
+                            </Badge>
                           </div>
-                        ))}
-
-                        <div className='flex gap-2 pt-2'>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => addLesson(chapter.id, 'video')}
-                          >
-                            <Video className='mr-2 h-4 w-4' />
-                            Video
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => addLesson(chapter.id, 'text')}
-                          >
-                            <FileText className='mr-2 h-4 w-4' />
-                            Text
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => addLesson(chapter.id, 'quiz')}
-                          >
-                            <CheckSquare className='mr-2 h-4 w-4' />
-                            Quiz
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => addLesson(chapter.id, 'interactive')}
-                          >
-                            <Puzzle className='mr-2 h-4 w-4' />
-                            Interactive
-                          </Button>
-                          <Button
-                            variant='outline'
-                            size='sm'
-                            onClick={() => addLesson(chapter.id, 'problem')}
-                          >
-                            <Target className='mr-2 h-4 w-4' />
-                            Problem
-                          </Button>
+                          <div className='flex gap-2'>
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              onClick={() => deleteChapter(chapter.id)}
+                            >
+                              <Trash2 className='w-4 h-4 text-red-500' />
+                            </Button>
+                          </div>
                         </div>
-                      </CardContent>
-                    )}
-                  </Card>
-                ))}
+                      </CardHeader>
+
+                      {chapter.expanded && (
+                        <CardContent className='space-y-2'>
+                          {chapter.lessons.map((lesson) => (
+                            <div
+                              key={lesson.id}
+                              className='flex items-center gap-3 p-3 rounded-lg bg-accent hover:bg-accent/80 transition-colors group'
+                            >
+                              <GripVertical className='w-4 h-4 text-muted-foreground cursor-move' />
+                              <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-[#395192]/10 text-[#395192]'>
+                                <BookOpen className='w-4 h-4' />
+                              </div>
+                              <div className='flex-1 min-w-0'>
+                                <p className='font-medium truncate'>
+                                  {lesson.title}
+                                </p>
+                                {lesson.duration ? (
+                                  <p className='text-sm text-muted-foreground'>
+                                    {lesson.duration} min
+                                  </p>
+                                ) : null}
+                              </div>
+                              <div className='flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity'>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  onClick={() =>
+                                    onNavigate('lesson-editor', {
+                                      lesson,
+                                      course,
+                                    })
+                                  }
+                                >
+                                  <Edit className='w-4 h-4' />
+                                </Button>
+                                <Button
+                                  variant='ghost'
+                                  size='sm'
+                                  onClick={() =>
+                                    deleteLesson(chapter.id, lesson.id)
+                                  }
+                                >
+                                  <Trash2 className='w-4 h-4 text-red-500' />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+
+                          <div className='pt-2'>
+                            <Button
+                              variant='outline'
+                              size='sm'
+                              onClick={() => addLesson(chapter.id, 'text')}
+                            >
+                              <Plus className='mr-2 h-4 w-4' />
+                              Add Lesson
+                            </Button>
+                          </div>
+                        </CardContent>
+                      )}
+                    </Card>
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -1076,35 +1162,192 @@ export function CourseManagementPage({
                   </div>
                   <div>
                     <label className='text-sm font-medium mb-2 block'>
-                      Price
+                      Price ($)
                     </label>
-                    <Input type='number' placeholder='49.99' />
+                    <Input
+                      type='number'
+                      placeholder='49.99'
+                      value={courseData.price}
+                      onChange={(e) =>
+                        setCourseData({
+                          ...courseData,
+                          price: e.target.value,
+                        })
+                      }
+                      min='0'
+                      step='0.01'
+                    />
                   </div>
                 </div>
 
                 <div>
                   <label className='text-sm font-medium mb-2 block'>
-                    Course Thumbnail
+                    Course Cover Image
                   </label>
-                  <div className='border-2 border-dashed rounded-lg p-8 text-center hover:bg-accent transition-colors cursor-pointer'>
-                    <Upload className='w-12 h-12 mx-auto mb-3 text-muted-foreground' />
-                    <p className='text-sm text-muted-foreground'>
-                      Click to upload or drag and drop
-                    </p>
-                    <p className='text-xs text-muted-foreground mt-1'>
-                      PNG, JPG up to 10MB
+
+                  {/* Cover Image Preview */}
+                  {coverImagePreview ? (
+                    <div className='relative inline-block'>
+                      <img
+                        src={coverImagePreview}
+                        alt='Course cover image'
+                        className='w-full max-w-md rounded-lg border-2 border-border'
+                      />
+                      <button
+                        type='button'
+                        title='Remove cover image'
+                        onClick={() => {
+                          setCoverImageFile(null);
+                          setCoverImagePreview('');
+                          setCoverImageId('');
+                        }}
+                        className='absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg'
+                      >
+                        <X className='w-4 h-4' />
+                      </button>
+                      {coverImageFile && (
+                        <div className='mt-2 flex items-center gap-2 text-xs text-green-600'>
+                          <ImageIcon className='w-4 h-4' />
+                          <span>{coverImageFile.name}</span>
+                          <span>✓ Uploaded</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className='border-2 border-dashed rounded-lg p-8 text-center hover:bg-accent transition-colors cursor-pointer'
+                      onClick={() =>
+                        document.getElementById('cover-image-upload')?.click()
+                      }
+                    >
+                      {isUploadingCoverImage ? (
+                        <div className='flex flex-col items-center gap-2'>
+                          <div className='h-12 w-12 animate-spin rounded-full border-4 border-primary border-t-transparent' />
+                          <p className='text-sm text-muted-foreground'>
+                            Uploading...
+                          </p>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className='w-12 h-12 mx-auto mb-3 text-muted-foreground' />
+                          <p className='text-sm text-muted-foreground'>
+                            Click to upload or drag and drop
+                          </p>
+                          <p className='text-xs text-muted-foreground mt-1'>
+                            PNG, JPG, GIF, WebP up to 10MB
+                          </p>
+                        </>
+                      )}
+                      <input
+                        id='cover-image-upload'
+                        type='file'
+                        accept='image/*'
+                        className='hidden'
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            handleCoverImageUpload(file);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Publish toggles */}
+                <div className='pt-6 border-t space-y-4'>
+                  <div>
+                    <h3 className='text-base font-semibold mb-1'>
+                      Publish Settings
+                    </h3>
+                    <p className='text-sm text-muted-foreground mb-4'>
+                      Control how students interact with this course
                     </p>
                   </div>
+
+                  <label className='flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-accent'>
+                    <div>
+                      <p className='font-medium'>Enable Reviews</p>
+                      <p className='text-sm text-muted-foreground'>
+                        Allow students to leave reviews
+                      </p>
+                    </div>
+                    <input
+                      type='checkbox'
+                      title='Enable Reviews'
+                      checked={courseData.allowReviews}
+                      onChange={(e) =>
+                        setCourseData({
+                          ...courseData,
+                          allowReviews: e.target.checked,
+                        })
+                      }
+                      className='w-5 h-5 accent-[#395192]'
+                    />
+                  </label>
+
+                  <label className='flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-accent'>
+                    <div>
+                      <p className='font-medium'>Enable Certificate</p>
+                      <p className='text-sm text-muted-foreground'>
+                        Award certificates upon completion
+                      </p>
+                    </div>
+                    <input
+                      type='checkbox'
+                      title='Enable Certificate'
+                      checked={courseData.enableCertificate}
+                      onChange={(e) =>
+                        setCourseData({
+                          ...courseData,
+                          enableCertificate: e.target.checked,
+                        })
+                      }
+                      className='w-5 h-5 accent-[#395192]'
+                    />
+                  </label>
+
+                  <label className='flex items-center justify-between p-4 border rounded-lg cursor-pointer hover:bg-accent'>
+                    <div>
+                      <p className='font-medium'>Enable Discussions</p>
+                      <p className='text-sm text-muted-foreground'>
+                        Allow course discussions and Q&amp;A
+                      </p>
+                    </div>
+                    <input
+                      type='checkbox'
+                      title='Enable Discussions'
+                      checked={courseData.enableDiscussions}
+                      onChange={(e) =>
+                        setCourseData({
+                          ...courseData,
+                          enableDiscussions: e.target.checked,
+                        })
+                      }
+                      className='w-5 h-5 accent-[#395192]'
+                    />
+                  </label>
                 </div>
 
                 <div className='pt-6 border-t'>
-                  <Button variant='destructive'>
+                  <Button variant='destructive' onClick={handleDeleteCourse}>
                     <Trash2 className='mr-2 h-4 w-4' />
                     Delete Course
                   </Button>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Collaboration Panel */}
+            <CollaborationPanel
+              courseId={course.id}
+              isOwner={true}
+              initialCollaborators={collaborators}
+              onCollaboratorsChange={setCollaborators}
+              onAddCollaborator={(collab) => {
+                toast.success(`${collab.name} added as ${collab.role}`);
+              }}
+            />
           </TabsContent>
         </Tabs>
       </div>

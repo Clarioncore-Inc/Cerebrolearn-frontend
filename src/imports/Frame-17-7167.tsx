@@ -124,7 +124,7 @@ function CategoryLink() {
     <div className="content-stretch flex font-['Roboto:Bold',sans-serif] font-bold gap-[12px] items-center leading-[20px] relative shrink-0 text-[#131b26] text-[12.5px] text-nowrap whitespace-pre" data-name="categoryLink1">
       <p className="relative shrink-0" style={{ fontVariationSettings: "'wdth' 100" }}>{`About Us `}</p>
       <p className="relative shrink-0" style={{ fontVariationSettings: "'wdth' 100" }}>
-        Home
+        Home kk
       </p>
     </div>
   );

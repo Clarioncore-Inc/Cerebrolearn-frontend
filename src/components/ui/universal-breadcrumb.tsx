@@ -24,11 +24,6 @@ export function UniversalBreadcrumb({
   const getBreadcrumbs = (): BreadcrumbItem[] => {
     const crumbs: BreadcrumbItem[] = [];
 
-    // Always start with home for logged-in users
-    if (currentPage !== 'landing' && currentPage !== 'dashboard') {
-      crumbs.push({ label: 'Home', page: 'dashboard' });
-    }
-
     // Course-related breadcrumbs
     if (
       currentPage === 'course-detail' ||

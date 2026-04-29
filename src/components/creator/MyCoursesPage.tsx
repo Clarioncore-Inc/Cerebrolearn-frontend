@@ -144,23 +144,24 @@ export function MyCoursesPage({
       // Fetch creator's courses (both published and draft)
       const data = await creatorApi.getCourses();
       // Normalise API field names to what the UI expects
-      const normalised = (data || []).map((c: any) => ({
-        ...c,
-        reviews: c.reviews ?? c.total_reviews ?? 0,
-        is_public: c.is_public ?? c.public ?? false,
-        duration:
-          c.duration ?? (c.estimated_hours ? `${c.estimated_hours}h` : '0h'),
-        lessons: c.lessons ?? 0,
-        revenue: c.revenue ?? 0,
-        completion:
-          c.status === 'draft'
-            ? calculateCourseSetupCompletion(c)
-            : typeof c.completion === 'number'
-              ? c.completion
-              : 0,
-        discount: c.discount ?? null,
-        imageUrl: null as string | null,
-      }));
+      const normalised = (data || []).map((c: any) => {
+        return {
+          ...c,
+          reviews: c.reviews ?? c.total_reviews ?? 0,
+          is_public: c.is_public ?? c.public ?? false,
+          duration: c.total_duration_text ?? '0h',
+          lessons: c.total_lessons ?? 0,
+          revenue: c.revenue ?? 0,
+          completion:
+            c.status === 'draft'
+              ? calculateCourseSetupCompletion(c)
+              : typeof c.completion === 'number'
+                ? c.completion
+                : 0,
+          discount: c.discount ?? null,
+          imageUrl: null as string | null,
+        };
+      });
 
       // Fetch image URLs in parallel for courses that have a cover_image storage ID.
       // cover_image may be a plain string ID or an object like { id, url, ... }
@@ -243,6 +244,10 @@ export function MyCoursesPage({
       console.error('Error duplicating course:', error);
       toast.error('Failed to duplicate course');
     }
+  };
+
+  const handleEditCourse = (course: any) => {
+    onNavigate('course-edit', course);
   };
 
   // Filter and sort courses
@@ -547,7 +552,7 @@ export function MyCoursesPage({
                       className='flex items-start gap-2 mb-2 group/title cursor-pointer'
                       onClick={(e) => {
                         e.stopPropagation();
-                        onNavigate('course-edit', course);
+                        handleEditCourse(course);
                       }}
                     >
                       <h3 className='flex-1 font-bold text-lg text-gray-900 truncate group-hover/title:text-primary transition-colors leading-snug'>
@@ -580,13 +585,13 @@ export function MyCoursesPage({
                       <div className='flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1'>
                         <BookOpen className='w-3.5 h-3.5 text-primary' />
                         <span className='font-medium'>
-                          {course.lessons || 0} lessons
+                          {course.total_lessons || 0} lessons
                         </span>
                       </div>
                       <div className='flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1'>
                         <Clock className='w-3.5 h-3.5 text-primary' />
                         <span className='font-medium'>
-                          {course.duration || '0h'}
+                          {course.total_duration_text || '0h'}
                         </span>
                       </div>
                       {course.reviews > 0 && (
@@ -644,9 +649,9 @@ export function MyCoursesPage({
                         variant='outline'
                         size='sm'
                         className='w-full h-8 text-xs font-medium border-2 hover:border-primary hover:bg-primary/5'
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
-                          onNavigate('course-edit', course);
+                          handleEditCourse(course);
                         }}
                       >
                         <Edit className='mr-1.5 h-3.5 w-3.5' />
@@ -657,7 +662,7 @@ export function MyCoursesPage({
                         <Button
                           size='sm'
                           className='w-full h-8 text-xs font-medium bg-primary hover:bg-primary/90 shadow-sm'
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
                             handlePublishCourse(course.id);
                           }}
@@ -670,7 +675,7 @@ export function MyCoursesPage({
                           size='sm'
                           variant='secondary'
                           className='w-full h-8 text-xs font-medium bg-secondary hover:bg-secondary/80'
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
                             onNavigate('creator-analytics', course);
                           }}
@@ -687,7 +692,7 @@ export function MyCoursesPage({
                         variant='outline'
                         size='sm'
                         className='w-full h-8 text-xs font-medium mt-2 border-2 hover:border-primary hover:bg-primary/5'
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           setSelectedCourseForShare(course);
                           setShareDialogOpen(true);
@@ -758,7 +763,7 @@ export function MyCoursesPage({
                               )}
                               <span className='flex items-center gap-1'>
                                 <Clock className='w-4 h-4' />
-                                {course.duration}
+                                {course.total_duration_text}
                               </span>
                             </div>
                           </div>
@@ -767,7 +772,7 @@ export function MyCoursesPage({
                             <Button
                               variant='outline'
                               size='sm'
-                              onClick={() => onNavigate('course-edit', course)}
+                              onClick={() => handleEditCourse(course)}
                             >
                               <Edit className='mr-2 h-4 w-4' />
                               Edit

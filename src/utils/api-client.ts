@@ -44,6 +44,11 @@ async function request<T>(
     throw new Error(error.detail || error.error || error.message || `HTTP ${response.status}`);
   }
 
+  // 204 No Content — no body to parse
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return null as T;
+  }
+
   return response.json();
 }
 
@@ -145,6 +150,41 @@ export const coursesApi = {
 
   getReviews: (courseId: string) =>
     request<Review[]>(`/courses/${courseId}/reviews`),
+
+  getComments: (courseId: string) =>
+    request<
+      Array<{
+        id: string;
+        content: string;
+        created_at?: string;
+        author?: any;
+      }>
+    >(`/courses/${courseId}/comments/`),
+
+  addComment: (courseId: string, content: string) =>
+    request<{
+      id: string;
+      content: string;
+      created_at?: string;
+      author?: any;
+    }>(`/courses/${courseId}/comments/`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+
+  updateComment: (courseId: string, commentId: string, content: string) =>
+    request<{ id: string; content: string }>(
+      `/courses/${courseId}/comments/${commentId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ content }),
+      },
+    ),
+
+  deleteComment: (courseId: string, commentId: string) =>
+    request<null>(`/courses/${courseId}/comments/${commentId}`, {
+      method: 'DELETE',
+    }),
 };
 
 // ========================================
@@ -153,11 +193,48 @@ export const coursesApi = {
 
 export const lessonsApi = {
   create: (data: {
-    course_id: string;
+    section_id: string;
     title: string;
     kind: string;
-    content: any;
+    tag?: string;
+    content?: string;
     position?: number;
+    duration_minutes?: number;
+    is_free?: boolean;
+    xp_reward?: number;
+    difficulty?: string;
+    heading_content?: Array<{ position: number; text: string; level: number }>;
+    text_content?: Array<{ position: number; body: string; estimated_read_minutes?: number; attachment_ids?: string[] }>;
+    video_content?: Array<{ position: number; external_url?: string; video_id?: string; duration_seconds?: number; transcript?: string; allow_download?: boolean }>;
+    image_content?: Array<{ position: number; image_id?: string; caption?: string; alt_text?: string }>;
+    code_content?: Array<{ position: number; code: string; language: string; filename?: string; show_line_numbers?: boolean }>;
+    hint_content?: Array<{ position: number; text: string; is_collapsible?: boolean }>;
+    callout_content?: Array<{ position: number; text: string; callout_type?: string; title?: string }>;
+    quiz_content?: Array<{
+      position: number;
+      passing_score?: number;
+      max_attempts?: number;
+      time_limit_minutes?: number;
+      shuffle_questions?: boolean;
+      show_correct_answers?: boolean;
+      questions?: Array<{ position: number; question_type: string; text: string; explanation?: string; points?: number; options?: Array<{ text: string; is_correct: boolean }> }>;
+    }>;
+    problem_content?: Array<{
+      position: number;
+      statement: string;
+      starter_code?: string;
+      solution_code?: string;
+      language?: string;
+      time_limit_seconds?: number;
+      memory_limit_mb?: number;
+      hints?: string[];
+      test_cases?: Array<{ position: number; input: string; expected_output: string; is_sample?: boolean }>;
+    }>;
+    interactive_content?: Array<{
+      position: number;
+      passing_score?: number;
+      steps?: Array<{ position: number; step_type: string; title?: string; instructions?: string; payload?: any; points?: number }>;
+    }>;
   }) =>
     request<Lesson>('/lessons/', {
       method: 'POST',
@@ -167,8 +244,86 @@ export const lessonsApi = {
   getById: (lessonId: string) =>
     request<Lesson>(`/lessons/${lessonId}`),
 
+  update: (lessonId: string, data: Partial<{
+    title: string;
+    kind: string;
+    tag?: string;
+    content?: string;
+    position?: number;
+    duration_minutes?: number;
+    is_free?: boolean;
+    xp_reward?: number;
+    difficulty?: string;
+    heading_content?: Array<{ position: number; text: string; level: number }>;
+    text_content?: Array<{ position: number; body: string; estimated_read_minutes?: number; attachment_ids?: string[] }>;
+    video_content?: Array<{ position: number; external_url?: string; video_id?: string; duration_seconds?: number; transcript?: string; allow_download?: boolean }>;
+    image_content?: Array<{ position: number; image_id?: string; caption?: string; alt_text?: string }>;
+    code_content?: Array<{ position: number; code: string; language: string; filename?: string; show_line_numbers?: boolean }>;
+    hint_content?: Array<{ position: number; text: string; is_collapsible?: boolean }>;
+    callout_content?: Array<{ position: number; text: string; callout_type?: string; title?: string }>;
+    quiz_content?: Array<{
+      position: number;
+      passing_score?: number;
+      max_attempts?: number;
+      time_limit_minutes?: number;
+      shuffle_questions?: boolean;
+      show_correct_answers?: boolean;
+      questions?: Array<{ position: number; question_type: string; text: string; explanation?: string; points?: number; options?: Array<{ text: string; is_correct: boolean }> }>;
+    }>;
+    problem_content?: Array<{
+      position: number;
+      statement: string;
+      starter_code?: string;
+      solution_code?: string;
+      language?: string;
+      time_limit_seconds?: number;
+      memory_limit_mb?: number;
+      hints?: string[];
+      test_cases?: Array<{ position: number; input: string; expected_output: string; is_sample?: boolean }>;
+    }>;
+    interactive_content?: Array<{
+      position: number;
+      passing_score?: number;
+      steps?: Array<{ position: number; step_type: string; title?: string; instructions?: string; payload?: any; points?: number }>;
+    }>;
+  }>) =>
+    request<Lesson>(`/lessons/${lessonId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
   getComments: (lessonId: string) =>
     request<Comment[]>(`/lessons/${lessonId}/comments`),
+};
+
+// ========================================
+// VIDEO LESSONS API
+// ========================================
+export const videoLessonsApi = {
+  create: (data: {
+    lesson_id: string;
+    video_id?: string;
+    external_url?: string;
+    duration_seconds?: number;
+    transcript?: string;
+    allow_download?: boolean;
+  }) =>
+    request<any>('/video-lessons/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (lessonId: string, data: {
+    video_id?: string;
+    external_url?: string;
+    duration_seconds?: number;
+    transcript?: string;
+    allow_download?: boolean;
+  }) =>
+    request<any>(`/video-lessons/${lessonId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ========================================
@@ -431,6 +586,7 @@ export const api = {
   admin: adminApi,
   psychologist: psychologistApi,
   storage: storageApi,
+  videoLessons: videoLessonsApi,
 };
 
 export default api;
