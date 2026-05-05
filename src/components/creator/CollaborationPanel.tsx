@@ -52,13 +52,17 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import { coursesApi } from '../../utils/api-client';
+import {
+  coursesApi,
+  type CourseCommentRecord,
+  type CourseHistoryRecord,
+} from '../../utils/api-client';
 
 interface Collaborator {
   id: string;
   name: string;
   email: string;
-  role: 'owner' | 'co-creator' | 'reviewer' | 'verifier';
+  role: 'owner' | 'co-instructor' | 'reviewer' | 'verifier';
   addedAt: string;
 }
 
@@ -69,7 +73,16 @@ interface Comment {
   content: string;
   timestamp: string;
   resolved: boolean;
-  replies: any[];
+  replies: Comment[];
+  courseId?: string;
+  parentId?: string | null;
+}
+
+interface HistoryEntry {
+  id: string;
+  user: string;
+  action: string;
+  timestamp: string;
 }
 
 interface CollaborationPanelProps {
@@ -83,6 +96,74 @@ interface CollaborationPanelProps {
   ) => void;
 }
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function mapCourseComment(record: CourseCommentRecord): Comment {
+  return {
+    id: record.id,
+    userId: record.author?.id ?? '',
+    userName:
+      record.author?.full_name ||
+      record.author?.email?.split('@')[0] ||
+      'Unknown',
+    content: record.content,
+    timestamp:
+      record.updated_at || record.created_at || new Date().toISOString(),
+    resolved: record.resolved ?? false,
+    replies: (record.replies || []).map(mapCourseComment),
+    courseId: record.course_id,
+    parentId: record.parent_id,
+  };
+}
+
+function formatCourseHistoryAction(action?: string): string {
+  if (!action) return 'Course updated';
+
+  const normalized = action.trim().toLowerCase().replace(/[_-]+/g, ' ');
+
+  const knownActions: Record<string, string> = {
+    created: 'Course created',
+    updated: 'Course updated',
+    deleted: 'Course deleted',
+    published: 'Course published',
+    unpublished: 'Course unpublished',
+    archived: 'Course archived',
+    restored: 'Course restored',
+  };
+
+  if (knownActions[normalized]) {
+    return knownActions[normalized];
+  }
+
+  const titleCased = normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+  return normalized.startsWith('course ') ? titleCased : `Course ${normalized}`;
+}
+
+function mapCourseHistory(record: CourseHistoryRecord): HistoryEntry {
+  return {
+    id: record.id,
+    user:
+      record.changed_by?.full_name ||
+      record.changed_by?.email?.split('@')[0] ||
+      record.actor?.full_name ||
+      record.actor?.email?.split('@')[0] ||
+      record.actor_name ||
+      record.user ||
+      'Unknown',
+    action: formatCourseHistoryAction(
+      record.changes?.action ||
+        record.action ||
+        record.event ||
+        record.description,
+    ),
+    timestamp:
+      record.timestamp ||
+      record.updated_at ||
+      record.created_at ||
+      new Date().toISOString(),
+  };
+}
+
 export function CollaborationPanel({
   courseId,
   isOwner = true,
@@ -94,8 +175,9 @@ export function CollaborationPanel({
   const { user, profile } = useAuth();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newCollabEmail, setNewCollabEmail] = useState('');
+  const [newCollabEmailError, setNewCollabEmailError] = useState('');
   const [newCollabRole, setNewCollabRole] = useState<
-    'co-creator' | 'reviewer' | 'verifier'
+    'co-instructor' | 'reviewer' | 'verifier'
   >('reviewer');
 
   const ownerEmail = user?.email ?? profile?.email ?? '';
@@ -148,6 +230,11 @@ export function CollaborationPanel({
   const [editedContent, setEditedContent] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [resolvingCommentId, setResolvingCommentId] = useState<string | null>(
+    null,
+  );
+  const [versionHistory, setVersionHistory] = useState<HistoryEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Hydrate existing comments from the server when courseId is available
   useEffect(() => {
@@ -155,19 +242,9 @@ export function CollaborationPanel({
     let cancelled = false;
     (async () => {
       try {
-        const list = await coursesApi.getComments(courseId);
-        if (cancelled || !Array.isArray(list)) return;
-        const mapped: Comment[] = list.map((c) => ({
-          id: c.id,
-          userId: c.author?.id ?? '',
-          userName:
-            c.author?.full_name || c.author?.email?.split('@')[0] || 'Unknown',
-          content: c.content,
-          timestamp: c.created_at ?? new Date().toISOString(),
-          resolved: false,
-          replies: [],
-        }));
-        setComments(mapped);
+        const response = await coursesApi.getComments(courseId);
+        if (cancelled) return;
+        setComments((response.items || []).map(mapCourseComment));
       } catch (err) {
         console.error('Error fetching comments:', err);
       }
@@ -177,49 +254,85 @@ export function CollaborationPanel({
     };
   }, [courseId]);
 
-  const [versionHistory, setVersionHistory] = useState([
-    {
-      id: '1',
-      user: 'You',
-      action: 'Created course',
-      timestamp: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      user: 'You',
-      action: 'Updated course description',
-      timestamp: new Date().toISOString(),
-    },
-  ]);
+  useEffect(() => {
+    if (!courseId) {
+      setVersionHistory([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingHistory(true);
+
+    (async () => {
+      try {
+        const response = await coursesApi.getHistory(courseId);
+        if (cancelled) return;
+
+        const records = Array.isArray(response)
+          ? response
+          : (response.items ?? []);
+
+        setVersionHistory(records.map(mapCourseHistory));
+      } catch (err) {
+        console.error('Error fetching course history:', err);
+        if (!cancelled) setVersionHistory([]);
+      } finally {
+        if (!cancelled) setIsLoadingHistory(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [courseId]);
 
   const roleIcons = {
     owner: Shield,
-    'co-creator': Edit,
+    'co-instructor': Edit,
     reviewer: Eye,
     verifier: Check,
   };
 
   const roleDescriptions = {
     owner: 'Full control over course',
-    'co-creator': 'Can edit content',
+    'co-instructor': 'Can edit content',
     reviewer: 'Can comment only',
     verifier: 'Can approve credibility',
   };
 
   const roleColors = {
     owner: 'bg-purple-100 text-purple-700',
-    'co-creator': 'bg-blue-100 text-blue-700',
+    'co-instructor': 'bg-blue-100 text-blue-700',
     reviewer: 'bg-green-100 text-green-700',
     verifier: 'bg-amber-100 text-amber-700',
   };
 
   const handleAddCollaborator = () => {
-    if (!newCollabEmail.trim()) return;
+    const normalizedEmail = newCollabEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setNewCollabEmailError('Email is required');
+      return;
+    }
+
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      setNewCollabEmailError('Enter a valid email address');
+      return;
+    }
+
+    if (
+      collaborators.some(
+        (collab) => collab.email.toLowerCase() === normalizedEmail,
+      )
+    ) {
+      setNewCollabEmailError('This collaborator has already been added');
+      return;
+    }
 
     const newCollab: Collaborator = {
       id: Date.now().toString(),
-      name: newCollabEmail.split('@')[0],
-      email: newCollabEmail,
+      name: normalizedEmail.split('@')[0],
+      email: normalizedEmail,
       role: newCollabRole,
       addedAt: new Date().toISOString(),
     };
@@ -230,6 +343,7 @@ export function CollaborationPanel({
     onAddCollaborator?.(newCollab);
 
     setNewCollabEmail('');
+    setNewCollabEmailError('');
     setShowAddDialog(false);
   };
 
@@ -259,14 +373,7 @@ export function CollaborationPanel({
       // Swap the optimistic local id for the server-assigned id
       setComments((prev) =>
         prev.map((c) =>
-          c.id === optimistic.id
-            ? {
-                ...c,
-                id: created?.id ?? c.id,
-                userName: created?.author?.full_name || c.userName,
-                userId: created?.author?.id ?? c.userId,
-              }
-            : c,
+          c.id === optimistic.id ? mapCourseComment(created) : c,
         ),
       );
       toast.success('Comment added successfully');
@@ -277,14 +384,41 @@ export function CollaborationPanel({
     }
   };
 
-  const toggleCommentResolved = (commentId: string) => {
-    setComments(
-      comments.map((c) =>
-        c.id === commentId ? { ...c, resolved: !c.resolved } : c,
+  const toggleCommentResolved = async (commentId: string) => {
+    const comment = comments.find((c) => c.id === commentId);
+    if (!comment) return;
+
+    const nextResolved = !comment.resolved;
+    setResolvingCommentId(commentId);
+
+    setComments((prev) =>
+      prev.map((c) =>
+        c.id === commentId ? { ...c, resolved: nextResolved } : c,
       ),
     );
-    const comment = comments.find((c) => c.id === commentId);
-    toast.success(comment?.resolved ? 'Comment reopened' : 'Comment resolved');
+
+    try {
+      const updated = await coursesApi.updateComment(commentId, {
+        content: comment.content,
+        resolved: nextResolved,
+      });
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? mapCourseComment(updated) : c)),
+      );
+      toast.success(nextResolved ? 'Comment resolved' : 'Comment reopened');
+    } catch (err) {
+      console.error('Error toggling comment resolution:', err);
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === commentId ? { ...c, resolved: comment.resolved } : c,
+        ),
+      );
+      toast.error('Failed to update comment status');
+    } finally {
+      setResolvingCommentId((current) =>
+        current === commentId ? null : current,
+      );
+    }
   };
 
   const handleEditComment = (commentId: string) => {
@@ -300,7 +434,7 @@ export function CollaborationPanel({
       toast.error('Comment content cannot be empty');
       return;
     }
-    if (!courseId || !editingCommentId) return;
+    if (!editingCommentId) return;
 
     const targetId = editingCommentId;
     const previous = comments.find((c) => c.id === targetId);
@@ -313,7 +447,13 @@ export function CollaborationPanel({
     setEditedContent('');
 
     try {
-      await coursesApi.updateComment(courseId, targetId, newContent);
+      const updated = await coursesApi.updateComment(targetId, {
+        content: newContent,
+        resolved: previous?.resolved ?? false,
+      });
+      setComments((prev) =>
+        prev.map((c) => (c.id === targetId ? mapCourseComment(updated) : c)),
+      );
       toast.success('Comment updated successfully');
     } catch (err) {
       console.error('Error updating comment:', err);
@@ -334,10 +474,6 @@ export function CollaborationPanel({
 
   const confirmDeleteComment = async () => {
     if (!commentToDelete) return;
-    if (!courseId) {
-      toast.error('Cannot delete comment without a course');
-      return;
-    }
 
     const targetId = commentToDelete;
     const previous = comments.find((c) => c.id === targetId);
@@ -348,7 +484,7 @@ export function CollaborationPanel({
     setShowDeleteDialog(false);
 
     try {
-      await coursesApi.deleteComment(courseId, targetId);
+      await coursesApi.deleteComment(targetId);
       toast.success('Comment deleted successfully');
     } catch (err) {
       console.error('Error deleting comment:', err);
@@ -382,7 +518,7 @@ export function CollaborationPanel({
       <CardContent>
         <Tabs defaultValue='team'>
           <TabsList
-            className={`grid w-full ${courseId ? 'grid-cols-3' : 'grid-cols-2'}`}
+            className={`grid w-full ${courseId ? 'grid-cols-3' : 'grid-cols-1'}`}
           >
             <TabsTrigger value='team'>Team</TabsTrigger>
             {courseId && (
@@ -398,7 +534,7 @@ export function CollaborationPanel({
                 )}
               </TabsTrigger>
             )}
-            <TabsTrigger value='history'>History</TabsTrigger>
+            {courseId && <TabsTrigger value='history'>History</TabsTrigger>}
           </TabsList>
 
           {/* Team Tab */}
@@ -596,8 +732,17 @@ export function CollaborationPanel({
                               size='sm'
                               variant={comment.resolved ? 'outline' : 'default'}
                               onClick={() => toggleCommentResolved(comment.id)}
+                              disabled={resolvingCommentId === comment.id}
+                              aria-busy={resolvingCommentId === comment.id}
                             >
-                              {comment.resolved ? (
+                              {resolvingCommentId === comment.id ? (
+                                <>
+                                  <div className='w-3 h-3 mr-1 rounded-full border-2 border-current border-t-transparent animate-spin' />
+                                  {comment.resolved
+                                    ? 'Reopening...'
+                                    : 'Resolving...'}
+                                </>
+                              ) : comment.resolved ? (
                                 <>
                                   <X className='w-3 h-3 mr-1' />
                                   Reopen
@@ -620,23 +765,35 @@ export function CollaborationPanel({
           )}
 
           {/* History Tab */}
-          <TabsContent value='history' className='space-y-3'>
-            {versionHistory.map((version) => (
-              <div
-                key={version.id}
-                className='flex items-start gap-3 p-3 border rounded-lg'
-              >
-                <History className='w-4 h-4 mt-1 text-muted-foreground' />
-                <div className='flex-1'>
-                  <p className='text-sm font-medium'>{version.action}</p>
-                  <p className='text-xs text-muted-foreground'>
-                    by {version.user} •{' '}
-                    {new Date(version.timestamp).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </TabsContent>
+          {courseId && (
+            <TabsContent value='history' className='space-y-3'>
+              {isLoadingHistory ? (
+                <p className='text-center text-muted-foreground py-8'>
+                  Loading history...
+                </p>
+              ) : versionHistory.length === 0 ? (
+                <p className='text-center text-muted-foreground py-8'>
+                  No history yet.
+                </p>
+              ) : (
+                versionHistory.map((version) => (
+                  <div
+                    key={version.id}
+                    className='flex items-start gap-3 p-3 border rounded-lg'
+                  >
+                    <History className='w-4 h-4 mt-1 text-muted-foreground' />
+                    <div className='flex-1'>
+                      <p className='text-sm font-medium'>{version.action}</p>
+                      <p className='text-xs text-muted-foreground'>
+                        by {version.user} •{' '}
+                        {new Date(version.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </TabsContent>
+          )}
         </Tabs>
       </CardContent>
 
@@ -659,8 +816,17 @@ export function CollaborationPanel({
                 type='email'
                 placeholder='collaborator@example.com'
                 value={newCollabEmail}
-                onChange={(e) => setNewCollabEmail(e.target.value)}
+                onChange={(e) => {
+                  setNewCollabEmail(e.target.value);
+                  if (newCollabEmailError) setNewCollabEmailError('');
+                }}
+                aria-invalid={!!newCollabEmailError}
               />
+              {newCollabEmailError && (
+                <p className='mt-1 text-sm text-red-600'>
+                  {newCollabEmailError}
+                </p>
+              )}
             </div>
 
             <div>
@@ -673,11 +839,11 @@ export function CollaborationPanel({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='co-creator'>
+                  <SelectItem value='co-instructor'>
                     <div className='flex items-center gap-2'>
                       <Edit className='w-4 h-4' />
                       <div>
-                        <p className='font-medium'>Co-Creator</p>
+                        <p className='font-medium'>Co-instructor</p>
                         <p className='text-xs text-muted-foreground'>
                           Can edit content
                         </p>
@@ -712,7 +878,13 @@ export function CollaborationPanel({
           </div>
 
           <DialogFooter>
-            <Button variant='outline' onClick={() => setShowAddDialog(false)}>
+            <Button
+              variant='outline'
+              onClick={() => {
+                setShowAddDialog(false);
+                setNewCollabEmailError('');
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={handleAddCollaborator}>

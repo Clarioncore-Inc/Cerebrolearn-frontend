@@ -13,6 +13,72 @@ import type {
   PlatformSettings,
 } from '../types/database';
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface CourseCommentAuthor {
+  email?: string;
+  full_name?: string;
+  role?: string;
+  org_id?: string;
+  avatar?: string;
+  bio?: string;
+  country?: string;
+  phone_number?: string;
+  location?: string;
+  id?: string;
+  xp?: number;
+  streak?: number;
+  is_active?: boolean;
+  is_suspended?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CourseCommentRecord {
+  id: string;
+  content: string;
+  resolved: boolean;
+  author?: CourseCommentAuthor;
+  course_id?: string;
+  parent_id?: string | null;
+  replies?: CourseCommentRecord[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CourseHistoryActor {
+  id?: string;
+  full_name?: string;
+  email?: string;
+}
+
+export interface CourseHistoryChanges {
+  action?: string;
+  data?: Record<string, unknown>;
+}
+
+export interface CourseHistoryRecord {
+  id: string;
+  action?: string;
+  event?: string;
+  description?: string;
+  user?: string;
+  actor_name?: string;
+  actor?: CourseHistoryActor;
+  changed_by?: CourseHistoryActor;
+  changes?: CourseHistoryChanges;
+  course_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  timestamp?: string;
+}
+
 const BASE_URL = 'https://backened-core.onrender.com/api';
 
 // Helper to get auth token from localStorage
@@ -152,37 +218,30 @@ export const coursesApi = {
     request<Review[]>(`/courses/${courseId}/reviews`),
 
   getComments: (courseId: string) =>
-    request<
-      Array<{
-        id: string;
-        content: string;
-        created_at?: string;
-        author?: any;
-      }>
-    >(`/courses/${courseId}/comments/`),
+    request<PaginatedResponse<CourseCommentRecord>>(`/courses/${courseId}/comments/`),
+
+  getHistory: (courseId: string) =>
+    request<CourseHistoryRecord[] | PaginatedResponse<CourseHistoryRecord>>(
+      `/courses/${courseId}/history`,
+    ),
 
   addComment: (courseId: string, content: string) =>
-    request<{
-      id: string;
-      content: string;
-      created_at?: string;
-      author?: any;
-    }>(`/courses/${courseId}/comments/`, {
+    request<CourseCommentRecord>(`/courses/${courseId}/comments/`, {
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
 
-  updateComment: (courseId: string, commentId: string, content: string) =>
-    request<{ id: string; content: string }>(
-      `/courses/${courseId}/comments/${commentId}`,
-      {
-        method: 'PUT',
-        body: JSON.stringify({ content }),
-      },
-    ),
+  updateComment: (
+    commentId: string,
+    updates: { content: string; resolved: boolean },
+  ) =>
+    request<CourseCommentRecord>(`/courses/comments/${commentId}/`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
 
-  deleteComment: (courseId: string, commentId: string) =>
-    request<null>(`/courses/${courseId}/comments/${commentId}`, {
+  deleteComment: (commentId: string) =>
+    request<null>(`/courses/comments/${commentId}/`, {
       method: 'DELETE',
     }),
 };

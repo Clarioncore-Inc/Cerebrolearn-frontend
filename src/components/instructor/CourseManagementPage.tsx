@@ -158,6 +158,10 @@ export function CourseManagementPage({
       (course.course_goals?.length > 0 ? course.course_goals : null) ||
       (course.goals?.length > 0 ? course.goals : null) ||
       [],
+    learningObjectives:
+      (course.learning_objectives?.length > 0
+        ? course.learning_objectives
+        : null) || [],
     requirements:
       (course.prerequisites?.length > 0 ? course.prerequisites : null) ||
       (course.requirements?.length > 0 ? course.requirements : null) ||
@@ -169,6 +173,10 @@ export function CourseManagementPage({
     allowReviews: course.enable_reviews ?? true,
     enableCertificate: course.enable_certificates ?? true,
     enableDiscussions: course.enable_discussions ?? true,
+    maxStudents:
+      course.maximum_students != null && course.maximum_students !== 0
+        ? String(course.maximum_students)
+        : '',
   });
 
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
@@ -234,11 +242,19 @@ export function CourseManagementPage({
         level: courseData.level.toLowerCase() as any,
         language: courseData.language,
         price: courseData.price ? parseFloat(courseData.price) : 0,
-        course_goals: courseData.goals,
-        prerequisites: courseData.requirements,
+        course_goals: courseData.goals.filter((goal) => goal.trim()),
+        learning_objectives: courseData.learningObjectives.filter((objective) =>
+          objective.trim(),
+        ),
+        prerequisites: courseData.requirements.filter((requirement) =>
+          requirement.trim(),
+        ),
         enable_reviews: courseData.allowReviews,
         enable_certificates: courseData.enableCertificate,
         enable_discussions: courseData.enableDiscussions,
+        maximum_students: courseData.maxStudents
+          ? parseInt(courseData.maxStudents, 10)
+          : 0,
         collaborators: collaborators,
         ...(coverImageId ? { cover_image: coverImageId } : {}),
         sections: chapters.map((ch) => ({
@@ -286,6 +302,10 @@ export function CourseManagementPage({
             (fc.course_goals?.length > 0 ? fc.course_goals : null) ||
             (fc.goals?.length > 0 ? fc.goals : null) ||
             [],
+          learningObjectives:
+            (fc.learning_objectives?.length > 0
+              ? fc.learning_objectives
+              : null) || [],
           requirements:
             (fc.prerequisites?.length > 0 ? fc.prerequisites : null) ||
             (fc.requirements?.length > 0 ? fc.requirements : null) ||
@@ -297,6 +317,10 @@ export function CourseManagementPage({
           allowReviews: fc.enable_reviews ?? true,
           enableCertificate: fc.enable_certificates ?? true,
           enableDiscussions: fc.enable_discussions ?? true,
+          maxStudents:
+            fc.maximum_students != null && fc.maximum_students !== 0
+              ? String(fc.maximum_students)
+              : '',
         });
 
         // Hydrate collaborators from server
@@ -708,9 +732,9 @@ export function CourseManagementPage({
 
             <Card>
               <CardHeader>
-                <CardTitle>Learning Goals</CardTitle>
+                <CardTitle>Course Goals</CardTitle>
                 <CardDescription>
-                  What students will learn in this course
+                  What learners will be able to do by the end of this course
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-3'>
@@ -748,19 +772,83 @@ export function CourseManagementPage({
                   onClick={() =>
                     setCourseData({
                       ...courseData,
-                      goals: [...courseData.goals, 'New learning goal'],
+                      goals: [...courseData.goals, 'New course goal'],
                     })
                   }
                 >
                   <Plus className='mr-2 h-4 w-4' />
-                  Add Goal
+                  Add Course Goal
                 </Button>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Requirements</CardTitle>
+                <CardTitle>Learning Objectives</CardTitle>
+                <CardDescription>
+                  Specific skills and knowledge students will gain
+                </CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-3'>
+                {courseData.learningObjectives.map((objective, index) => (
+                  <div
+                    key={index}
+                    className='flex items-center gap-3 p-3 bg-accent rounded-lg'
+                  >
+                    <Target className='w-5 h-5 text-primary flex-shrink-0' />
+                    <Input
+                      value={objective}
+                      onChange={(e) => {
+                        const nextObjectives = [
+                          ...courseData.learningObjectives,
+                        ];
+                        nextObjectives[index] = e.target.value;
+                        setCourseData({
+                          ...courseData,
+                          learningObjectives: nextObjectives,
+                        });
+                      }}
+                      className='border-0 bg-transparent'
+                    />
+                    <Button
+                      variant='ghost'
+                      size='sm'
+                      onClick={() => {
+                        const nextObjectives =
+                          courseData.learningObjectives.filter(
+                            (_, i) => i !== index,
+                          );
+                        setCourseData({
+                          ...courseData,
+                          learningObjectives: nextObjectives,
+                        });
+                      }}
+                    >
+                      <Trash2 className='w-4 h-4' />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant='outline'
+                  onClick={() =>
+                    setCourseData({
+                      ...courseData,
+                      learningObjectives: [
+                        ...courseData.learningObjectives,
+                        'New learning objective',
+                      ],
+                    })
+                  }
+                >
+                  <Plus className='mr-2 h-4 w-4' />
+                  Add Learning Objective
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Prerequisites/Requirements</CardTitle>
                 <CardDescription>
                   Prerequisites for taking this course
                 </CardDescription>
@@ -1327,6 +1415,27 @@ export function CourseManagementPage({
                       className='w-5 h-5 accent-[#395192]'
                     />
                   </label>
+
+                  <div className='p-4 border rounded-lg space-y-2'>
+                    <label className='text-sm font-medium block'>
+                      Maximum Students (Optional)
+                    </label>
+                    <Input
+                      type='number'
+                      min='0'
+                      value={courseData.maxStudents}
+                      onChange={(e) =>
+                        setCourseData({
+                          ...courseData,
+                          maxStudents: e.target.value,
+                        })
+                      }
+                      placeholder='Leave empty for unlimited'
+                    />
+                    <p className='text-sm text-muted-foreground'>
+                      Leave empty or set to 0 for unlimited enrollment.
+                    </p>
+                  </div>
                 </div>
 
                 <div className='pt-6 border-t'>

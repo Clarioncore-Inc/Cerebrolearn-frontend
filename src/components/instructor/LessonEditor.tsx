@@ -541,30 +541,30 @@ export function LessonEditor({
 
     setIsSaving(true);
     try {
+      // Video upload — upload to AWS and store video_id in content block
+      const videoBlock = contentBlocks.find((b) => b.type === 'video');
+      const hasVideoFile = videoBlock && videoFile && videoStorage;
+
+      let finalBlocks = contentBlocks;
+
+      if (hasVideoFile) {
+        const { id, url, fields } = videoStorage;
+        const formData = new FormData();
+        Object.entries(fields).forEach(([key, value]) =>
+          formData.append(key, value),
+        );
+        formData.append('file', videoFile);
+        await fetch(url, { method: 'POST', body: formData });
+
+        // Create updated blocks array with video ID
+        finalBlocks = contentBlocks.map((block) =>
+          block.id === videoBlock.id
+            ? { ...block, content: { ...block.content, videoId: id } }
+            : block,
+        );
+      }
+
       if (isValidUUID(lessonId)) {
-        // Video upload — upload to AWS and store video_id in content block
-        const videoBlock = contentBlocks.find((b) => b.type === 'video');
-        const hasVideoFile = videoBlock && videoFile && videoStorage;
-
-        let finalBlocks = contentBlocks;
-
-        if (hasVideoFile) {
-          const { id, url, fields } = videoStorage;
-          const formData = new FormData();
-          Object.entries(fields).forEach(([key, value]) =>
-            formData.append(key, value),
-          );
-          formData.append('file', videoFile);
-          await fetch(url, { method: 'POST', body: formData });
-
-          // Create updated blocks array with video ID
-          finalBlocks = contentBlocks.map((block) =>
-            block.id === videoBlock.id
-              ? { ...block, content: { ...block.content, videoId: id } }
-              : block,
-          );
-        }
-
         // Persist all content blocks + metadata to the backend
         await lessonsApi.update(
           lessonId,
@@ -583,7 +583,7 @@ export function LessonEditor({
         id: lesson.id,
         title,
         type: lessonType,
-        content: contentBlocks,
+        content: finalBlocks,
         updatedAt: new Date().toISOString(),
       };
       onSave(lessonData);

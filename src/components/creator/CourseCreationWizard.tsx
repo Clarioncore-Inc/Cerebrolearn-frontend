@@ -103,12 +103,14 @@ function buildLessonApiPayload(
       external_url: b.content.url || '',
       duration_seconds: 0,
       allow_download: true,
+      ...(b.content.videoId ? { video_id: b.content.videoId } : {}),
     })),
 
     image_content: blocksOfType('image').map((b, i) => ({
       position: i,
       caption: b.content.caption || '',
       alt_text: b.content.alt || '',
+      ...(b.content.imageId ? { image_id: b.content.imageId } : {}),
     })),
 
     code_content: blocksOfType('code').map((b, i) => ({
@@ -651,8 +653,23 @@ export function CourseCreationWizard({
       });
 
       // ── Create lessons for each section ──────────────────────────
-      // The bulk response includes the created sections in order.
-      const createdSections: any[] = (result as any).sections ?? [];
+      // Prefer sections returned by the bulk create response. If the backend
+      // does not embed sections there, fetch the created course to obtain
+      // section ids needed for lesson creation.
+      let createdSections: any[] = (result as any).sections ?? [];
+      const createdCourseId = (result as any)?.id;
+
+      if (createdSections.length === 0 && createdCourseId) {
+        try {
+          const createdCourse = await coursesApi.getForEdit(createdCourseId);
+          createdSections = (createdCourse as any)?.sections ?? [];
+        } catch (fetchSectionsError) {
+          console.error(
+            'Error fetching created course sections for lesson creation:',
+            fetchSectionsError,
+          );
+        }
+      }
 
       if (createdSections.length > 0) {
         const filteredSections = courseData.sections.filter((s: any) =>
@@ -664,9 +681,7 @@ export function CourseCreationWizard({
           const backendSection = createdSections[si];
           if (!backendSection?.id) continue;
 
-          const lessonsToCreate = wizardSection.lessons.filter((l: any) =>
-            l.title?.trim(),
-          );
+          const lessonsToCreate = wizardSection.lessons;
 
           await Promise.all(
             lessonsToCreate.map((lesson: any, li: number) =>
@@ -2005,6 +2020,35 @@ function WizardLessonModal({
     null,
   );
 
+  const uploadToStorage = async (
+    result: {
+      id: string;
+      url: string;
+      fields: Record<string, string>;
+    },
+    file: File,
+  ) => {
+    const formData = new FormData();
+    Object.entries(result.fields).forEach(([key, value]) =>
+      formData.append(key, value),
+    );
+    formData.append('file', file);
+
+    const response = await fetch(result.url, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Storage upload failed with status ${response.status}${errorText ? `: ${errorText}` : ''}`,
+      );
+    }
+
+    return result.id;
+  };
+
   /* ── block helpers ─────────────────────────────────────────────── */
   const getDefaultContent = (type: BlockType) => {
     switch (type) {
@@ -2075,23 +2119,24 @@ function WizardLessonModal({
       });
       setVideoStorage(result);
 
+      const id = await uploadToStorage(result, file);
+
       // Update block with video info
       updateBlock(blockId, {
         url: '',
         title: '',
         videoFileName: file.name,
         videoReady: true,
-        videoId: result.id,
+        videoId: id,
         uploadedVideoUrl: URL.createObjectURL(file),
       });
 
-      toast.success(
-        'Video ready! It will be uploaded when you save the lesson.',
-      );
+      toast.success('Video uploaded successfully!');
     } catch (err) {
-      console.error('Error preparing video upload:', err);
-      toast.error('Failed to prepare video upload. Please try again.');
+      console.error('Error uploading video:', err);
+      toast.error('Failed to upload video. Please try again.');
       setVideoFile(null);
+      setVideoStorage(null);
     } finally {
       setIsPreparingVideo(false);
     }
@@ -2115,6 +2160,8 @@ function WizardLessonModal({
       });
       setImageStorage(result);
 
+      const id = await uploadToStorage(result, file);
+
       // Create a preview URL
       const previewUrl = URL.createObjectURL(file);
 
@@ -2123,18 +2170,17 @@ function WizardLessonModal({
         url: '',
         alt: '',
         caption: '',
-        imageId: result.id,
+        imageId: id,
         uploadedImageUrl: previewUrl,
         imageFileName: file.name,
       });
 
-      toast.success(
-        'Image ready! It will be uploaded when you save the lesson.',
-      );
+      toast.success('Image uploaded successfully!');
     } catch (err) {
-      console.error('Error preparing image upload:', err);
-      toast.error('Failed to prepare image. Please try again.');
+      console.error('Error uploading image:', err);
+      toast.error('Failed to upload image. Please try again.');
       setImageFile(null);
+      setImageStorage(null);
     } finally {
       setIsPreparingImage(false);
       setCurrentImageBlockId(null);
@@ -2962,6 +3008,11 @@ function WizardLessonModal({
   };
 
   const handleSave = () => {
+    if (isPreparingVideo || isPreparingImage) {
+      toast.error('Please wait for media uploads to finish before saving.');
+      return;
+    }
+
     onSave({
       id: lesson.id,
       title,
@@ -2998,10 +3049,13 @@ function WizardLessonModal({
             <button
               type='button'
               onClick={handleSave}
+              disabled={isPreparingVideo || isPreparingImage}
               className='flex items-center gap-1.5 px-4 py-1.5 text-sm bg-[#395192] text-white rounded-lg hover:bg-[#2d4178]'
             >
               <Save className='w-4 h-4' />
-              Save Lesson
+              {isPreparingVideo || isPreparingImage
+                ? 'Uploading media...'
+                : 'Save Lesson'}
             </button>
             <button
               type='button'
