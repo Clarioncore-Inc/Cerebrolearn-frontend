@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../utils/api-client';
 
 interface EnhancedAppointmentBookingProps {
   onNavigate: (page: string, data?: any) => void;
@@ -45,6 +46,7 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
   const [sessionType, setSessionType] = useState('');
   const [notes, setNotes] = useState('');
   const [bookingId, setBookingId] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
   
   // Phase 2 New Features
   const [isRecurring, setIsRecurring] = useState(false);
@@ -87,14 +89,11 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
       '08:00 AM', '12:00 PM', '06:00 PM', '07:00 PM'
     ];
     
-    // Mock some slots as booked
-    const bookedSlots = ['10:00 AM', '02:00 PM'];
-    
     const times = isEmergency ? [...regularTimes, ...emergencyTimes] : regularTimes;
     
     return times.sort().map(time => ({
       time,
-      available: !bookedSlots.includes(time),
+      available: true,
       isEmergency: emergencyTimes.includes(time)
     }));
   };
@@ -126,7 +125,15 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
     return dates;
   }, [isRecurring, selectedDate, recurringEndDate, recurringFrequency]);
 
-  const handleBooking = () => {
+  const getSessionPrice = () => {
+    const basePrice = sessionType === 'Initial Consultation (60 min)' ? 150 : sessionType === 'IQ Test Review (45 min)' ? 100 : 120;
+    return basePrice + (isEmergency ? 50 : 0);
+  };
+
+  const bookingCount = isRecurring ? Math.max(calculateRecurringDates.length, 1) : 1;
+  const totalPrice = getSessionPrice() * bookingCount;
+
+  const handleBooking = async () => {
     if (!user) {
       toast.error('Please log in to book an appointment');
       return;
@@ -137,47 +144,81 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
       return;
     }
 
+    if (isRecurring && !recurringEndDate) {
+      toast.error('Please select a recurring end date');
+      return;
+    }
+
     // Check cancellation policy acknowledgment
     const sessionDate = new Date(selectedDate);
     const now = new Date();
     const hoursUntilSession = (sessionDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    // Generate booking
-    const newBookingId = `BK${Date.now()}`;
-    const booking = {
-      id: newBookingId,
-      studentId: user.id,
-      psychologistId: psychologist?.id,
-      psychologistName: psychologist?.name,
-      date: selectedDate.toISOString(),
-      time: selectedTime,
-      sessionType,
-      notes,
-      status: isEmergency ? 'emergency' : 'confirmed',
-      isRecurring,
-      recurringFrequency: isRecurring ? recurringFrequency : null,
-      recurringDates: isRecurring ? calculateRecurringDates.map(d => d.toISOString()) : [],
-      reminderPreferences,
-      createdAt: new Date().toISOString(),
-      price: sessionType === 'Initial Consultation (60 min)' ? 150 : 200
-    };
+    const psychologistId = psychologist?.psychologistId || psychologist?.userId || psychologist?.id;
 
-    // Save to localStorage
-    const existingBookings = JSON.parse(localStorage.getItem('psychologist_bookings') || '[]');
-    existingBookings.push(booking);
-    localStorage.setItem('psychologist_bookings', JSON.stringify(existingBookings));
+    if (!psychologistId) {
+      toast.error('Psychologist identifier is missing');
+      return;
+    }
 
-    // Schedule reminders (mock)
-    scheduleReminders(booking);
+    const price = getSessionPrice();
 
-    setBookingId(newBookingId);
-    setStep('payment');
-    
-    const appointmentText = isRecurring 
-      ? `${calculateRecurringDates.length} recurring appointments` 
-      : 'appointment';
-    
-    toast.success(`${isEmergency ? 'Emergency' : 'Standard'} ${appointmentText} booked successfully!`);
+    try {
+      setSubmitting(true);
+
+      const response = await api.psychologist.createBooking({
+        psychologist_id: psychologistId,
+        date: selectedDate.toISOString().split('T')[0],
+        time: selectedTime,
+        booking_type: isEmergency ? 'emergency' : 'standard',
+        session_type: sessionType,
+        notes,
+        is_recurring: isRecurring,
+        recurring_frequency: isRecurring ? recurringFrequency : '',
+        reminder_preferences: JSON.stringify(reminderPreferences),
+        price,
+      });
+
+      const newBookingId = response?.id || response?.booking_id || `BK${Date.now()}`;
+      const booking = {
+        id: newBookingId,
+        studentId: user.id,
+        psychologistId,
+        psychologistName: psychologist?.fullName || psychologist?.name,
+        date: selectedDate.toISOString(),
+        time: selectedTime,
+        bookingType: isEmergency ? 'emergency' : 'standard',
+        sessionType,
+        notes,
+        status: isEmergency ? 'emergency' : 'pending',
+        isRecurring,
+        recurringFrequency: isRecurring ? recurringFrequency : null,
+        recurringDates: isRecurring ? calculateRecurringDates.map(d => d.toISOString()) : [],
+        reminderPreferences,
+        createdAt: new Date().toISOString(),
+        price,
+      };
+
+      const existingBookings = JSON.parse(localStorage.getItem('psychologist_bookings') || '[]');
+      existingBookings.push(booking);
+      localStorage.setItem('psychologist_bookings', JSON.stringify(existingBookings));
+
+      scheduleReminders(booking);
+
+      setBookingId(newBookingId);
+      setStep('payment');
+
+      const appointmentText = isRecurring
+        ? `${calculateRecurringDates.length} recurring appointments`
+        : 'appointment';
+
+      toast.success(`${isEmergency ? 'Emergency' : 'Standard'} ${appointmentText} booked successfully!`);
+    } catch (error: any) {
+      console.error('Error booking appointment:', error);
+      toast.error(error?.message ?? 'Failed to book appointment');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const scheduleReminders = (booking: any) => {
@@ -525,7 +566,7 @@ END:VEVENT\n`;
 
                   {/* Step 3: Details */}
                   <TabsContent value="details" className="space-y-4">
-                    <div>
+                    <div className="space-y-2">
                       <Label>Session Type</Label>
                       <Select value={sessionType} onValueChange={setSessionType}>
                         <SelectTrigger>
@@ -556,25 +597,25 @@ END:VEVENT\n`;
 
                       {isRecurring && (
                         <div className="space-y-3 ml-6">
-                          <div>
+                          <div className="space-y-2">
                             <Label className="text-sm">Frequency</Label>
-                            <RadioGroup value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as any)}>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="weekly" id="weekly" />
-                                <Label htmlFor="weekly" className="cursor-pointer">Weekly</Label>
+                            <RadioGroup className="space-y-2" value={recurringFrequency} onValueChange={(v) => setRecurringFrequency(v as any)}>
+                              <div className="flex items-center space-x-3 rounded-md border border-border bg-muted/40 px-3 py-2">
+                                <RadioGroupItem className="border-primary/50 bg-background" value="weekly" id="weekly" />
+                                <Label htmlFor="weekly" className="cursor-pointer font-medium">Weekly</Label>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="biweekly" id="biweekly" />
-                                <Label htmlFor="biweekly" className="cursor-pointer">Bi-weekly</Label>
+                              <div className="flex items-center space-x-3 rounded-md border border-border bg-muted/40 px-3 py-2">
+                                <RadioGroupItem className="border-primary/50 bg-background" value="biweekly" id="biweekly" />
+                                <Label htmlFor="biweekly" className="cursor-pointer font-medium">Bi-weekly</Label>
                               </div>
-                              <div className="flex items-center space-x-2">
-                                <RadioGroupItem value="monthly" id="monthly" />
-                                <Label htmlFor="monthly" className="cursor-pointer">Monthly</Label>
+                              <div className="flex items-center space-x-3 rounded-md border border-border bg-muted/40 px-3 py-2">
+                                <RadioGroupItem className="border-primary/50 bg-background" value="monthly" id="monthly" />
+                                <Label htmlFor="monthly" className="cursor-pointer font-medium">Monthly</Label>
                               </div>
                             </RadioGroup>
                           </div>
 
-                          <div>
+                          <div className="space-y-2">
                             <Label className="text-sm">End Date</Label>
                             <Input
                               type="date"
@@ -637,7 +678,7 @@ END:VEVENT\n`;
                           <Label htmlFor="push-reminder" className="cursor-pointer">Push Notification</Label>
                         </div>
 
-                        <div className="mt-2">
+                        <div className="space-y-2 pt-2">
                           <Label className="text-sm">Remind me</Label>
                           <Select 
                             value={reminderPreferences.timing}
@@ -659,7 +700,7 @@ END:VEVENT\n`;
                       </div>
                     </div>
 
-                    <div>
+                    <div className="space-y-2">
                       <Label>Notes (Optional)</Label>
                       <Textarea
                         placeholder="Any specific concerns or topics you'd like to discuss..."
@@ -688,7 +729,7 @@ END:VEVENT\n`;
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Psychologist:</span>
-                          <span className="font-medium">{psychologist.name}</span>
+                            <span className="font-medium">{psychologist.fullName || psychologist.name}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Date:</span>
@@ -725,9 +766,7 @@ END:VEVENT\n`;
 
                       <div className="pt-3 border-t flex justify-between font-semibold text-lg">
                         <span>Total:</span>
-                        <span className="text-primary">
-                          ${((sessionType === 'Initial Consultation (60 min)' ? 150 : 120) + (isEmergency ? 50 : 0)) * (isRecurring ? calculateRecurringDates.length : 1)}
-                        </span>
+                          <span className="text-primary">${totalPrice}</span>
                       </div>
                     </div>
 
@@ -751,9 +790,9 @@ END:VEVENT\n`;
                         <ArrowLeft className="h-4 w-4 mr-2" />
                         Back
                       </Button>
-                      <Button onClick={handleBooking} className="flex-1">
+                      <Button onClick={handleBooking} className="flex-1" disabled={submitting}>
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Confirm & Pay
+                        {submitting ? 'Booking...' : 'Confirm & Pay'}
                       </Button>
                     </div>
                   </TabsContent>

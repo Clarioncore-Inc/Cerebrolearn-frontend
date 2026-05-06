@@ -27,18 +27,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../ui/dialog';
-import { Search, BookOpen, Star, Users, DollarSign, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, BookOpen, Star, Users, DollarSign, Eye } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import type { Course } from '../../types/database';
 
+type CourseManagementItem = Course & {
+  creator?: {
+    name?: string;
+    email?: string;
+  };
+  total_enrollments?: number;
+};
+
 export function CourseManagementPage() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseManagementItem[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<CourseManagementItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<CourseManagementItem | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -52,9 +60,17 @@ export function CourseManagementPage() {
   const loadCourses = async () => {
     try {
       setLoading(true);
-      const response = await api.admin.getCourses();
-      const coursesWithCreators = response.courses || [];
-      setCourses(coursesWithCreators);
+      const response = await api.admin.getCourses() as
+        | { items?: CourseManagementItem[]; total?: number }
+        | { courses?: CourseManagementItem[]; total?: number };
+
+      const courseItems = ((response as { items?: CourseManagementItem[] }).items ||
+        (response as { courses?: CourseManagementItem[] }).courses || []).map((course) => ({
+        ...course,
+        enrollments: course.enrollments ?? course.total_enrollments ?? 0,
+      }));
+
+      setCourses(courseItems);
     } catch (error) {
       console.error('Error loading courses:', error);
       toast.error('Failed to load courses');
@@ -254,7 +270,7 @@ export function CourseManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredCourses.map((course: any) => (
+                  {filteredCourses.map((course) => (
                     <TableRow key={course.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -271,9 +287,9 @@ export function CourseManagementPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{course.creator?.name || 'Unknown'}</p>
+                          <p className="font-medium">{course.creator?.name || course.created_by || 'Unknown'}</p>
                           <p className="text-sm text-muted-foreground">
-                            {course.creator?.email}
+                            {course.creator?.email || '—'}
                           </p>
                         </div>
                       </TableCell>
@@ -299,7 +315,7 @@ export function CourseManagementPage() {
                       <TableCell>
                         <div className="flex items-center gap-1">
                           <Users className="h-4 w-4 text-muted-foreground" />
-                          <span>{course.enrollments || 0}</span>
+                            <span>{course.enrollments || 0}</span>
                         </div>
                       </TableCell>
                       <TableCell>

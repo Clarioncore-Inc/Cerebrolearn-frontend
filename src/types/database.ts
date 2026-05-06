@@ -1,6 +1,13 @@
 // CerebroLearn Database Type Definitions
 
-export type UserRole = 'learner' | 'creator' | 'admin' | 'org_admin';
+export type UserRole =
+  | 'learner'
+  | 'creator'
+  | 'instructor'
+  | 'admin'
+  | 'org_admin'
+  | 'psychologist'
+  | 'psychologist_pending';
 export type CourseLevel = 'beginner' | 'intermediate' | 'advanced';
 export type CourseStatus = 'draft' | 'published' | 'archived';
 export type LessonKind = 'video' | 'interactive' | 'article' | 'quiz' | 'practice';
@@ -26,6 +33,8 @@ export interface User {
   streak: number;
   badges: Badge[];
   suspended?: boolean;
+  is_suspended?: boolean;
+  is_active?: boolean;
   created_at: string;
   updated_at?: string;
   last_active?: string;

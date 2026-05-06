@@ -538,19 +538,27 @@ export const paymentsApi = {
 // ========================================
 
 export const adminApi = {
-  getUsers: () => request<{ items: User[]; total: number }>('/admin/users'),
+  getUsers: () => request<{ users?: User[]; items?: User[]; total?: number }>('/admin/users'),
 
   getCourses: () => request<{ items: Course[]; total: number }>('/admin/courses'),
 
   getAnalytics: () =>
-    request<{
-      analytics: {
-        total_users: number;
-        total_courses: number;
-        total_enrollments: number;
-        total_revenue: number;
-      };
-    }>('/admin/analytics'),
+    request<
+      | {
+          total_users: number;
+          total_courses: number;
+          total_enrollments: number;
+          total_revenue: number;
+        }
+      | {
+          analytics: {
+            total_users: number;
+            total_courses: number;
+            total_enrollments: number;
+            total_revenue: number;
+          };
+        }
+    >('/admin/analytics'),
 
   updateUserRole: (userId: string, role: string) =>
     request<{ success: boolean; user: User }>(`/admin/users/${userId}/role`, {
@@ -600,6 +608,32 @@ export const storageApi = {
 // PSYCHOLOGIST API
 // ========================================
 export const psychologistApi = {
+  list: () =>
+    request<any[] | { items?: any[]; results?: any[] }>('/psychologist/list/'),
+
+  createBooking: (data: {
+    psychologist_id: string;
+    date: string | null;
+    time: string;
+    booking_type: 'standard' | 'emergency';
+    session_type: string;
+    notes: string;
+    is_recurring: boolean;
+    recurring_frequency: string;
+    reminder_preferences: string;
+    price: number;
+  }) =>
+    request<any>('/psychologist/bookings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateStatus: (id: string, status: 'pending' | 'approved' | 'rejected') =>
+    request<any>(`/psychologist/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+
   register: (data: {
     email: string;
     full_name: string;

@@ -56,6 +56,7 @@ import { PsychologistSignupForm } from './components/psychologist/PsychologistSi
 import { PsychologistDashboard } from './components/psychologist/PsychologistDashboard';
 import { PsychologistManagementPage } from './components/admin/PsychologistManagementPage';
 import { PsychologistBrowse } from './components/psychologist/PsychologistBrowse';
+import { PsychologistProfilePage } from './components/psychologist/PsychologistProfilePage';
 import { AppointmentBooking } from './components/psychologist/AppointmentBooking';
 import { EnhancedAppointmentBooking } from './components/psychologist/EnhancedAppointmentBooking';
 import { AppointmentManager } from './components/psychologist/AppointmentManager';
@@ -570,6 +571,16 @@ function AppContent() {
 
       case 'browse-psychologists':
         return <PsychologistBrowse onNavigate={handleNavigate} />;
+
+      case 'psychologist-profile':
+        return pageData?.psychologist ? (
+          <PsychologistProfilePage
+            onNavigate={handleNavigate}
+            psychologist={pageData.psychologist}
+          />
+        ) : (
+          <PsychologistBrowse onNavigate={handleNavigate} />
+        );
 
       case 'book-appointment':
         return pageData ? (

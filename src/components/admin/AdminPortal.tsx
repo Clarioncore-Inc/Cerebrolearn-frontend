@@ -8,7 +8,6 @@ import { GlobalAnalyticsPage } from './GlobalAnalyticsPage';
 import { ApplicationsPage } from './ApplicationsPage';
 import { PsychologistManagementPage } from './PsychologistManagementPage';
 import { AdminFinancials } from './AdminFinancials';
-import { AdminPsychologistManagement } from './AdminPsychologistManagement';
 import { AdminBookingManagement } from './AdminBookingManagement';
 import { PsychologistAnalytics } from './PsychologistAnalytics';
 import { PlatformAnalyticsDashboard } from './PlatformAnalyticsDashboard';
@@ -89,7 +88,7 @@ export function AdminPortal() {
       case 'psychologists':
         return <PsychologistManagementPage />;
       case 'admin_psychologist_management':
-        return <AdminPsychologistManagement />;
+        return <PsychologistManagementPage />;
       case 'admin_booking_management':
         return <AdminBookingManagement />;
       case 'admin_financials':
@@ -127,13 +126,13 @@ export function AdminPortal() {
         } max-md:ml-0`}
       >
         {/* Breadcrumb Navigation */}
-        {currentPage !== 'dashboard' && (
+        {/* {currentPage !== 'dashboard' && currentPage !== 'psychologists' && (
           <div className="border-b bg-card/50 backdrop-blur-sm sticky top-16 z-20">
             <div className="container py-3">
               <Breadcrumb items={breadcrumbs} />
             </div>
           </div>
-        )}
+        )} */}
         
         {renderPage()}
       </div>

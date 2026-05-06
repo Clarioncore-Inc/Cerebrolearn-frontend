@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../utils/api-client';
 
 interface AppointmentBookingProps {
   onNavigate: (page: string, data?: any) => void;
@@ -34,6 +35,7 @@ export function AppointmentBooking({ onNavigate, psychologist }: AppointmentBook
   const [sessionType, setSessionType] = useState('');
   const [notes, setNotes] = useState('');
   const [bookingId, setBookingId] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Generate next 14 days for calendar
   const generateAvailableDates = () => {
@@ -54,22 +56,18 @@ export function AppointmentBooking({ onNavigate, psychologist }: AppointmentBook
 
   // Generate available time slots for selected date
   const generateTimeSlots = () => {
-    const slots = [];
     const times = [
       '09:00 AM', '10:00 AM', '11:00 AM',
       '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'
     ];
     
-    // Mock some slots as booked
-    const bookedSlots = ['10:00 AM', '02:00 PM'];
-    
     return times.map(time => ({
       time,
-      available: !bookedSlots.includes(time)
+      available: true
     }));
   };
 
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!user) {
       toast.error('Please log in to book an appointment');
       return;
@@ -80,32 +78,60 @@ export function AppointmentBooking({ onNavigate, psychologist }: AppointmentBook
       return;
     }
 
-    // Create booking
-    const newBookingId = `booking_${Date.now()}`;
-    const booking = {
-      id: newBookingId,
-      psychologistId: psychologist.id,
-      psychologistName: psychologist.fullName,
-      psychologistEmail: psychologist.email,
-      studentEmail: user.email,
-      studentName: user.user_metadata?.full_name || 'Student',
-      date: selectedDate.toISOString().split('T')[0],
-      time: selectedTime,
-      sessionType,
-      notes,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      hourlyRate: psychologist.hourlyRate,
-    };
+    const psychologistId = psychologist.psychologistId || psychologist.userId || psychologist.id;
 
-    // Save to localStorage
-    const bookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
-    bookings.push(booking);
-    localStorage.setItem('appointment_bookings', JSON.stringify(bookings));
+    if (!psychologistId) {
+      toast.error('Psychologist identifier is missing');
+      return;
+    }
 
-    setBookingId(newBookingId);
-    setStep('payment');
-    toast.success('Appointment booked successfully!');
+    try {
+      setSubmitting(true);
+
+      const response = await api.psychologist.createBooking({
+        psychologist_id: psychologistId,
+        date: selectedDate.toISOString().split('T')[0],
+        time: selectedTime,
+        booking_type: 'standard',
+        session_type: sessionType,
+        notes,
+        is_recurring: false,
+        recurring_frequency: '',
+        reminder_preferences: '',
+        price: psychologist.hourlyRate,
+      });
+
+      const newBookingId = response?.id || response?.booking_id || `booking_${Date.now()}`;
+      const booking = {
+        id: newBookingId,
+        psychologistId,
+        psychologistName: psychologist.fullName,
+        psychologistEmail: psychologist.email,
+        studentEmail: user.email,
+        studentName: user.user_metadata?.full_name || 'Student',
+        date: selectedDate.toISOString().split('T')[0],
+        time: selectedTime,
+        bookingType: 'standard',
+        sessionType,
+        notes,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        hourlyRate: psychologist.hourlyRate,
+      };
+
+      const bookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
+      bookings.push(booking);
+      localStorage.setItem('appointment_bookings', JSON.stringify(bookings));
+
+      setBookingId(newBookingId);
+      setStep('payment');
+      toast.success('Appointment booked successfully!');
+    } catch (error: any) {
+      console.error('Error booking appointment:', error);
+      toast.error(error?.message ?? 'Failed to book appointment');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const formatDate = (date: Date) => {
@@ -450,10 +476,10 @@ export function AppointmentBooking({ onNavigate, psychologist }: AppointmentBook
                     </Button>
                     <Button
                       onClick={handleBooking}
-                      disabled={!sessionType}
+                      disabled={!sessionType || submitting}
                     >
                       <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Confirm Booking
+                      {submitting ? 'Booking...' : 'Confirm Booking'}
                     </Button>
                   </div>
                 </div>

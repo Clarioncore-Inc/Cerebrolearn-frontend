@@ -41,6 +41,7 @@ export function PsychologistDashboard({
   onNavigate,
 }: PsychologistDashboardProps) {
   const { user } = useAuth();
+  const [applicationLoading, setApplicationLoading] = useState(true);
   const [applicationStatus, setApplicationStatus] = useState<
     'incomplete' | 'pending' | 'approved' | 'rejected'
   >('incomplete');
@@ -58,42 +59,115 @@ export function PsychologistDashboard({
   const [qualifications, setQualifications] = useState('');
   const [certifications, setCertifications] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [isReapplying, setIsReapplying] = useState(false);
 
   useEffect(() => {
     if (!user) return;
 
-    // Load psychologist profile using email as key
-    const profileData = localStorage.getItem(
-      `psychologist_profile_${user.email}`,
-    );
+    let isMounted = true;
 
-    if (profileData) {
-      const parsedProfile = JSON.parse(profileData);
-      setProfile(parsedProfile);
-      setQualifications(parsedProfile.qualifications || '');
-      setCertifications(parsedProfile.certifications || '');
+    const loadPsychologistState = async () => {
+      setApplicationLoading(true);
 
-      // Check if application has been submitted
-      const apps = JSON.parse(
-        localStorage.getItem('psychologist_applications') || '[]',
+      // Load psychologist profile using email as key
+      const profileData = localStorage.getItem(
+        `psychologist_profile_${user.email}`,
       );
-      const userApp = apps.find((app: any) => app.email === user.email);
 
-      if (userApp) {
-        setApplication(userApp);
-        setApplicationStatus(userApp.status);
+      if (profileData) {
+        const parsedProfile = JSON.parse(profileData);
+        if (!isMounted) return;
+
+        setProfile(parsedProfile);
+        setQualifications(parsedProfile.qualifications || '');
+        setCertifications(parsedProfile.certifications || '');
       } else {
-        // Profile exists but no application submitted yet
-        setApplicationStatus('incomplete');
+        console.log(
+          '[PsychologistDashboard] No local profile found for email:',
+          user.email,
+        );
       }
-    } else {
-      console.log(
-        '[PsychologistDashboard] No profile found for email:',
-        user.email,
-      );
-      // No profile found - this shouldn't happen if signup worked correctly
-      setApplicationStatus('incomplete');
-    }
+
+      try {
+        const data = await psychologistApi.list();
+        const list = Array.isArray(data) ? data : data.items ?? data.results ?? [];
+        const userApp = list.find((item: any) => item.user?.email === user.email || item.email === user.email);
+
+        if (!isMounted) return;
+
+        if (userApp) {
+          const normalizedApplication = {
+            id: userApp.id ?? userApp._id ?? '',
+            email: userApp.user?.email ?? userApp.email ?? user.email,
+            fullName: userApp.user?.full_name ?? userApp.full_name ?? user.user_metadata?.full_name ?? 'Psychologist',
+            licenseNumber: userApp.license_number ?? userApp.licenseNumber ?? '',
+            specialization: userApp.specialization ?? '',
+            yearsOfExperience: userApp.years_of_experience ?? userApp.yearsOfExperience ?? '',
+            bio: userApp.bio ?? '',
+            location: userApp.location ?? userApp.user?.location ?? '',
+            qualifications:
+              userApp.education_and_qualifications ?? userApp.qualifications ?? qualifications,
+            certifications:
+              userApp.certification_and_additional_training ?? userApp.certifications ?? certifications,
+            status: userApp.status ?? (userApp.is_approved ? 'approved' : 'pending'),
+            submittedAt: userApp.submitted_at ?? userApp.created_at ?? null,
+            reviewedAt: userApp.reviewed_at ?? userApp.updated_at ?? null,
+            reviewedBy: userApp.reviewed_by ?? null,
+            reviewNotes: userApp.review_notes ?? userApp.reviewNotes ?? '',
+          };
+
+          setApplication(normalizedApplication);
+          setApplicationStatus(normalizedApplication.status);
+
+          setQualifications((current) =>
+            current || normalizedApplication.qualifications || '',
+          );
+          setCertifications((current) =>
+            current || normalizedApplication.certifications || '',
+          );
+          setProfile((current: any) =>
+            current || {
+              email: normalizedApplication.email,
+              fullName: normalizedApplication.fullName,
+              licenseNumber: normalizedApplication.licenseNumber,
+              specialization: normalizedApplication.specialization,
+              yearsOfExperience: normalizedApplication.yearsOfExperience,
+              bio: normalizedApplication.bio,
+              location: normalizedApplication.location,
+              status: normalizedApplication.status,
+            },
+          );
+        } else if (profileData) {
+          setApplication(null);
+          setApplicationStatus('incomplete');
+        } else {
+          setApplication(null);
+          setApplicationStatus('incomplete');
+        }
+      } catch (error) {
+        console.error('[PsychologistDashboard] Error loading application status:', error);
+
+        if (!isMounted) return;
+
+        const apps = JSON.parse(
+          localStorage.getItem('psychologist_applications') || '[]',
+        );
+        const userApp = apps.find((app: any) => app.email === user.email);
+
+        if (userApp) {
+          setApplication(userApp);
+          setApplicationStatus(userApp.status);
+        } else {
+          setApplicationStatus(profileData ? 'incomplete' : 'incomplete');
+        }
+      } finally {
+        if (isMounted) {
+          setApplicationLoading(false);
+        }
+      }
+    };
+
+    loadPsychologistState();
 
     // Load bookings (mock data for now)
     const mockBookings = [
@@ -143,6 +217,10 @@ export function PsychologistDashboard({
       averageRating: 4.8,
       reviewCount: 38,
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   const handleSubmitCredentials = async () => {
@@ -228,6 +306,7 @@ export function PsychologistDashboard({
       setProfile(updatedProfile);
       setApplication(newApplication);
       setApplicationStatus('pending');
+      setIsReapplying(false);
 
       toast.success('Credentials submitted for verification!');
     } catch (err) {
@@ -242,6 +321,30 @@ export function PsychologistDashboard({
       setSubmitting(false);
     }
   };
+
+  const handleStartNewApplication = () => {
+    setQualifications(application?.qualifications || qualifications || '');
+    setCertifications(application?.certifications || certifications || '');
+    setIsReapplying(true);
+    setApplicationStatus('incomplete');
+  };
+
+  const handleCancelNewApplication = () => {
+    setIsReapplying(false);
+    setApplicationStatus('rejected');
+  };
+
+  if (applicationLoading) {
+    return (
+      <div className='container max-w-4xl mx-auto py-12 px-4'>
+        <Card>
+          <CardContent className='py-12 text-center text-muted-foreground'>
+            Loading application status...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   // Incomplete profile view - need to upload credentials
   if (applicationStatus === 'incomplete') {
@@ -327,23 +430,35 @@ export function PsychologistDashboard({
               </ul>
             </div>
 
-            <Button
-              onClick={handleSubmitCredentials}
-              className='w-full'
-              disabled={submitting || !qualifications.trim()}
-            >
-              {submitting ? (
-                <>
-                  <Clock className='mr-2 h-4 w-4 animate-spin' />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Upload className='mr-2 h-4 w-4' />
-                  Submit for Verification
-                </>
-              )}
-            </Button>
+            <div className='flex gap-3'>
+              {isReapplying ? (
+                <Button
+                  variant='outline'
+                  className='flex-1'
+                  onClick={handleCancelNewApplication}
+                  disabled={submitting}
+                >
+                  Back
+                </Button>
+              ) : null}
+              <Button
+                onClick={handleSubmitCredentials}
+                className='w-full flex-1'
+                disabled={submitting || !qualifications.trim()}
+              >
+                {submitting ? (
+                  <>
+                    <Clock className='mr-2 h-4 w-4 animate-spin' />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Upload className='mr-2 h-4 w-4' />
+                    Submit for Verification
+                  </>
+                )}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -467,10 +582,16 @@ export function PsychologistDashboard({
             </div>
 
             <div className='flex gap-3'>
-              <Button variant='outline' className='flex-1'>
+              <Button
+                variant='outline'
+                className='flex-1'
+                onClick={() => window.open('mailto:support@cerebrolearn.com', '_blank')}
+              >
                 Contact Support
               </Button>
-              <Button className='flex-1'>Submit New Application</Button>
+              <Button className='flex-1' onClick={handleStartNewApplication}>
+                Submit New Application
+              </Button>
             </div>
           </CardContent>
         </Card>
