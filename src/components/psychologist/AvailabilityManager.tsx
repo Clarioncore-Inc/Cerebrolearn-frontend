@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Label } from '../ui/label';
@@ -11,12 +11,11 @@ import {
   ArrowLeft,
   Save,
   AlertCircle,
-  Plus,
-  X,
   CheckCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { psychologistApi } from '../../utils/api-client';
 
 interface AvailabilityManagerProps {
   onNavigate: (page: string, data?: any) => void;
@@ -40,10 +39,68 @@ interface WeekSchedule {
   sunday: DaySchedule;
 }
 
+type AvailabilityDayKey = keyof WeekSchedule;
+
 const defaultDaySchedule: DaySchedule = {
   enabled: false,
   startTime: '09:00',
   endTime: '17:00',
+};
+
+const DEFAULT_WEEK_SCHEDULE: WeekSchedule = {
+  monday: { ...defaultDaySchedule },
+  tuesday: { ...defaultDaySchedule },
+  wednesday: { ...defaultDaySchedule },
+  thursday: { ...defaultDaySchedule },
+  friday: { ...defaultDaySchedule },
+  saturday: { ...defaultDaySchedule },
+  sunday: { ...defaultDaySchedule },
+};
+
+const DAY_KEYS: AvailabilityDayKey[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+const cloneWeekSchedule = (value: WeekSchedule): WeekSchedule =>
+  JSON.parse(JSON.stringify(value));
+
+const toApiSchedule = (value: WeekSchedule) =>
+  DAY_KEYS.reduce(
+    (acc, day) => {
+      acc[day] = {
+        enabled: value[day].enabled,
+        start: value[day].startTime,
+        end: value[day].endTime,
+      };
+      return acc;
+    },
+    {} as Record<AvailabilityDayKey, { enabled: boolean; start: string; end: string }>,
+  );
+
+const fromApiSchedule = (
+  scheduleData?: Partial<Record<AvailabilityDayKey, { enabled?: boolean; start?: string; end?: string }>>,
+): WeekSchedule => {
+  const nextSchedule = cloneWeekSchedule(DEFAULT_WEEK_SCHEDULE);
+
+  DAY_KEYS.forEach((day) => {
+    const apiDay = scheduleData?.[day];
+    if (apiDay) {
+      nextSchedule[day] = {
+        ...nextSchedule[day],
+        enabled: apiDay.enabled ?? nextSchedule[day].enabled,
+        startTime: apiDay.start ?? nextSchedule[day].startTime,
+        endTime: apiDay.end ?? nextSchedule[day].endTime,
+      };
+    }
+  });
+
+  return nextSchedule;
 };
 
 const TIME_OPTIONS = [
@@ -57,26 +114,56 @@ const TIME_OPTIONS = [
 
 export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
   const { user } = useAuth();
-  const [schedule, setSchedule] = useState<WeekSchedule>({
-    monday: { ...defaultDaySchedule, enabled: true },
-    tuesday: { ...defaultDaySchedule, enabled: true },
-    wednesday: { ...defaultDaySchedule, enabled: true },
-    thursday: { ...defaultDaySchedule, enabled: true },
-    friday: { ...defaultDaySchedule, enabled: true },
-    saturday: { ...defaultDaySchedule },
-    sunday: { ...defaultDaySchedule },
-  });
+  const [schedule, setSchedule] = useState<WeekSchedule>(cloneWeekSchedule(DEFAULT_WEEK_SCHEDULE));
+  const [savedSchedule, setSavedSchedule] = useState<WeekSchedule>(cloneWeekSchedule(DEFAULT_WEEK_SCHEDULE));
   const [hasChanges, setHasChanges] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [hasAvailabilityRecord, setHasAvailabilityRecord] = useState(false);
+
+  const loadAvailability = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      const response = await psychologistApi.getAvailability(user.id);
+      const nextSchedule = fromApiSchedule(
+        response.schedule as Partial<Record<AvailabilityDayKey, { enabled?: boolean; start?: string; end?: string }>>,
+      );
+
+      setSchedule(nextSchedule);
+      setSavedSchedule(cloneWeekSchedule(nextSchedule));
+      setHasAvailabilityRecord(true);
+      setHasChanges(false);
+    } catch (error: any) {
+      const isNotFound = String(error?.message || '').includes('404');
+
+      if (!isNotFound) {
+        console.error('Error loading availability:', error);
+        toast.error(error?.message ?? 'Failed to load availability');
+      }
+
+      const fallbackSchedule = cloneWeekSchedule(DEFAULT_WEEK_SCHEDULE);
+      setSchedule(fallbackSchedule);
+      setSavedSchedule(cloneWeekSchedule(fallbackSchedule));
+      setHasAvailabilityRecord(false);
+      setHasChanges(false);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
 
-    // Load saved schedule from localStorage
-    const savedSchedule = localStorage.getItem(`psychologist_schedule_${user.email}`);
-    if (savedSchedule) {
-      setSchedule(JSON.parse(savedSchedule));
-    }
-  }, [user]);
+    let isMounted = true;
+
+    loadAvailability();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [loadAvailability, user]);
 
   const handleToggleDay = (day: keyof WeekSchedule) => {
     setSchedule(prev => ({
@@ -100,21 +187,30 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
     setHasChanges(true);
   };
 
-  const handleSaveSchedule = () => {
+  const handleSaveSchedule = async () => {
     if (!user) return;
 
-    localStorage.setItem(`psychologist_schedule_${user.email}`, JSON.stringify(schedule));
-    setHasChanges(false);
-    toast.success('Availability schedule saved successfully');
+    try {
+      setSaving(true);
+      await psychologistApi.updateAvailability(user.id, toApiSchedule(schedule));
+
+      await loadAvailability();
+      toast.success('Availability schedule saved successfully');
+    } catch (error: any) {
+      console.error('Error saving availability:', error);
+      toast.error(error?.message ?? 'Failed to save availability');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleApplyToAll = (sourceDay: keyof WeekSchedule) => {
     const sourceSchedule = schedule[sourceDay];
     const newSchedule = { ...schedule };
     
-    Object.keys(newSchedule).forEach((day) => {
-      if (newSchedule[day as keyof WeekSchedule].enabled) {
-        newSchedule[day as keyof WeekSchedule] = {
+    DAY_KEYS.forEach((day) => {
+      if (newSchedule[day].enabled) {
+        newSchedule[day] = {
           ...sourceSchedule,
           enabled: true
         };
@@ -217,13 +313,25 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
 
   const enabledDays = Object.values(schedule).filter(day => day.enabled).length;
 
+  if (loading) {
+    return (
+      <div className="container max-w-4xl mx-auto py-8 px-4">
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            Loading availability schedule...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
       {/* Header */}
       <div className="mb-6">
         <Button
           variant="ghost"
-          onClick={() => onNavigate('psychologist-sessions')}
+          onClick={() => onNavigate('psychologist-dashboard')}
           className="mb-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -276,6 +384,10 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
                 <Badge variant="outline" className="text-sm border-yellow-500 text-yellow-700">
                   Unsaved
                 </Badge>
+              ) : !hasAvailabilityRecord ? (
+                <Badge variant="secondary" className="text-sm">
+                  Not Set
+                </Badge>
               ) : (
                 <Badge variant="default" className="text-sm bg-green-500">
                   Saved
@@ -292,9 +404,13 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
           <div className="flex gap-3">
             <AlertCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium">How availability works</p>
+              <p className="text-sm font-medium">
+                {hasAvailabilityRecord ? 'How availability works' : 'No availability set yet'}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Students can only book sessions during your available hours. Toggle days on/off and set your preferred working hours. Changes take effect immediately after saving.
+                {hasAvailabilityRecord
+                  ? 'Students can only book sessions during your available hours. Toggle days on/off and set your preferred working hours. Changes take effect immediately after saving.'
+                  : 'You have not configured any availability yet. Enable the days you want to work, set your hours, and save when you are ready.'}
               </p>
             </div>
           </div>
@@ -314,101 +430,25 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
         <DayScheduleRow day="sunday" label="Sunday" />
       </div>
 
-      {/* Quick Templates */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Quick Templates</CardTitle>
-          <CardDescription>Apply common schedule templates</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <Button
-              variant="outline"
-              onClick={() => {
-                const weekdaySchedule = { enabled: true, startTime: '09:00', endTime: '17:00' };
-                setSchedule({
-                  monday: weekdaySchedule,
-                  tuesday: weekdaySchedule,
-                  wednesday: weekdaySchedule,
-                  thursday: weekdaySchedule,
-                  friday: weekdaySchedule,
-                  saturday: { ...defaultDaySchedule },
-                  sunday: { ...defaultDaySchedule },
-                });
-                setHasChanges(true);
-                toast.success('Weekday template applied');
-              }}
-            >
-              Mon-Fri (9AM-5PM)
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                const fullWeekSchedule = { enabled: true, startTime: '10:00', endTime: '18:00' };
-                setSchedule({
-                  monday: fullWeekSchedule,
-                  tuesday: fullWeekSchedule,
-                  wednesday: fullWeekSchedule,
-                  thursday: fullWeekSchedule,
-                  friday: fullWeekSchedule,
-                  saturday: fullWeekSchedule,
-                  sunday: { ...defaultDaySchedule },
-                });
-                setHasChanges(true);
-                toast.success('6-day week template applied');
-              }}
-            >
-              Mon-Sat (10AM-6PM)
-            </Button>
-
-            <Button
-              variant="outline"
-              onClick={() => {
-                const flexSchedule = { enabled: true, startTime: '13:00', endTime: '21:00' };
-                setSchedule({
-                  monday: flexSchedule,
-                  tuesday: flexSchedule,
-                  wednesday: flexSchedule,
-                  thursday: flexSchedule,
-                  friday: flexSchedule,
-                  saturday: { ...defaultDaySchedule },
-                  sunday: { ...defaultDaySchedule },
-                });
-                setHasChanges(true);
-                toast.success('Evening template applied');
-              }}
-            >
-              Evenings (1PM-9PM)
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Save Button */}
       <div className="flex justify-end gap-3">
         <Button
           variant="outline"
           onClick={() => {
-            if (user) {
-              const savedSchedule = localStorage.getItem(`psychologist_schedule_${user.email}`);
-              if (savedSchedule) {
-                setSchedule(JSON.parse(savedSchedule));
-                setHasChanges(false);
-                toast.info('Changes discarded');
-              }
-            }
+            setSchedule(cloneWeekSchedule(savedSchedule));
+            setHasChanges(false);
+            toast.info('Changes discarded');
           }}
-          disabled={!hasChanges}
+          disabled={!hasChanges || saving}
         >
           Discard Changes
         </Button>
         <Button
           onClick={handleSaveSchedule}
-          disabled={!hasChanges}
+          disabled={!hasChanges || saving}
         >
           <Save className="h-4 w-4 mr-2" />
-          Save Availability
+          {saving ? 'Saving...' : 'Save Availability'}
         </Button>
       </div>
     </div>

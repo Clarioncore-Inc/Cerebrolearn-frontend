@@ -86,6 +86,45 @@ function getAuthToken(): string | null {
   return localStorage.getItem('cerebrolearn.auth.token');
 }
 
+function normalizeApiErrorMessage(error: any, status: number): string {
+  const pickMessage = (value: any): string | null => {
+    if (!value) return null;
+    if (typeof value === 'string') return value;
+
+    if (Array.isArray(value)) {
+      const items = value
+        .map((item) => {
+          if (typeof item === 'string') return item;
+          if (item && typeof item === 'object') {
+            return item.msg || item.message || item.detail || null;
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      return items.length ? items.join(', ') : null;
+    }
+
+    if (typeof value === 'object') {
+      return (
+        value.detail ||
+        value.message ||
+        value.msg ||
+        (Object.keys(value).length ? 'Request failed. Please try again.' : null)
+      );
+    }
+
+    return String(value);
+  };
+
+  return (
+    pickMessage(error?.detail) ||
+    pickMessage(error?.error) ||
+    pickMessage(error?.message) ||
+    `HTTP ${status}`
+  );
+}
+
 // Helper to make API requests
 async function request<T>(
   endpoint: string,
@@ -107,7 +146,7 @@ async function request<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || error.error || error.message || `HTTP ${response.status}`);
+    throw new Error(normalizeApiErrorMessage(error, response.status));
   }
 
   // 204 No Content — no body to parse
@@ -146,6 +185,15 @@ export const authApi = {
     request<User>('/accounts/profile', {
       method: 'PUT',
       body: JSON.stringify(updates),
+    }),
+
+  changePassword: (data: {
+    current_password: string;
+    new_password: string;
+  }) =>
+    request<{ success: boolean }>('/accounts/change-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
 };
 
@@ -602,6 +650,12 @@ export const storageApi = {
 
   get: (id: string) =>
     request<{ id: string; url: string }>(`/storages/${id}`),
+
+  finish: (id: string, data: { thumbnail?: string } = {}) =>
+    request<{ id: string; url: string; thumbnail?: string }>(`/storages/${id}/finish`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 // ========================================
@@ -610,6 +664,31 @@ export const storageApi = {
 export const psychologistApi = {
   list: () =>
     request<any[] | { items?: any[]; results?: any[] }>('/psychologist/list/'),
+
+  getAvailability: (id: string) =>
+    request<{
+      id: string;
+      psychologist_id: string;
+      schedule: Record<string, { enabled: boolean; start: string; end: string }>;
+      created_at?: string;
+      updated_at?: string;
+      working_days?: number;
+      total_hours?: number;
+    }>(`/psychologist/${id}/availability/`),
+
+  updateAvailability: (
+    id: string,
+    data: Record<string, { enabled: boolean; start: string; end: string }>,
+  ) =>
+    request<any>(`/psychologist/${id}/availability/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  getBookings: () =>
+    request<any[] | { items?: any[]; results?: any[]; bookings?: any[] }>(
+      '/psychologist/bookings',
+    ),
 
   createBooking: (data: {
     psychologist_id: string;
@@ -625,6 +704,44 @@ export const psychologistApi = {
   }) =>
     request<any>('/psychologist/bookings', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateBooking: (data: {
+    booking_id: string;
+    status: 'confirmed' | 'cancelled' | 'completed';
+    rejection_reason?: string;
+  }) =>
+    request<any>(`/psychologist/bookings/${data.booking_id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: data.status,
+        rejection_reason: data.rejection_reason,
+      }),
+    }),
+
+  getBookingNotes: (bookingId: string) =>
+    request<any>(`/psychologist/bookings/${bookingId}/notes`),
+
+  updateBookingNotes: (
+    bookingId: string,
+    data: {
+      meeting_platform?: 'zoom' | 'google_meet' | 'other';
+      meeting_link?: string;
+      session_summary?: string;
+      presenting_concerns?: string;
+      observations?: string;
+      interventions_used?: string[];
+      risk_assessment?: string;
+      homework_assigned?: string;
+      follow_up_plan?: string;
+      next_session_focus?: string;
+      private_notes?: string;
+      next_session_recommended?: boolean;
+    },
+  ) =>
+    request<any>(`/psychologist/bookings/${bookingId}/notes`, {
+      method: 'PUT',
       body: JSON.stringify(data),
     }),
 
@@ -652,9 +769,27 @@ export const psychologistApi = {
     }),
 
   updateProfile: (data: {
-    qualifications: string;
+    qualifications?: string;
     certifications?: string;
     is_approved?: boolean;
+    hourly_rate?: number;
+    bio?: string;
+    default_session_duration?: number;
+    default_booking_type?: 'standard' | 'emergency';
+    allow_emergency_bookings?: boolean;
+    is_profile_public?: boolean;
+    accepting_new_clients?: boolean;
+    visible_profile_fields?: {
+      bio?: boolean;
+      location?: boolean;
+      phone_number?: boolean;
+      hourly_rate?: boolean;
+    };
+    user?: {
+      avatar?: string;
+      phone_number?: string;
+      location?: string;
+    };
   }) =>
     request<any>('/psychologist/profile', {
       method: 'PUT',

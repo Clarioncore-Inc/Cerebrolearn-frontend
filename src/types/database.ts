@@ -29,6 +29,8 @@ export interface User {
   avatar: string | null;
   bio: string | null;
   country: string | null;
+  phone_number?: string | null;
+  location?: string | null;
   xp: number;
   streak: number;
   badges: Badge[];
