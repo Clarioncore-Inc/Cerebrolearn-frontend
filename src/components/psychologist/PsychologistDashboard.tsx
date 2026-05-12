@@ -1190,10 +1190,10 @@ export function PsychologistDashboard({
   if (applicationStatus === 'pending') {
     return (
       <div className='container max-w-4xl mx-auto py-12 px-4'>
-        <Card className='border-2 border-yellow-200 dark:border-yellow-900'>
+        <Card className='border-2 border-amber-200/70 dark:border-amber-800/70'>
           <CardHeader className='text-center'>
-            <div className='mx-auto mb-4 w-16 h-16 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center'>
-              <Clock className='h-8 w-8 text-yellow-600 dark:text-yellow-500' />
+            <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50 dark:bg-amber-950/40'>
+              <Clock className='h-8 w-8 text-amber-700 dark:text-amber-300' />
             </div>
             <CardTitle className='text-2xl'>Application Under Review</CardTitle>
             <CardDescription>
@@ -1209,7 +1209,7 @@ export function PsychologistDashboard({
                   <span className='text-muted-foreground'>Status</span>
                   <Badge
                     variant='outline'
-                    className='bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-500 border-yellow-300 dark:border-yellow-700'
+                    className='border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200'
                   >
                     <Clock className='h-3 w-3 mr-1' />
                     Pending Review
@@ -2171,7 +2171,7 @@ export function PsychologistDashboard({
                     <Textarea
                       id='professional-bio'
                       rows={6}
-                      placeholder='Tell students about your background, approach, and areas of expertise.'
+                      placeholder='Tell clients about your background, approach, and areas of expertise.'
                       value={professionalProfile.bio}
                       onChange={(e) =>
                         handleProfessionalProfileFieldChange('bio', e.target.value)

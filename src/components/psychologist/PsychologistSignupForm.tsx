@@ -276,17 +276,7 @@ export function PsychologistSignupForm({
                 Welcome to CerebroLearn&apos;s psychologist network. Your account is active, and your verification journey starts now.
               </CardDescription>
             </CardHeader>
-            <CardContent className='space-y-6 p-6 pt-8'>
-              <div className='rounded-2xl border bg-muted/30 p-6'>
-                <h3 className='text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground'>
-                  Important to know
-                </h3>
-                <p className='mt-3 text-sm leading-6 text-muted-foreground'>
-                  You can log in now, but you won&apos;t be able to accept bookings until your credentials have been reviewed and approved.
-                </p>
-              </div>
-            </CardContent>
-            <CardFooter className='flex flex-col gap-3 border-t bg-background/80 backdrop-blur-sm'>
+            <CardFooter className='flex flex-col gap-3 bg-background/80 backdrop-blur-sm'>
               <Button onClick={onToggleMode} className='w-full'>
                 Go to Login
               </Button>
@@ -650,7 +640,7 @@ export function PsychologistSignupForm({
 
               {currentFormStep === 2 ? (
               <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
-                <div className='space-y-1'>
+                <div className='space-y-1 mb-4'>
                   <h3 className='text-lg font-semibold flex items-center gap-2'>
                     <FileText className='h-5 w-5 text-primary' />
                     {formSteps[2].title}
@@ -675,7 +665,7 @@ export function PsychologistSignupForm({
                   </p>
                 </div>
 
-                <div className='space-y-2'>
+                <div className='space-y-2 mt-4'>
                   <Label htmlFor='aboutYou'>About You *</Label>
                   <Textarea
                     id='aboutYou'
