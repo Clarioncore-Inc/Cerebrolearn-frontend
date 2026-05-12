@@ -30,6 +30,8 @@ import {
   Upload,
   CheckCircle2,
   DollarSign,
+  Brain,
+  ShieldCheck,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 import { toast } from 'sonner@2.0.3';
@@ -136,22 +138,38 @@ export function PsychologistSignupForm({
     'Start accepting consultation bookings once approved.',
   ];
 
+  const stepContextuals = [
+    {
+      icon: User,
+      label: 'Step 1 · Personal',
+      heading: 'Let\'s start with who you are.',
+      body: 'Your name, email, and location help us create your account and place your practice on the map for nearby clients.',
+    },
+    {
+      icon: ShieldCheck,
+      label: 'Step 2 · Credentials',
+      heading: 'Your credentials matter.',
+      body: 'License number, specialization, and rate are used during our verification process and shown to clients browsing psychologists.',
+    },
+    {
+      icon: Brain,
+      label: 'Step 3 · Your Story',
+      heading: 'Help clients connect with you.',
+      body: 'A strong professional bio increases booking requests. Tell clients what you do, how you work, and what to expect in a session.',
+    },
+  ];
+
   const formSteps = [
     {
       title: 'Personal Information',
-      description: 'Tell us who you are and how clients can reach you.',
       icon: User,
     },
     {
       title: 'Professional Information',
-      description:
-        'Share the professional details that help us verify and present your practice.',
       icon: GraduationCap,
     },
     {
       title: 'Professional Bio',
-      description:
-        'Introduce your approach, your background, and what clients can expect when working with you.',
       icon: FileText,
     },
   ];
@@ -209,7 +227,7 @@ export function PsychologistSignupForm({
 
   if (step === 'success') {
     return (
-      <div className='mx-auto w-full max-w-4xl rounded-[2rem] border bg-background/95 shadow-2xl shadow-primary/10 backdrop-blur'>
+      <div className='mx-auto w-full max-w-4xl overflow-hidden rounded-[2rem] border bg-background/95 shadow-2xl shadow-primary/10 backdrop-blur'>
         <div className='grid gap-0 lg:grid-cols-[0.92fr_1.08fr]'>
           <div className='relative overflow-hidden rounded-t-[2rem] bg-gradient-to-br from-primary via-primary/90 to-slate-950 p-8 text-white lg:rounded-l-[2rem] lg:rounded-tr-none lg:p-10'>
             <div className='absolute -left-14 top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl' />
@@ -258,8 +276,8 @@ export function PsychologistSignupForm({
                 Welcome to CerebroLearn&apos;s psychologist network. Your account is active, and your verification journey starts now.
               </CardDescription>
             </CardHeader>
-            <CardContent className='space-y-6 pt-8'>
-              <div className='rounded-2xl border bg-muted/30 p-5'>
+            <CardContent className='space-y-6 p-6 pt-8'>
+              <div className='rounded-2xl border bg-muted/30 p-6'>
                 <h3 className='text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground'>
                   Important to know
                 </h3>
@@ -268,12 +286,12 @@ export function PsychologistSignupForm({
                 </p>
               </div>
             </CardContent>
-            <CardFooter className='flex flex-col gap-3 border-t bg-background/80 backdrop-blur-sm sm:flex-row'>
-              <Button onClick={onBack} variant='outline' className='w-full sm:flex-1'>
-                Back to Signup Options
-              </Button>
-              <Button onClick={onToggleMode} className='w-full sm:flex-1'>
+            <CardFooter className='flex flex-col gap-3 border-t bg-background/80 backdrop-blur-sm'>
+              <Button onClick={onToggleMode} className='w-full'>
                 Go to Login
+              </Button>
+              <Button onClick={onBack} variant='outline' className='w-full'>
+                Back to Signup Options
               </Button>
             </CardFooter>
           </Card>
@@ -297,7 +315,7 @@ export function PsychologistSignupForm({
 
               <div className='space-y-4'>
                 <h2 className='text-3xl font-semibold leading-tight lg:text-4xl'>
-                  Build your practice on a platform learners can trust.
+                  Build your practice on a platform clients can trust.
                 </h2>
                 <p className='max-w-xl text-sm leading-7 text-white/80 lg:text-base'>
                   Create your account, complete your profile, and join a verified
@@ -307,15 +325,15 @@ export function PsychologistSignupForm({
               </div>
 
               <div className='rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm'>
-                <div className='flex items-center gap-4'>
-                  <div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15'>
-                    <User className='h-7 w-7' />
+                <div className='flex items-center gap-3'>
+                  <div className='mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
+                    <User className='h-5 w-5' />
                   </div>
                   <div>
-                    <p className='text-xs font-semibold uppercase tracking-[0.24em] text-white/65'>
+                    <p className='font-medium text-white'>
                       Professional onboarding
                     </p>
-                    <p className='mt-1 text-xl font-semibold'>
+                    <p className='mt-1 text-sm leading-6 text-white/75'>
                       Calm, guided, and verification-ready
                     </p>
                   </div>
@@ -339,46 +357,60 @@ export function PsychologistSignupForm({
               </div>
             </div>
 
-            {/* <div className='grid gap-3 sm:grid-cols-2'>
-              <div className='rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm'>
-                <p className='text-xs uppercase tracking-[0.2em] text-white/60'>
-                  Flexible setup
-                </p>
-                <p className='mt-2 text-sm leading-6 text-white/85'>
-                  Configure your rate, expertise, and availability after signup.
-                </p>
-              </div>
-              <div className='rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm'>
-                <p className='text-xs uppercase tracking-[0.2em] text-white/60'>
-                  Secure review
-                </p>
-                <p className='mt-2 text-sm leading-6 text-white/85'>
-                  Accept bookings only after your qualifications are approved.
-                </p>
-              </div>
-            </div> */}
+            {/* Per-step contextual hint */}
+            {(() => {
+              const ctx = stepContextuals[currentFormStep];
+              const CtxIcon = ctx.icon;
+              return (
+                <div className='rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm'>
+                  <p className='text-xs font-semibold uppercase tracking-[0.22em] text-white/60'>
+                    {ctx.label}
+                  </p>
+                  <div className='mt-3 flex items-start gap-3'>
+                    <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
+                      <CtxIcon className='h-5 w-5' />
+                    </div>
+                    <div>
+                      <p className='font-semibold text-white'>{ctx.heading}</p>
+                      <p className='mt-1 text-sm leading-6 text-white/75'>{ctx.body}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
 
         <Card className='rounded-none border-0 bg-transparent p-0 shadow-none'>
-          <CardHeader className='border-b bg-background/80 backdrop-blur-sm'>
-            <div className='mb-3 flex items-center justify-between gap-4'>
+          <CardHeader className='border-b bg-background/80 backdrop-blur-sm pb-0'>
+            {/* Thin progress bar */}
+            <div className='h-1 w-full overflow-hidden rounded-full bg-border'>
+              <div
+                className='h-full rounded-full bg-primary transition-all duration-500'
+                style={{
+                  width: `${((currentFormStep + 1) / formSteps.length) * 100}%`,
+                }}
+              />
+            </div>
+
+            <div className='flex items-center justify-between gap-4 pt-4'>
               <Button
                 type='button'
                 onClick={handlePreviousStep}
                 variant='ghost'
-                className='px-0'
+                className='px-0 text-muted-foreground hover:text-foreground'
               >
-                Back
+                ← {currentFormStep === 0 ? 'Back' : 'Previous'}
               </Button>
-              <div className='rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground'>
+              <span className='text-xs font-medium text-muted-foreground'>
                 Step {currentFormStep + 1} of {formSteps.length}
-              </div>
+              </span>
             </div>
+
             <CardTitle className='text-2xl font-semibold lg:text-3xl'>
               Join as a Licensed Psychologist
             </CardTitle>
-            <CardDescription className='max-w-xl text-base leading-7'>
+            <CardDescription className='max-w-xl text-base leading-7 pb-5'>
               Create your account to offer professional psychological consultations through CerebroLearn.
             </CardDescription>
           </CardHeader>
@@ -390,59 +422,65 @@ export function PsychologistSignupForm({
                 </Alert>
               )}
 
-              <div className='grid gap-3 sm:grid-cols-3'>
+              {/* Step progress indicator */}
+              <div className='flex items-start'>
                 {formSteps.map((formStep, index) => {
-                  const Icon = formStep.icon;
                   const isActive = index === currentFormStep;
                   const isCompleted = index < currentFormStep;
+                  const isClickable = index <= currentFormStep;
 
                   return (
-                    <button
-                      key={formStep.title}
-                      type='button'
-                      onClick={() => {
-                        if (index <= currentFormStep) {
-                          setError('');
-                          setCurrentFormStep(index);
-                        }
-                      }}
-                      className={`rounded-2xl border p-4 text-left transition ${
-                        isActive
-                          ? 'border-primary bg-primary/5 shadow-sm'
-                          : isCompleted
-                            ? 'border-primary/30 bg-primary/5 hover:bg-primary/10'
-                            : 'border-border bg-muted/20 text-muted-foreground'
-                      }`}
-                    >
-                      <div className='flex items-center gap-3'>
+                    <React.Fragment key={formStep.title}>
+                      <button
+                        type='button'
+                        onClick={() => {
+                          if (isClickable) {
+                            setError('');
+                            setCurrentFormStep(index);
+                          }
+                        }}
+                        disabled={!isClickable}
+                        className='flex flex-col items-center gap-1.5'
+                      >
                         <div
-                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-                            isActive || isCompleted
-                              ? 'bg-primary/10 text-primary'
-                              : 'bg-muted text-muted-foreground'
+                          className={`flex h-9 w-9 items-center justify-center rounded-full border-2 transition-all ${
+                            isCompleted
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : isActive
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-muted text-muted-foreground'
                           }`}
                         >
                           {isCompleted ? (
-                            <CheckCircle2 className='h-5 w-5' />
+                            <CheckCircle2 className='h-4 w-4' />
                           ) : (
-                            <Icon className='h-5 w-5' />
+                            <span className='text-xs font-bold'>{index + 1}</span>
                           )}
                         </div>
-                        <div>
-                          <p className='text-sm font-semibold text-foreground'>
-                            {formStep.title}
-                          </p>
-                          <p className='text-xs text-muted-foreground'>Step {index + 1}</p>
-                        </div>
-                      </div>
-                    </button>
+                        <span
+                          className={`max-w-[72px] text-center text-xs font-medium leading-tight ${
+                            isActive ? 'text-foreground' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {formStep.title}
+                        </span>
+                      </button>
+
+                      {index < formSteps.length - 1 && (
+                        <div
+                          className={`mx-2 mt-4 h-0.5 flex-1 rounded-full transition-all duration-500 ${
+                            index < currentFormStep ? 'bg-primary' : 'bg-border'
+                          }`}
+                        />
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </div>
 
               {currentFormStep === 0 ? (
               <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
-                <div className='space-y-1'>
+                <div className='space-y-1 mb-4'>
                   <h3 className='text-lg font-semibold flex items-center gap-2'>
                     <User className='h-5 w-5 text-primary' />
                     {formSteps[0].title}
@@ -519,7 +557,7 @@ export function PsychologistSignupForm({
 
               {currentFormStep === 1 ? (
               <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
-                <div className='space-y-1'>
+                <div className='space-y-1 mb-4'>
                   <h3 className='text-lg font-semibold flex items-center gap-2'>
                     <GraduationCap className='h-5 w-5 text-primary' />
                     {formSteps[1].title}
@@ -584,7 +622,7 @@ export function PsychologistSignupForm({
                     </div>
                   </div>
 
-                  <div className='space-y-2 md:col-span-2'>
+                  <div className='space-y-2'>
                     <Label htmlFor='specialization'>Specialization *</Label>
                     <Select
                       value={formData.specialization}
@@ -626,7 +664,6 @@ export function PsychologistSignupForm({
                   <Label htmlFor='bio'>Professional Bio *</Label>
                   <Textarea
                     id='bio'
-                    placeholder='Share your professional background, approach to therapy, areas of expertise, and what makes you passionate about helping others...'
                     value={formData.bio}
                     onChange={(e) => handleInputChange('bio', e.target.value)}
                     rows={4}
@@ -642,7 +679,6 @@ export function PsychologistSignupForm({
                   <Label htmlFor='aboutYou'>About You *</Label>
                   <Textarea
                     id='aboutYou'
-                    placeholder='Tell clients about yourself — your personality, your approach to sessions, and what they can expect working with you...'
                     value={formData.aboutYou}
                     onChange={(e) => handleInputChange('aboutYou', e.target.value)}
                     rows={4}
@@ -657,7 +693,7 @@ export function PsychologistSignupForm({
               ) : null}
 
               {currentFormStep === formSteps.length - 1 ? (
-              <div className='rounded-2xl border bg-primary/5 p-5'>
+              <div className='rounded-2xl border bg-primary/5 p-6'>
                 <p className='text-sm font-semibold uppercase tracking-[0.16em] text-primary'>
                   After creating your account
                 </p>
