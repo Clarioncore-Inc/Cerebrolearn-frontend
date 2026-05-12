@@ -15,10 +15,14 @@ interface UserProfile {
     | 'psychologist_pending';
   org_id: string | null;
   avatar: string | null;
+  bio?: string | null;
+  phone_number?: string | null;
+  location?: string | null;
   xp: number;
   streak: number;
   badges: any[];
   created_at: string;
+  updated_at?: string;
 }
 
 interface AuthContextType {

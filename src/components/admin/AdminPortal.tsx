@@ -36,8 +36,41 @@ import {
   Settings
 } from 'lucide-react';
 
+const ADMIN_PORTAL_PAGE_KEY = 'cerebrolearn.admin.currentPage';
+
+const ADMIN_PORTAL_PAGES = new Set([
+  'dashboard',
+  'users',
+  'courses',
+  'categories',
+  'analytics',
+  'applications',
+  'revenue',
+  'organizations',
+  'reports',
+  'settings',
+  'psychologists',
+  'admin_psychologist_management',
+  'admin_booking_management',
+  'admin_financials',
+  'psychologist_analytics',
+  'platform-analytics',
+  'quality-assurance',
+  'compliance-manager',
+  'system-health',
+  'advanced-reports',
+  'platform-settings',
+]);
+
+const getInitialAdminPortalPage = () => {
+  const savedPage = sessionStorage.getItem(ADMIN_PORTAL_PAGE_KEY);
+  return savedPage && ADMIN_PORTAL_PAGES.has(savedPage)
+    ? savedPage
+    : 'dashboard';
+};
+
 export function AdminPortal() {
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState(getInitialAdminPortalPage);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('adminSidebarCollapsed');
     return saved ? JSON.parse(saved) : false;
@@ -48,6 +81,10 @@ export function AdminPortal() {
   useEffect(() => {
     localStorage.setItem('adminSidebarCollapsed', JSON.stringify(sidebarCollapsed));
   }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    sessionStorage.setItem(ADMIN_PORTAL_PAGE_KEY, currentPage);
+  }, [currentPage]);
 
   useEffect(() => {
     // Listen for navigation events from dashboard

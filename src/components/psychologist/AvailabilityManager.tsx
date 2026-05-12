@@ -112,6 +112,15 @@ const TIME_OPTIONS = [
   '21:00', '21:30', '22:00'
 ];
 
+const isEndTimeNotAfterStartTime = (startTime: string, endTime: string) => endTime <= startTime;
+
+const formatDayLabel = (day: AvailabilityDayKey) => `${day.charAt(0).toUpperCase()}${day.slice(1)}`;
+
+const getInvalidScheduleDay = (value: WeekSchedule) =>
+  DAY_KEYS.find(
+    (day) => value[day].enabled && isEndTimeNotAfterStartTime(value[day].startTime, value[day].endTime),
+  );
+
 export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
   const { user } = useAuth();
   const [schedule, setSchedule] = useState<WeekSchedule>(cloneWeekSchedule(DEFAULT_WEEK_SCHEDULE));
@@ -136,7 +145,11 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
       setHasAvailabilityRecord(true);
       setHasChanges(false);
     } catch (error: any) {
-      const isNotFound = String(error?.message || '').includes('404');
+      const availabilityErrorMessage = String(error?.message || '').toLowerCase();
+      const isNotFound =
+        availabilityErrorMessage.includes('404') ||
+        availabilityErrorMessage.includes('no availability') ||
+        availabilityErrorMessage.includes('availability schedule');
 
       if (!isNotFound) {
         console.error('Error loading availability:', error);
@@ -177,6 +190,16 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
   };
 
   const handleUpdateTime = (day: keyof WeekSchedule, field: keyof DaySchedule, value: string) => {
+    const nextDaySchedule = {
+      ...schedule[day],
+      [field]: value,
+    };
+
+    if (isEndTimeNotAfterStartTime(nextDaySchedule.startTime, nextDaySchedule.endTime)) {
+      toast.error('End time must be later than start time');
+      return;
+    }
+
     setSchedule(prev => ({
       ...prev,
       [day]: {
@@ -189,6 +212,12 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
 
   const handleSaveSchedule = async () => {
     if (!user) return;
+
+    const invalidDay = getInvalidScheduleDay(schedule);
+    if (invalidDay) {
+      toast.error(`${formatDayLabel(invalidDay)} must have an end time later than its start time`);
+      return;
+    }
 
     try {
       setSaving(true);
@@ -268,7 +297,7 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
                       </SelectTrigger>
                       <SelectContent>
                         {TIME_OPTIONS.map(time => (
-                          <SelectItem key={time} value={time}>{time}</SelectItem>
+                          <SelectItem key={time} value={time} disabled={time <= daySchedule.startTime}>{time}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>

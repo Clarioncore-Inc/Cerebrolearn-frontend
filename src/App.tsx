@@ -507,7 +507,7 @@ function AppContent() {
         );
 
       case 'profile':
-        return <ProfilePage />;
+        return <ProfilePage onNavigate={handleNavigate} />;
 
       // IQ Test routes
       case 'iq-test-landing':

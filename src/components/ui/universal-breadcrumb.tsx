@@ -111,37 +111,37 @@ export function UniversalBreadcrumb({
     }
 
     // Psychologist breadcrumbs
-    else if (currentPage === 'browse-psychologists') {
-      crumbs.push({ label: 'Psychologists', page: currentPage });
-    } else if (
-      currentPage === 'appointment-booking' ||
-      currentPage === 'enhanced-appointment-booking'
-    ) {
-      crumbs.push({ label: 'Psychologists', page: 'browse-psychologists' });
-      if (pageData?.psychologistName) {
-        crumbs.push({ label: pageData.psychologistName, page: currentPage });
-      } else {
-        crumbs.push({ label: 'Book Appointment', page: currentPage });
-      }
-    }
+    // else if (currentPage === 'browse-psychologists') {
+    //   crumbs.push({ label: 'Psychologists', page: currentPage });
+    // } else if (
+    //   currentPage === 'appointment-booking' ||
+    //   currentPage === 'enhanced-appointment-booking'
+    // ) {
+    //   crumbs.push({ label: 'Psychologists', page: 'browse-psychologists' });
+    //   if (pageData?.psychologistName) {
+    //     crumbs.push({ label: pageData.psychologistName, page: currentPage });
+    //   } else {
+    //     crumbs.push({ label: 'Book Appointment', page: currentPage });
+    //   }
+    // }
 
     // Student Sessions
-    else if (
-      currentPage === 'student-sessions' ||
-      currentPage === 'enhanced-therapy-dashboard'
-    ) {
-      crumbs.push({ label: 'My Sessions', page: currentPage });
-    } else if (currentPage === 'my-therapy-progress') {
-      crumbs.push({ label: 'My Sessions', page: 'student-sessions' });
-      crumbs.push({ label: 'Progress', page: currentPage });
-    }
+    // else if (
+    //   currentPage === 'student-sessions' ||
+    //   currentPage === 'enhanced-therapy-dashboard'
+    // ) {
+    //   crumbs.push({ label: 'My Sessions', page: currentPage });
+    // } else if (currentPage === 'my-therapy-progress') {
+    //   crumbs.push({ label: 'My Sessions', page: 'student-sessions' });
+    //   crumbs.push({ label: 'Progress', page: currentPage });
+    // }
 
     // Profile & Settings
-    else if (currentPage === 'profile') {
-      crumbs.push({ label: 'My Profile', page: currentPage });
-    } else if (currentPage === 'settings') {
-      crumbs.push({ label: 'Settings', page: currentPage });
-    }
+    // else if (currentPage === 'profile') {
+    //   crumbs.push({ label: 'My Profile', page: currentPage });
+    // } else if (currentPage === 'settings') {
+    //   crumbs.push({ label: 'Settings', page: currentPage });
+    // }
 
     // Leaderboard
     else if (currentPage === 'leaderboard') {

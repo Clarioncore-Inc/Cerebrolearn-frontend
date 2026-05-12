@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Alert, AlertDescription } from '../ui/alert';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { 
   Calendar,
   Clock,
@@ -21,6 +23,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { psychologistApi } from '../../utils/api-client';
 
 interface StudentSessionsDashboardProps {
   onNavigate: (page: string, data?: any) => void;
@@ -31,6 +34,7 @@ interface Booking {
   psychologistId: string;
   psychologistName: string;
   psychologistEmail: string;
+  psychologistAvatar?: string;
   studentEmail: string;
   studentName: string;
   date: string;
@@ -43,6 +47,7 @@ interface Booking {
   sessionNotes?: string;
   meetingLink?: string;
   psychologistSpecialization?: string;
+  rejectionReason?: string;
   rating?: number;
   review?: string;
 }
@@ -50,6 +55,8 @@ interface Booking {
 export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboardProps) {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     upcoming: 0,
     completed: 0,
@@ -59,39 +66,127 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
 
   useEffect(() => {
     if (!user) return;
+
+    let isMounted = true;
+
+    const loadBookings = async () => {
+      try {
+        setBookingsLoading(true);
+        setBookingsError(null);
+
+        const data = await psychologistApi.getBookings();
+        const list = Array.isArray(data)
+          ? data
+          : data.bookings ?? data.items ?? data.results ?? [];
+
+        const normalizedBookings: Booking[] = list
+          .map((item: any, index: number) => ({
+            id: item.id ?? item._id ?? `booking-${index}`,
+            psychologistId:
+              item.psychologist?.id ?? item.psychologist_id ?? item.psychologistId ?? '',
+            psychologistName:
+              item.psychologist?.full_name ??
+              item.psychologist_name ??
+              item.psychologistName ??
+              'Psychologist',
+            psychologistEmail:
+              item.psychologist?.email ??
+              item.psychologist_email ??
+              item.psychologistEmail ??
+              '',
+            psychologistAvatar:
+              item.psychologist?.avatar ??
+              item.psychologist_avatar ??
+              item.psychologistAvatar ??
+              item.psychologist?.user?.avatar ??
+              '',
+            studentEmail:
+              item.student?.email ?? item.student_email ?? item.studentEmail ?? user.email,
+            studentName:
+              item.student?.full_name ?? item.student_name ?? item.studentName ?? 'Student',
+            date: item.date ?? item.booking_date ?? item.session_date ?? '',
+            time: item.time ?? item.booking_time ?? item.session_time ?? '',
+            sessionType: item.session_type ?? item.sessionType ?? 'Session',
+            notes: item.notes ?? '',
+            status: item.status ?? 'pending',
+            createdAt: item.created_at ?? item.createdAt ?? '',
+            hourlyRate: Number(item.price ?? item.hourly_rate ?? item.hourlyRate ?? 0),
+            sessionNotes:
+              item.session_notes?.session_summary ?? item.sessionSummary ?? '',
+            meetingLink:
+              item.session_notes?.meeting_link ?? item.sessionNotes?.meeting_link ?? '',
+            psychologistSpecialization:
+              item.psychologist?.specialization ??
+              item.psychologist_specialization ??
+              item.psychologistSpecialization ??
+              '',
+            rejectionReason: item.rejection_reason ?? item.rejectionReason ?? '',
+            rating: item.rating ?? item.session_rating ?? undefined,
+            review: item.review ?? item.session_review ?? '',
+          }))
+          .filter((booking) => booking.studentEmail === user.email);
+
+        if (!isMounted) return;
+
+        setBookings(normalizedBookings);
+
+        const now = new Date();
+        const upcoming = normalizedBookings.filter((b) => {
+          const bookingDate = new Date(`${b.date} ${b.time}`);
+          return bookingDate > now && b.status === 'confirmed';
+        }).length;
+        const completed = normalizedBookings.filter((b) => b.status === 'completed').length;
+        const cancelled = normalizedBookings.filter((b) => b.status === 'cancelled').length;
+        const pending = normalizedBookings.filter((b) => b.status === 'pending').length;
+
+        setStats({ upcoming, completed, cancelled, pending });
+      } catch (error: any) {
+        if (!isMounted) return;
+
+        console.error('[StudentSessionsDashboard] Error loading bookings:', error);
+        setBookings([]);
+        setStats({ upcoming: 0, completed: 0, cancelled: 0, pending: 0 });
+        setBookingsError(
+          error?.message && error.message !== '[object Object]'
+            ? error.message
+            : 'Failed to load your bookings. Please try again.',
+        );
+      } finally {
+        if (isMounted) {
+          setBookingsLoading(false);
+        }
+      }
+    };
+
     loadBookings();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
-  const loadBookings = () => {
-    const allBookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
-    const userBookings = allBookings.filter((b: Booking) => b.studentEmail === user?.email);
-    setBookings(userBookings);
-
-    // Calculate stats
-    const now = new Date();
-    const upcoming = userBookings.filter((b: Booking) => {
-      const bookingDate = new Date(`${b.date} ${b.time}`);
-      return bookingDate > now && b.status === 'confirmed';
-    }).length;
-    const completed = userBookings.filter((b: Booking) => b.status === 'completed').length;
-    const cancelled = userBookings.filter((b: Booking) => b.status === 'cancelled').length;
-    const pending = userBookings.filter((b: Booking) => b.status === 'pending').length;
-
-    setStats({ upcoming, completed, cancelled, pending });
-  };
-
-  const handleCancelBooking = (bookingId: string) => {
+  const handleCancelBooking = async (bookingId: string) => {
     if (!confirm('Are you sure you want to cancel this appointment?')) {
       return;
     }
 
-    const allBookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
-    const updatedBookings = allBookings.map((b: Booking) =>
-      b.id === bookingId ? { ...b, status: 'cancelled' } : b
-    );
-    localStorage.setItem('appointment_bookings', JSON.stringify(updatedBookings));
-    loadBookings();
-    toast.success('Appointment cancelled');
+    try {
+      await psychologistApi.updateBooking({ booking_id: bookingId, status: 'cancelled' });
+      setBookings((prev) =>
+        prev.map((booking) =>
+          booking.id === bookingId ? { ...booking, status: 'cancelled' } : booking,
+        ),
+      );
+      setStats((prev) => ({
+        ...prev,
+        pending: Math.max(prev.pending - 1, 0),
+        cancelled: prev.cancelled + 1,
+      }));
+      toast.success('Appointment cancelled');
+    } catch (error: any) {
+      console.error('[StudentSessionsDashboard] Error cancelling booking:', error);
+      toast.error(error?.message ?? 'Failed to cancel appointment');
+    }
   };
 
   const handleSubmitFeedback = (booking: Booking) => {
@@ -104,6 +199,10 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
 
   const handleJoinSession = (booking: Booking) => {
     onNavigate('video-call', { booking });
+  };
+
+  const handleBrowsePsychologists = () => {
+    onNavigate('browse-psychologists');
   };
 
   const formatDate = (dateString: string) => {
@@ -149,7 +248,12 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3 flex-1">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <User className="h-6 w-6 text-primary" />
+                <Avatar className="h-12 w-12">
+                  <AvatarImage src={booking.psychologistAvatar} alt={booking.psychologistName} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {booking.psychologistName?.charAt(0).toUpperCase() || 'P'}
+                  </AvatarFallback>
+                </Avatar>
               </div>
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg mb-1">{booking.psychologistName}</CardTitle>
@@ -198,6 +302,14 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               <p className="text-sm text-muted-foreground">{booking.sessionNotes}</p>
             </div>
           )}
+
+          {booking.status === 'cancelled' && booking.rejectionReason ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <strong>Reason provided:</strong> {booking.rejectionReason}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-sm text-muted-foreground">Session Fee:</span>
@@ -294,7 +406,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               <Button
                 size="sm"
                 className="flex-1"
-                onClick={() => onNavigate('psychologist-browse')}
+                  onClick={handleBrowsePsychologists}
               >
                 Book Another Session
               </Button>
@@ -319,7 +431,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
         </Button>
         <h1 className="text-3xl font-bold mb-2">My Sessions</h1>
         <p className="text-muted-foreground">
-          Manage your psychologist consultations and appointments
+           Manage your psychologist consultations and appointments 
         </p>
       </div>
 
@@ -371,6 +483,17 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
       </div>
 
       {/* Quick Action */}
+      {bookingsError ? (
+        <Card className="mb-6 border-destructive/20 bg-destructive/5">
+          <CardContent className="pt-6">
+            <div>
+              <p className="font-medium">Unable to load your bookings</p>
+              <p className="text-sm text-muted-foreground mt-1">{bookingsError}</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {upcomingBookings.length === 0 && completedBookings.length === 0 && (
         <Card className="mb-6 border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
@@ -384,7 +507,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
                   </p>
                 </div>
               </div>
-              <Button onClick={() => onNavigate('psychologist-browse')}>
+              <Button onClick={handleBrowsePsychologists}>
                 Browse Psychologists
               </Button>
             </div>
@@ -408,6 +531,16 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
 
         {/* Upcoming Tab */}
         <TabsContent value="upcoming" className="space-y-4">
+          {bookingsLoading ? (
+            <Card className="p-12">
+              <div className="text-center">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">Loading your bookings</h3>
+                <p className="text-muted-foreground">Please wait while we fetch your sessions.</p>
+              </div>
+            </Card>
+          ) : (
+            <>
           {pendingBookings.length > 0 && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-muted-foreground mb-3">
@@ -442,11 +575,13 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
                 <p className="text-muted-foreground mb-4">
                   Book a session to get started
                 </p>
-                <Button onClick={() => onNavigate('psychologist-browse')}>
+                <Button onClick={handleBrowsePsychologists}>
                   Browse Psychologists
                 </Button>
               </div>
             </Card>
+          )}
+            </>
           )}
         </TabsContent>
 

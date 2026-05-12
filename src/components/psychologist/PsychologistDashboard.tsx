@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -17,11 +17,11 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Checkbox } from '../ui/checkbox';
 import { Label } from '../ui/label';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
-import { Checkbox } from '../ui/checkbox';
+import { Avatar, AvatarFallback } from '../ui/avatar';
 import {
   Select,
   SelectContent,
@@ -32,7 +32,6 @@ import {
 import { Switch } from '../ui/switch';
 import {
   Clock,
-  Camera,
   Calendar,
   Users,
   CheckCircle2,
@@ -51,7 +50,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import { authApi, psychologistApi, storageApi } from '../../utils/api-client';
+import { psychologistApi } from '../../utils/api-client';
 
 interface PsychologistDashboardProps {
   onNavigate: (page: string, data?: any) => void;
@@ -114,10 +113,7 @@ interface ClientHistoryItem {
 
 interface ProfessionalProfileForm {
   bio: string;
-  location: string;
-  phoneNumber: string;
   hourlyRate: string;
-  avatar: string;
   defaultSessionDuration: string;
   defaultBookingType: 'standard' | 'emergency';
   allowEmergencyBookings: boolean;
@@ -129,12 +125,6 @@ interface ProfessionalProfileForm {
     phone_number: boolean;
     hourly_rate: boolean;
   };
-}
-
-interface PasswordChangeForm {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
 }
 
 const AVAILABILITY_DAYS = [
@@ -171,20 +161,15 @@ const DEFAULT_BOOKING_NOTES_FORM: BookingNotesForm = {
 
 const createProfessionalProfileForm = (
   source: any,
-  currentUser: any,
+  currentProfile?: any,
 ): ProfessionalProfileForm => ({
-  bio: source?.bio ?? '',
-  location:
-    source?.user?.location ?? source?.location ?? currentUser?.location ?? '',
-  phoneNumber:
-    source?.user?.phone_number ?? currentUser?.phone_number ?? '',
+  bio: source?.bio ?? currentProfile?.bio ?? '',
   hourlyRate:
     source?.hourly_rate != null
       ? String(source.hourly_rate)
       : source?.hourlyRate != null
         ? String(source.hourlyRate)
         : '',
-  avatar: source?.user?.avatar ?? source?.avatar ?? currentUser?.avatar ?? '',
   defaultSessionDuration:
     source?.default_session_duration != null
       ? String(source.default_session_duration)
@@ -198,8 +183,7 @@ const createProfessionalProfileForm = (
       : 'standard',
   allowEmergencyBookings:
     source?.allow_emergency_bookings ?? source?.allowEmergencyBookings ?? false,
-  isProfilePublic:
-    source?.is_profile_public ?? source?.isProfilePublic ?? true,
+  isProfilePublic: source?.is_profile_public ?? source?.isProfilePublic ?? true,
   acceptingNewClients:
     source?.accepting_new_clients ?? source?.acceptingNewClients ?? true,
   visibleProfileFields: {
@@ -211,8 +195,7 @@ const createProfessionalProfileForm = (
 export function PsychologistDashboard({
   onNavigate,
 }: PsychologistDashboardProps) {
-  const { user, refreshProfile } = useAuth();
-  const profilePhotoInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   const [applicationLoading, setApplicationLoading] = useState(true);
   const [applicationStatus, setApplicationStatus] = useState<
     'incomplete' | 'pending' | 'approved' | 'rejected'
@@ -238,20 +221,16 @@ export function PsychologistDashboard({
   const [availabilityRecord, setAvailabilityRecord] = useState<AvailabilityRecord | null>(null);
   const [hasAvailabilityRecord, setHasAvailabilityRecord] = useState(false);
   const [professionalProfile, setProfessionalProfile] =
-    useState<ProfessionalProfileForm>(createProfessionalProfileForm(null, null));
+    useState<ProfessionalProfileForm>(createProfessionalProfileForm(null));
+  const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
-  const [avatarUploading, setAvatarUploading] = useState(false);
-  const [passwordChange, setPasswordChange] = useState<PasswordChangeForm>({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  });
-  const [passwordSaving, setPasswordSaving] = useState(false);
   const [selectedBooking, setSelectedBooking] =
     useState<DashboardBooking | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [doneDialogOpen, setDoneDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReasonDialogOpen, setRejectionReasonDialogOpen] = useState(false);
+  const [selectedRejectionReason, setSelectedRejectionReason] = useState('');
   const [bookingNotes, setBookingNotes] = useState<BookingNotesForm>(
     DEFAULT_BOOKING_NOTES_FORM,
   );
@@ -439,19 +418,20 @@ export function PsychologistDashboard({
 
     const loadPsychologistState = async () => {
       setApplicationLoading(true);
-      setProfessionalProfile(createProfessionalProfileForm(null, user));
+      setSettingsLoading(true);
+      setProfessionalProfile(createProfessionalProfileForm(null, profile));
 
       // Load psychologist profile using email as key
       const profileData = localStorage.getItem(
         `psychologist_profile_${user.email}`,
       );
+      const parsedProfile = profileData ? JSON.parse(profileData) : null;
 
-      if (profileData) {
-        const parsedProfile = JSON.parse(profileData);
+      if (parsedProfile) {
         if (!isMounted) return;
 
         setProfile(parsedProfile);
-        setProfessionalProfile(createProfessionalProfileForm(parsedProfile, user));
+        setProfessionalProfile(createProfessionalProfileForm(parsedProfile, parsedProfile));
         setQualifications(parsedProfile.qualifications || '');
         setCertifications(parsedProfile.certifications || '');
       } else {
@@ -495,7 +475,9 @@ export function PsychologistDashboard({
 
           setApplication(normalizedApplication);
           setApplicationStatus(normalizedApplication.status);
-          setProfessionalProfile(createProfessionalProfileForm(userApp, user));
+          setProfessionalProfile(
+            createProfessionalProfileForm(normalizedApplication, parsedProfile),
+          );
 
           setQualifications((current) =>
             current || normalizedApplication.qualifications || '',
@@ -518,16 +500,14 @@ export function PsychologistDashboard({
               status: normalizedApplication.status,
             },
           );
-        } else if (profileData) {
+        } else if (parsedProfile) {
           setApplication(null);
           setApplicationStatus('incomplete');
-          setProfessionalProfile(
-            createProfessionalProfileForm(JSON.parse(profileData), user),
-          );
+          setProfessionalProfile(createProfessionalProfileForm(parsedProfile, parsedProfile));
         } else {
           setApplication(null);
           setApplicationStatus('incomplete');
-          setProfessionalProfile(createProfessionalProfileForm(null, user));
+          setProfessionalProfile(createProfessionalProfileForm(null, null));
         }
       } catch (error) {
         console.error('[PsychologistDashboard] Error loading application status:', error);
@@ -542,19 +522,15 @@ export function PsychologistDashboard({
         if (userApp) {
           setApplication(userApp);
           setApplicationStatus(userApp.status);
-          setProfessionalProfile(createProfessionalProfileForm(userApp, user));
+          setProfessionalProfile(createProfessionalProfileForm(userApp, parsedProfile));
         } else {
-          setApplicationStatus(profileData ? 'incomplete' : 'incomplete');
-          setProfessionalProfile(
-            createProfessionalProfileForm(
-              profileData ? JSON.parse(profileData) : null,
-              user,
-            ),
-          );
+          setApplicationStatus(parsedProfile ? 'incomplete' : 'incomplete');
+          setProfessionalProfile(createProfessionalProfileForm(parsedProfile, parsedProfile));
         }
       } finally {
         if (isMounted) {
           setApplicationLoading(false);
+          setSettingsLoading(false);
         }
       }
     };
@@ -588,7 +564,11 @@ export function PsychologistDashboard({
       } catch (error: any) {
         if (!isMounted) return;
 
-        const isNotFound = String(error?.message || '').includes('404');
+        const availabilityErrorMessage = String(error?.message || '').toLowerCase();
+        const isNotFound =
+          availabilityErrorMessage.includes('404') ||
+          availabilityErrorMessage.includes('no availability') ||
+          availabilityErrorMessage.includes('availability schedule');
 
         if (!isNotFound) {
           console.error('[PsychologistDashboard] Error loading availability:', error);
@@ -742,85 +722,7 @@ export function PsychologistDashboard({
     }));
   };
 
-  const handlePasswordFieldChange = (
-    field: keyof PasswordChangeForm,
-    value: string,
-  ) => {
-    setPasswordChange((current) => ({ ...current, [field]: value }));
-  };
-
-  const handleProfilePhotoUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please upload a valid image file');
-      event.target.value = '';
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Profile photo must be smaller than 5 MB');
-      event.target.value = '';
-      return;
-    }
-
-    setAvatarUploading(true);
-
-    try {
-      const startedUpload = await storageApi.start({
-        file_type: 'image',
-        filename: file.name,
-        mime_type: file.type,
-        create_type: 'post',
-      });
-
-      const formData = new FormData();
-      Object.entries(startedUpload.fields || {}).forEach(([key, value]) => {
-        formData.append(key, value);
-      });
-      formData.append('file', file);
-
-      const uploadResponse = await fetch(startedUpload.url, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(
-          `Storage upload failed with status ${uploadResponse.status}${errorText ? `: ${errorText}` : ''}`,
-        );
-      }
-
-      const finishedUpload = await storageApi.finish(startedUpload.id);
-
-      setProfessionalProfile((current) => ({
-        ...current,
-        avatar: finishedUpload.url,
-      }));
-      toast.success('Profile photo uploaded successfully');
-    } catch (error) {
-      console.error('[PsychologistDashboard] Error uploading profile photo:', error);
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : 'Failed to upload profile photo',
-      );
-    } finally {
-      setAvatarUploading(false);
-      event.target.value = '';
-    }
-  };
-
   const handleSaveProfessionalProfile = async () => {
-    if (!user) {
-      toast.error('No user session found. Please log in again.');
-      return;
-    }
-
     const trimmedHourlyRate = professionalProfile.hourlyRate.trim();
     if (trimmedHourlyRate && Number.isNaN(Number(trimmedHourlyRate))) {
       toast.error('Hourly rate must be a valid number');
@@ -831,77 +733,65 @@ export function PsychologistDashboard({
 
     try {
       const updatedProfile = await psychologistApi.updateProfile({
-        bio: professionalProfile.bio,
-        hourly_rate: trimmedHourlyRate
-          ? Number(trimmedHourlyRate)
-          : undefined,
+        bio: professionalProfile.bio.trim() || undefined,
+        hourly_rate: trimmedHourlyRate ? Number(trimmedHourlyRate) : undefined,
         default_session_duration: Number(professionalProfile.defaultSessionDuration),
         default_booking_type: professionalProfile.defaultBookingType,
         allow_emergency_bookings: professionalProfile.allowEmergencyBookings,
         is_profile_public: professionalProfile.isProfilePublic,
         accepting_new_clients: professionalProfile.acceptingNewClients,
         visible_profile_fields: professionalProfile.visibleProfileFields,
-        user: {
-          avatar: professionalProfile.avatar || undefined,
-          phone_number: professionalProfile.phoneNumber,
-          location: professionalProfile.location,
-        },
       });
 
-      const nextProfile = createProfessionalProfileForm(updatedProfile, {
-        ...user,
-        ...updatedProfile?.user,
-      });
-
-      setProfessionalProfile(nextProfile);
+      const nextForm = createProfessionalProfileForm(updatedProfile, profile);
+      setProfessionalProfile(nextForm);
       setProfile((current: any) => ({
         ...(current || {}),
-        bio: updatedProfile?.bio ?? nextProfile.bio,
-        location: updatedProfile?.user?.location ?? nextProfile.location,
-        hourlyRate: nextProfile.hourlyRate,
-        avatar: updatedProfile?.user?.avatar ?? nextProfile.avatar,
-        defaultSessionDuration: nextProfile.defaultSessionDuration,
-        defaultBookingType: nextProfile.defaultBookingType,
-        allowEmergencyBookings: nextProfile.allowEmergencyBookings,
-        isProfilePublic: nextProfile.isProfilePublic,
-        acceptingNewClients: nextProfile.acceptingNewClients,
-        visibleProfileFields: nextProfile.visibleProfileFields,
-        phoneNumber:
-          updatedProfile?.user?.phone_number ?? nextProfile.phoneNumber,
+        bio: updatedProfile?.bio ?? nextForm.bio,
+        hourlyRate: nextForm.hourlyRate,
+        defaultSessionDuration: nextForm.defaultSessionDuration,
+        defaultBookingType: nextForm.defaultBookingType,
+        allowEmergencyBookings: nextForm.allowEmergencyBookings,
+        isProfilePublic: nextForm.isProfilePublic,
+        acceptingNewClients: nextForm.acceptingNewClients,
+        visibleProfileFields: nextForm.visibleProfileFields,
       }));
       setApplication((current: any) =>
         current
           ? {
               ...current,
-              bio: updatedProfile?.bio ?? nextProfile.bio,
-              location: updatedProfile?.user?.location ?? nextProfile.location,
+              bio: updatedProfile?.bio ?? nextForm.bio,
+              hourlyRate: nextForm.hourlyRate,
+              defaultSessionDuration: nextForm.defaultSessionDuration,
+              defaultBookingType: nextForm.defaultBookingType,
+              allowEmergencyBookings: nextForm.allowEmergencyBookings,
+              isProfilePublic: nextForm.isProfilePublic,
+              acceptingNewClients: nextForm.acceptingNewClients,
+              visibleProfileFields: nextForm.visibleProfileFields,
             }
           : current,
       );
 
-      localStorage.setItem(
-        `psychologist_profile_${user.email}`,
-        JSON.stringify({
-          ...(profile || {}),
-          bio: updatedProfile?.bio ?? nextProfile.bio,
-          location: updatedProfile?.user?.location ?? nextProfile.location,
-          hourlyRate: nextProfile.hourlyRate,
-          avatar: updatedProfile?.user?.avatar ?? nextProfile.avatar,
-          defaultSessionDuration: nextProfile.defaultSessionDuration,
-          defaultBookingType: nextProfile.defaultBookingType,
-          allowEmergencyBookings: nextProfile.allowEmergencyBookings,
-          isProfilePublic: nextProfile.isProfilePublic,
-          acceptingNewClients: nextProfile.acceptingNewClients,
-          visibleProfileFields: nextProfile.visibleProfileFields,
-          phoneNumber:
-            updatedProfile?.user?.phone_number ?? nextProfile.phoneNumber,
-        }),
-      );
+      if (user?.email) {
+        localStorage.setItem(
+          `psychologist_profile_${user.email}`,
+          JSON.stringify({
+            ...(profile || {}),
+            bio: updatedProfile?.bio ?? nextForm.bio,
+            hourlyRate: nextForm.hourlyRate,
+            defaultSessionDuration: nextForm.defaultSessionDuration,
+            defaultBookingType: nextForm.defaultBookingType,
+            allowEmergencyBookings: nextForm.allowEmergencyBookings,
+            isProfilePublic: nextForm.isProfilePublic,
+            acceptingNewClients: nextForm.acceptingNewClients,
+            visibleProfileFields: nextForm.visibleProfileFields,
+          }),
+        );
+      }
 
-      await refreshProfile();
       toast.success('Professional profile updated successfully');
     } catch (error) {
-      console.error('[PsychologistDashboard] Error updating profile:', error);
+      console.error('[PsychologistDashboard] Error updating professional profile:', error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -909,45 +799,6 @@ export function PsychologistDashboard({
       );
     } finally {
       setSettingsSaving(false);
-    }
-  };
-
-  const handleChangePassword = async () => {
-    if (!passwordChange.currentPassword || !passwordChange.newPassword) {
-      toast.error('Please complete all password fields');
-      return;
-    }
-
-    if (passwordChange.newPassword.length < 8) {
-      toast.error('New password must be at least 8 characters long');
-      return;
-    }
-
-    if (passwordChange.newPassword !== passwordChange.confirmPassword) {
-      toast.error('New password and confirmation do not match');
-      return;
-    }
-
-    setPasswordSaving(true);
-
-    try {
-      await authApi.changePassword({
-        current_password: passwordChange.currentPassword,
-        new_password: passwordChange.newPassword,
-      });
-      setPasswordChange({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      });
-      toast.success('Password updated successfully');
-    } catch (error) {
-      console.error('[PsychologistDashboard] Error changing password:', error);
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to change password',
-      );
-    } finally {
-      setPasswordSaving(false);
     }
   };
 
@@ -988,6 +839,11 @@ export function PsychologistDashboard({
     setSelectedBooking(booking);
     setBookingNotes(createBookingNotesForm(booking.sessionNotes));
     setDoneDialogOpen(true);
+  };
+
+  const openRejectionReasonDialog = (reason: string) => {
+    setSelectedRejectionReason(reason);
+    setRejectionReasonDialogOpen(true);
   };
 
   const openClientHistoryDialog = (studentEmail: string) => {
@@ -1648,13 +1504,17 @@ export function PsychologistDashboard({
                           </div>
                         ) : null}
                         {booking.status === 'cancelled' && booking.rejectionReason ? (
-                          <Alert className='ml-13 w-full max-w-full min-w-0 overflow-hidden border-destructive/30'>
-                            <AlertCircle className='h-4 w-4' />
-                            <AlertDescription className='min-w-0 whitespace-pre-wrap break-all'>
-                              <strong>Rejection reason:</strong>{' '}
-                              {booking.rejectionReason}
-                            </AlertDescription>
-                          </Alert>
+                          <div className='ml-13'>
+                            <Button
+                              type='button'
+                              variant='outline'
+                              size='sm'
+                              onClick={() => openRejectionReasonDialog(booking.rejectionReason)}
+                            >
+                              <AlertCircle className='mr-2 h-4 w-4' />
+                              View rejection reason
+                            </Button>
+                          </div>
                         ) : null}
                         {booking.status === 'completed' &&
                         booking.sessionNotes?.session_summary ? (
@@ -1777,6 +1637,34 @@ export function PsychologistDashboard({
                     <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                   ) : null}
                   Submit rejection
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={rejectionReasonDialogOpen}
+            onOpenChange={setRejectionReasonDialogOpen}
+          >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Rejection reason</DialogTitle>
+                <DialogDescription>
+                  This is the reason shared for the rejected booking.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className='rounded-lg border bg-muted/30 p-4 text-sm whitespace-pre-wrap break-words'>
+                {selectedRejectionReason}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  type='button'
+                  variant='outline'
+                  onClick={() => setRejectionReasonDialogOpen(false)}
+                >
+                  Close
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -2188,12 +2076,16 @@ export function PsychologistDashboard({
                       ) : null}
 
                       {booking.rejectionReason ? (
-                        <Alert className='w-full min-w-0 overflow-hidden border-destructive/30'>
-                          <AlertCircle className='h-4 w-4' />
-                          <AlertDescription className='min-w-0 whitespace-pre-wrap break-all'>
-                            <strong>Rejection reason:</strong> {booking.rejectionReason}
-                          </AlertDescription>
-                        </Alert>
+                        <Button
+                          type='button'
+                          variant='outline'
+                          size='sm'
+                          className='w-fit'
+                          onClick={() => openRejectionReasonDialog(booking.rejectionReason)}
+                        >
+                          <AlertCircle className='mr-2 h-4 w-4' />
+                          View rejection reason
+                        </Button>
                       ) : null}
 
                       {booking.sessionNotes ? (
@@ -2256,68 +2148,25 @@ export function PsychologistDashboard({
             <CardHeader>
               <CardTitle>Professional Profile</CardTitle>
               <CardDescription>
-                Update your bio, contact details, photo, and consultation rate
+                Manage psychologist-only settings that appear on your professional profile
               </CardDescription>
             </CardHeader>
             <CardContent className='space-y-6'>
-              <div className='grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]'>
-                <div className='space-y-4'>
-                  <div className='flex flex-col items-center rounded-lg border p-6 text-center space-y-4'>
-                    <Avatar className='h-28 w-28'>
-                      <AvatarImage src={professionalProfile.avatar || undefined} />
-                      <AvatarFallback className='text-3xl'>
-                        {(user?.full_name || application?.fullName || 'P')
-                          .charAt(0)
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+              {/* <Alert>
+                <AlertCircle className='h-4 w-4' />
+                <AlertDescription>
+                  Name, email, phone number, location, avatar, and password stay on the shared Profile Settings page. Only psychologist-specific settings live here.
+                </AlertDescription>
+              </Alert> */}
 
-                    <div className='space-y-1'>
-                      <p className='font-semibold'>
-                        {user?.full_name || application?.fullName || 'Psychologist'}
-                      </p>
-                      <p className='text-sm text-muted-foreground'>
-                        {user?.email}
-                      </p>
-                    </div>
-
-                    <input
-                      ref={profilePhotoInputRef}
-                      type='file'
-                      accept='image/*'
-                      className='hidden'
-                      onChange={handleProfilePhotoUpload}
-                    />
-
-                    <Button
-                      type='button'
-                      variant='outline'
-                      className='w-full'
-                      onClick={() => profilePhotoInputRef.current?.click()}
-                      disabled={avatarUploading}
-                    >
-                      {avatarUploading ? (
-                        <>
-                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Camera className='mr-2 h-4 w-4' />
-                          Upload Profile Photo
-                        </>
-                      )}
-                    </Button>
-
-                    <p className='text-xs text-muted-foreground'>
-                      After upload, the finalized storage URL is saved to your
-                      avatar field when you save this form.
-                    </p>
-                  </div>
+              {settingsLoading ? (
+                <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                  Loading professional profile...
                 </div>
-
-                <div className='grid gap-4 md:grid-cols-2'>
-                  <div className='md:col-span-2 space-y-2'>
+              ) : (
+                <>
+                  <div className='space-y-2'>
                     <Label htmlFor='professional-bio'>Professional Bio</Label>
                     <Textarea
                       id='professional-bio'
@@ -2330,317 +2179,197 @@ export function PsychologistDashboard({
                     />
                   </div>
 
-                  <div className='space-y-2'>
-                    <Label htmlFor='professional-location'>Location</Label>
-                    <Input
-                      id='professional-location'
-                      placeholder='Accra, Ghana'
-                      value={professionalProfile.location}
-                      onChange={(e) =>
-                        handleProfessionalProfileFieldChange(
-                          'location',
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div className='space-y-2'>
-                    <Label htmlFor='professional-phone'>Phone Number</Label>
-                    <Input
-                      id='professional-phone'
-                      placeholder='+233 20 000 0000'
-                      value={professionalProfile.phoneNumber}
-                      onChange={(e) =>
-                        handleProfessionalProfileFieldChange(
-                          'phoneNumber',
-                          e.target.value,
-                        )
-                      }
-                    />
-                  </div>
-
-                  <div className='space-y-2 md:col-span-2'>
-                    <Label htmlFor='professional-hourly-rate'>Hourly Rate</Label>
-                    <Input
-                      id='professional-hourly-rate'
-                      type='number'
-                      min='0'
-                      step='0.01'
-                      placeholder='75'
-                      value={professionalProfile.hourlyRate}
-                      onChange={(e) =>
-                        handleProfessionalProfileFieldChange(
-                          'hourlyRate',
-                          e.target.value,
-                        )
-                      }
-                    />
-                    <p className='text-xs text-muted-foreground'>
-                      This updates your psychologist profile hourly rate.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Session Preferences</CardTitle>
-              <CardDescription>
-                Configure your default consultation setup.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='grid gap-4 md:grid-cols-2'>
-              <div className='space-y-2'>
-                <Label htmlFor='default-session-duration'>Default Session Duration</Label>
-                <Select
-                  value={professionalProfile.defaultSessionDuration}
-                  onValueChange={(value) =>
-                    handleProfessionalProfileFieldChange(
-                      'defaultSessionDuration',
-                      value,
-                    )
-                  }
-                >
-                  <SelectTrigger id='default-session-duration'>
-                    <SelectValue placeholder='Select duration' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='30'>30 minutes</SelectItem>
-                    <SelectItem value='45'>45 minutes</SelectItem>
-                    <SelectItem value='60'>60 minutes</SelectItem>
-                    <SelectItem value='90'>90 minutes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='default-booking-type'>Default Booking Type</Label>
-                <Select
-                  value={professionalProfile.defaultBookingType}
-                  onValueChange={(value: 'standard' | 'emergency') =>
-                    handleProfessionalProfileFieldChange(
-                      'defaultBookingType',
-                      value,
-                    )
-                  }
-                >
-                  <SelectTrigger id='default-booking-type'>
-                    <SelectValue placeholder='Select booking type' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='standard'>Standard</SelectItem>
-                    <SelectItem value='emergency'>Emergency</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className='md:col-span-2 flex items-center justify-between rounded-lg border p-4'>
-                <div className='space-y-1'>
-                  <Label>Emergency Booking Toggle</Label>
-                  <p className='text-sm text-muted-foreground'>
-                    Allow students to request emergency sessions when needed.
-                  </p>
-                </div>
-                <Switch
-                  checked={professionalProfile.allowEmergencyBookings}
-                  onCheckedChange={(checked) =>
-                    handleProfessionalProfileFieldChange(
-                      'allowEmergencyBookings',
-                      checked,
-                    )
-                  }
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Privacy & Visibility</CardTitle>
-              <CardDescription>
-                Control how your profile appears and whether you are open to new bookings.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-6'>
-              <div className='space-y-4'>
-                <div className='flex items-center justify-between rounded-lg border p-4'>
-                  <div className='space-y-1'>
-                    <Label>Profile Publicly Visible</Label>
-                    <p className='text-sm text-muted-foreground'>
-                      Let students discover your profile in psychologist listings.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={professionalProfile.isProfilePublic}
-                    onCheckedChange={(checked) =>
-                      handleProfessionalProfileFieldChange('isProfilePublic', checked)
-                    }
-                  />
-                </div>
-
-                <div className='flex items-center justify-between rounded-lg border p-4'>
-                  <div className='space-y-1'>
-                    <Label>Currently Accepting New Clients</Label>
-                    <p className='text-sm text-muted-foreground'>
-                      Turn this off when you want to pause new consultation requests.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={professionalProfile.acceptingNewClients}
-                    onCheckedChange={(checked) =>
-                      handleProfessionalProfileFieldChange(
-                        'acceptingNewClients',
-                        checked,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className='flex items-center justify-between rounded-lg border p-4'>
-                  <div className='space-y-1'>
-                    <Label>Emergency Bookings Allowed</Label>
-                    <p className='text-sm text-muted-foreground'>
-                      This mirrors your emergency session availability setting.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={professionalProfile.allowEmergencyBookings}
-                    onCheckedChange={(checked) =>
-                      handleProfessionalProfileFieldChange(
-                        'allowEmergencyBookings',
-                        checked,
-                      )
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className='space-y-3'>
-                <div>
-                  <Label>Hide / Show Profile Fields</Label>
-                  <p className='text-sm text-muted-foreground mt-1'>
-                    Choose which details should appear on your public profile.
-                  </p>
-                </div>
-
-                <div className='grid gap-3 md:grid-cols-2'>
-                  {[
-                    { key: 'bio', label: 'Bio' },
-                    { key: 'location', label: 'Location' },
-                    { key: 'phone_number', label: 'Phone Number' },
-                    { key: 'hourly_rate', label: 'Hourly Rate' },
-                  ].map((field) => (
-                    <label
-                      key={field.key}
-                      className='flex items-center gap-3 rounded-lg border p-4 cursor-pointer'
-                    >
-                      <Checkbox
-                        checked={
-                          professionalProfile.visibleProfileFields[
-                            field.key as keyof ProfessionalProfileForm['visibleProfileFields']
-                          ]
-                        }
-                        onCheckedChange={(checked) =>
-                          handleVisibleProfileFieldChange(
-                            field.key as keyof ProfessionalProfileForm['visibleProfileFields'],
-                            checked === true,
+                  <div className='grid gap-4 md:grid-cols-2'>
+                    <div className='space-y-2'>
+                      <Label htmlFor='professional-hourly-rate'>Hourly Rate</Label>
+                      <Input
+                        id='professional-hourly-rate'
+                        type='number'
+                        min='0'
+                        step='0.01'
+                        placeholder='75'
+                        value={professionalProfile.hourlyRate}
+                        onChange={(e) =>
+                          handleProfessionalProfileFieldChange(
+                            'hourlyRate',
+                            e.target.value,
                           )
                         }
                       />
-                      <span className='text-sm font-medium'>{field.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+                    </div>
 
-              <div className='flex justify-end'>
-                <Button
-                  type='button'
-                  onClick={handleSaveProfessionalProfile}
-                  disabled={settingsSaving || avatarUploading}
-                >
-                  {settingsSaving ? (
-                    <>
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className='mr-2 h-4 w-4' />
-                      Save Settings
-                    </>
-                  )}
-                </Button>
-              </div>
+                    <div className='space-y-2'>
+                      <Label htmlFor='default-session-duration'>Default Session Duration</Label>
+                      <Select
+                        value={professionalProfile.defaultSessionDuration}
+                        onValueChange={(value) =>
+                          handleProfessionalProfileFieldChange(
+                            'defaultSessionDuration',
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger id='default-session-duration'>
+                          <SelectValue placeholder='Select duration' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='30'>30 minutes</SelectItem>
+                          <SelectItem value='45'>45 minutes</SelectItem>
+                          <SelectItem value='60'>60 minutes</SelectItem>
+                          <SelectItem value='90'>90 minutes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className='space-y-2 md:col-span-2'>
+                      <Label htmlFor='default-booking-type'>Default Booking Type</Label>
+                      <Select
+                        value={professionalProfile.defaultBookingType}
+                        onValueChange={(value: 'standard' | 'emergency') =>
+                          handleProfessionalProfileFieldChange(
+                            'defaultBookingType',
+                            value,
+                          )
+                        }
+                      >
+                        <SelectTrigger id='default-booking-type'>
+                          <SelectValue placeholder='Select booking type' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='standard'>Standard</SelectItem>
+                          <SelectItem value='emergency'>Emergency</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className='space-y-4'>
+                    <div className='flex items-center justify-between rounded-lg border p-4'>
+                      <div className='space-y-1'>
+                        <Label>Allow Emergency Bookings</Label>
+                        <p className='text-sm text-muted-foreground'>
+                          Let clients request emergency sessions when needed.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={professionalProfile.allowEmergencyBookings}
+                        onCheckedChange={(checked) =>
+                          handleProfessionalProfileFieldChange(
+                            'allowEmergencyBookings',
+                            checked,
+                          )
+                        }
+                      />
+                    </div>
+
+                    <div className='flex items-center justify-between rounded-lg border p-4'>
+                      <div className='space-y-1'>
+                        <Label>Profile Publicly Visible</Label>
+                        <p className='text-sm text-muted-foreground'>
+                          Let clients discover your profile in psychologist listings.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={professionalProfile.isProfilePublic}
+                        onCheckedChange={(checked) =>
+                          handleProfessionalProfileFieldChange('isProfilePublic', checked)
+                        }
+                      />
+                    </div>
+
+                    <div className='flex items-center justify-between rounded-lg border p-4'>
+                      <div className='space-y-1'>
+                        <Label>Currently Accepting New Clients</Label>
+                        <p className='text-sm text-muted-foreground'>
+                          Turn this off when you want to pause new consultation requests.
+                        </p>
+                      </div>
+                      <Switch
+                        checked={professionalProfile.acceptingNewClients}
+                        onCheckedChange={(checked) =>
+                          handleProfessionalProfileFieldChange(
+                            'acceptingNewClients',
+                            checked,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className='space-y-3'>
+                    <div>
+                      <Label>Visible Public Profile Fields</Label>
+                      <p className='mt-1 text-sm text-muted-foreground'>
+                        Choose which profile fields should be shown to students.
+                      </p>
+                    </div>
+
+                    <div className='grid gap-3 md:grid-cols-2'>
+                      {[
+                        { key: 'bio', label: 'Bio' },
+                        { key: 'location', label: 'Location' },
+                        { key: 'phone_number', label: 'Phone Number' },
+                        { key: 'hourly_rate', label: 'Hourly Rate' },
+                      ].map((field) => (
+                        <label
+                          key={field.key}
+                          className='flex cursor-pointer items-center gap-3 rounded-lg border p-4'
+                        >
+                          <Checkbox
+                            checked={
+                              professionalProfile.visibleProfileFields[
+                                field.key as keyof ProfessionalProfileForm['visibleProfileFields']
+                              ]
+                            }
+                            onCheckedChange={(checked) =>
+                              handleVisibleProfileFieldChange(
+                                field.key as keyof ProfessionalProfileForm['visibleProfileFields'],
+                                checked === true,
+                              )
+                            }
+                          />
+                          <span className='text-sm font-medium'>{field.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className='flex justify-end'>
+                    <Button onClick={handleSaveProfessionalProfile} disabled={settingsSaving}>
+                      {settingsSaving ? (
+                        <>
+                          <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <Save className='mr-2 h-4 w-4' />
+                          Save Professional Profile
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Account Settings</CardTitle>
               <CardDescription>
-                Change your password for future sign-ins.
+                Use the shared profile page for generic account information and password management
               </CardDescription>
             </CardHeader>
-            <CardContent className='grid gap-4 md:grid-cols-2'>
-              <div className='space-y-2 md:col-span-2'>
-                <Label htmlFor='current-password'>Current Password</Label>
-                <Input
-                  id='current-password'
-                  type='password'
-                  value={passwordChange.currentPassword}
-                  onChange={(e) =>
-                    handlePasswordFieldChange('currentPassword', e.target.value)
-                  }
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='new-password'>New Password</Label>
-                <Input
-                  id='new-password'
-                  type='password'
-                  value={passwordChange.newPassword}
-                  onChange={(e) =>
-                    handlePasswordFieldChange('newPassword', e.target.value)
-                  }
-                />
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='confirm-password'>Confirm New Password</Label>
-                <Input
-                  id='confirm-password'
-                  type='password'
-                  value={passwordChange.confirmPassword}
-                  onChange={(e) =>
-                    handlePasswordFieldChange('confirmPassword', e.target.value)
-                  }
-                />
-              </div>
-
-              <div className='md:col-span-2 flex justify-end'>
-                <Button
-                  type='button'
-                  variant='outline'
-                  onClick={handleChangePassword}
-                  disabled={passwordSaving}
-                >
-                  {passwordSaving ? (
-                    <>
-                      <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                      Updating...
-                    </>
-                  ) : (
-                    'Change Password'
-                  )}
-                </Button>
-              </div>
+            <CardContent className='flex flex-col gap-3 sm:flex-row'>
+              <Button onClick={() => onNavigate('profile')}>
+                Open Profile Settings
+              </Button>
+              <Button variant='outline' onClick={() => onNavigate('psychologist-availability')}>
+                Manage Availability
+              </Button>
             </CardContent>
-          </Card>
+          </Card> */}
         </TabsContent>
       </Tabs>
     </div>

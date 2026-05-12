@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { authApi } from '../../utils/api-client';
+import { authApi, psychologistApi, storageApi } from '../../utils/api-client';
 import {
   Card,
   CardContent,
@@ -17,6 +17,7 @@ import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Separator } from '../ui/separator';
 import { Alert, AlertDescription } from '../ui/alert';
+import { BackButton } from '../ui/back-button';
 import {
   User,
   Mail,
@@ -31,24 +32,91 @@ import {
   Bell,
   Save,
   Camera,
+  Loader2,
   CheckCircle2,
   Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 
-export function ProfilePage() {
+interface ProfilePageProps {
+  onNavigate?: (page: string, data?: any) => void;
+}
+
+interface ProfileFormData {
+  full_name: string;
+  email: string;
+  phone_number: string;
+  location: string;
+  avatar: string;
+}
+
+interface PasswordFormData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+const createProfileFormData = (profile: any): ProfileFormData => ({
+  full_name: profile?.full_name ?? '',
+  email: profile?.email ?? '',
+  phone_number: profile?.phone_number ?? '',
+  location: profile?.location ?? '',
+  avatar: profile?.avatar ?? '',
+});
+
+export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const { profile, refreshProfile } = useAuth();
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    full_name: profile?.full_name || '',
-    email: profile?.email || '',
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [formData, setFormData] = useState<ProfileFormData>(
+    createProfileFormData(profile),
+  );
+  const [passwordForm, setPasswordForm] = useState<PasswordFormData>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
   });
 
+  useEffect(() => {
+    setFormData(createProfileFormData(profile));
+  }, [profile]);
+
   const handleUpdate = async () => {
+    if (!formData.full_name.trim()) {
+      toast.error('Full name is required');
+      return;
+    }
+
+    if (!formData.email.trim()) {
+      toast.error('Email address is required');
+      return;
+    }
+
     setLoading(true);
     try {
-      await authApi.updateProfile(formData);
+      await authApi.updateProfile({
+        full_name: formData.full_name.trim(),
+        email: formData.email.trim(),
+        phone_number: formData.phone_number.trim() || null,
+        location: formData.location.trim() || null,
+        avatar: formData.avatar.trim() || null,
+      });
+
+      if (
+        profile?.role === 'psychologist' ||
+        profile?.role === 'psychologist_pending'
+      ) {
+        await psychologistApi.updateProfile({
+          user: {
+            avatar: formData.avatar.trim() || undefined,
+            phone_number: formData.phone_number.trim() || undefined,
+            location: formData.location.trim() || undefined,
+          },
+        });
+      }
 
       await refreshProfile();
       setIsEditing(false);
@@ -58,6 +126,109 @@ export function ProfilePage() {
       toast.error('Failed to update profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProfileFieldChange = (field: keyof ProfileFormData, value: string) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleProfilePhotoUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Profile photo must be smaller than 5 MB');
+      event.target.value = '';
+      return;
+    }
+
+    setAvatarUploading(true);
+
+    try {
+      const startedUpload = await storageApi.start({
+        file_type: 'image',
+        filename: file.name,
+        mime_type: file.type,
+        create_type: 'post',
+      });
+
+      const uploadFormData = new FormData();
+      Object.entries(startedUpload.fields || {}).forEach(([key, value]) => {
+        uploadFormData.append(key, value);
+      });
+      uploadFormData.append('file', file);
+
+      const uploadResponse = await fetch(startedUpload.url, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text().catch(() => '');
+        throw new Error(
+          `Storage upload failed with status ${uploadResponse.status}${errorText ? `: ${errorText}` : ''}`,
+        );
+      }
+
+      const finishedUpload = await storageApi.finish(startedUpload.id);
+      setFormData((current) => ({ ...current, avatar: finishedUpload.url }));
+      toast.success('Profile photo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading profile photo:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to upload profile photo',
+      );
+    } finally {
+      setAvatarUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      toast.error('Please complete all password fields');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      toast.error('New password must be at least 8 characters long');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('New password and confirmation do not match');
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      await authApi.changePassword({
+        current_password: passwordForm.currentPassword,
+        new_password: passwordForm.newPassword,
+      });
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      toast.success('Password updated successfully');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update password',
+      );
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -121,17 +292,26 @@ export function ProfilePage() {
   return (
     <div className='container py-8 space-y-8 max-w-7xl'>
       {/* Header */}
-      <div className='flex flex-col md:flex-row items-start md:items-center justify-between gap-4'>
-        <div>
-          <h1 className='text-3xl md:text-4xl mb-2'>Profile Settings</h1>
-          <p className='text-muted-foreground'>
-            Manage your account settings and preferences
-          </p>
+      <div className='space-y-4'>
+        <BackButton
+          label='Back'
+          fallbackPage='dashboard'
+          onNavigate={onNavigate ? (page) => onNavigate(page) : undefined}
+          className='px-0 hover:bg-transparent'
+        />
+
+        <div className='flex flex-col md:flex-row items-start md:items-center justify-between gap-4'>
+          <div>
+            <h1 className='text-3xl md:text-4xl mb-2'>Profile Settings</h1>
+            <p className='text-muted-foreground'>
+              Manage your account settings and preferences
+            </p>
+          </div>
+          <Badge variant='secondary' className='text-sm'>
+            <Sparkles className='mr-1 h-3 w-3' />
+            {profile?.role || 'Learner'}
+          </Badge>
         </div>
-        <Badge variant='secondary' className='text-sm'>
-          <Sparkles className='mr-1 h-3 w-3' />
-          {profile?.role || 'Learner'}
-        </Badge>
       </div>
 
       <div className='grid gap-6 lg:grid-cols-3'>
@@ -143,24 +323,37 @@ export function ProfilePage() {
               <div className='flex flex-col items-center text-center space-y-4'>
                 <div className='relative'>
                   <Avatar className='h-32 w-32'>
-                    <AvatarImage src={profile?.avatar || undefined} />
+                    <AvatarImage src={formData.avatar || undefined} />
                     <AvatarFallback className='text-4xl'>
-                      {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
+                      {formData.full_name?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
+                  <input
+                    ref={avatarInputRef}
+                    type='file'
+                    accept='image/*'
+                    className='hidden'
+                    onChange={handleProfilePhotoUpload}
+                  />
                   <Button
                     size='icon'
                     variant='secondary'
                     className='absolute bottom-0 right-0 rounded-full h-10 w-10'
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarUploading}
                   >
-                    <Camera className='h-4 w-4' />
+                    {avatarUploading ? (
+                      <Loader2 className='h-4 w-4 animate-spin' />
+                    ) : (
+                      <Camera className='h-4 w-4' />
+                    )}
                   </Button>
                 </div>
 
                 <div className='space-y-1'>
-                  <h3 className='text-xl'>{profile?.full_name}</h3>
+                  <h3 className='text-xl'>{formData.full_name}</h3>
                   <p className='text-sm text-muted-foreground'>
-                    {profile?.email}
+                    {formData.email}
                   </p>
                 </div>
 
@@ -171,8 +364,8 @@ export function ProfilePage() {
             </CardContent>
           </Card>
 
-          {/* Stats Cards */}
-          <Card>
+
+          {/* <Card>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <TrendingUp className='h-5 w-5' />
@@ -180,7 +373,7 @@ export function ProfilePage() {
               </CardTitle>
             </CardHeader>
             <CardContent className='space-y-6'>
-              {/* Level Progress */}
+              
               <div className='space-y-2'>
                 <div className='flex items-center justify-between'>
                   <Label>Level Progress</Label>
@@ -196,7 +389,7 @@ export function ProfilePage() {
 
               <Separator />
 
-              {/* Stats Grid */}
+       
               <div className='grid grid-cols-2 gap-4'>
                 {stats.map((stat) => (
                   <div
@@ -218,13 +411,13 @@ export function ProfilePage() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
 
-        {/* Right Column - Tabs */}
+
         <div className='lg:col-span-2'>
           <Tabs defaultValue='general' className='space-y-6'>
-            <TabsList className='grid w-full grid-cols-3'>
+            <TabsList className='grid w-full grid-cols-2'>
               <TabsTrigger value='general'>
                 <User className='mr-2 h-4 w-4' />
                 General
@@ -233,10 +426,10 @@ export function ProfilePage() {
                 <Lock className='mr-2 h-4 w-4' />
                 Security
               </TabsTrigger>
-              <TabsTrigger value='achievements'>
+              {/* <TabsTrigger value='achievements'>
                 <Award className='mr-2 h-4 w-4' />
                 Achievements
-              </TabsTrigger>
+              </TabsTrigger> */}
             </TabsList>
 
             {/* General Tab */}
@@ -245,51 +438,79 @@ export function ProfilePage() {
                 <CardHeader>
                   <CardTitle>Personal Information</CardTitle>
                   <CardDescription>
-                    Update your personal details and preferences
+                    Update your account details and contact information
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
-                  <div className='space-y-2'>
-                    <Label htmlFor='full_name'>Full Name</Label>
-                    <Input
-                      id='full_name'
-                      value={formData.full_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, full_name: e.target.value })
-                      }
-                      disabled={!isEditing}
-                    />
-                  </div>
+                  <div className='grid gap-4 md:grid-cols-2'>
+                    <div className='space-y-2'>
+                      <Label htmlFor='full_name'>Full Name</Label>
+                      <Input
+                        id='full_name'
+                        value={formData.full_name}
+                        onChange={(e) =>
+                          handleProfileFieldChange('full_name', e.target.value)
+                        }
+                        disabled={!isEditing}
+                      />
+                    </div>
 
-                  <div className='space-y-2'>
-                    <Label htmlFor='email'>Email Address</Label>
-                    <Input
-                      id='email'
-                      type='email'
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      disabled={!isEditing}
-                    />
-                  </div>
+                    <div className='space-y-2'>
+                      <Label htmlFor='email'>Email Address</Label>
+                      <Input
+                        id='email'
+                        type='email'
+                        value={formData.email}
+                        onChange={(e) =>
+                          handleProfileFieldChange('email', e.target.value)
+                        }
+                        disabled={!isEditing}
+                      />
+                    </div>
 
-                  <div className='space-y-2'>
-                    <Label>Account Role</Label>
-                    <Input
-                      value={profile?.role?.replace('_', ' ') || 'Learner'}
-                      disabled
-                      className='capitalize'
-                    />
-                    <p className='text-xs text-muted-foreground'>
-                      Contact admin to change your role
-                    </p>
+                    <div className='space-y-2'>
+                      <Label htmlFor='phone_number'>Phone Number</Label>
+                      <Input
+                        id='phone_number'
+                        placeholder='+233 20 000 0000'
+                        value={formData.phone_number}
+                        onChange={(e) =>
+                          handleProfileFieldChange('phone_number', e.target.value)
+                        }
+                        disabled={!isEditing}
+                      />
+                    </div>
+
+                    <div className='space-y-2'>
+                      <Label htmlFor='location'>Location</Label>
+                      <Input
+                        id='location'
+                        placeholder='Accra, Ghana'
+                        value={formData.location}
+                        onChange={(e) =>
+                          handleProfileFieldChange('location', e.target.value)
+                        }
+                        disabled={!isEditing}
+                      />
+                    </div>
+
+                    <div className='space-y-2 md:col-span-2'>
+                      <Label>Account Role</Label>
+                      <Input
+                        value={profile?.role?.replace('_', ' ') || 'Learner'}
+                        disabled
+                        className='capitalize'
+                      />
+                      <p className='text-xs text-muted-foreground'>
+                        Contact admin to change your role
+                      </p>
+                    </div>
                   </div>
 
                   <div className='flex gap-2 pt-4'>
                     {isEditing ? (
                       <>
-                        <Button onClick={handleUpdate} disabled={loading}>
+                        <Button onClick={handleUpdate} disabled={loading || avatarUploading}>
                           <Save className='mr-2 h-4 w-4' />
                           {loading ? 'Saving...' : 'Save Changes'}
                         </Button>
@@ -297,10 +518,7 @@ export function ProfilePage() {
                           variant='outline'
                           onClick={() => {
                             setIsEditing(false);
-                            setFormData({
-                              full_name: profile?.full_name || '',
-                              email: profile?.email || '',
-                            });
+                            setFormData(createProfileFormData(profile));
                           }}
                         >
                           Cancel
@@ -317,28 +535,22 @@ export function ProfilePage() {
               </Card>
 
               {/* Preferences */}
-              <Card>
+              {/* <Card>
                 <CardHeader>
                   <CardTitle>Preferences</CardTitle>
                   <CardDescription>
-                    Customize your learning experience
+                    More profile preference controls will be added here soon
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
-                  <div className='flex items-center justify-between'>
-                    <div className='space-y-0.5'>
-                      <Label>Email Notifications</Label>
-                      <p className='text-sm text-muted-foreground'>
-                        Receive updates about your courses
-                      </p>
-                    </div>
-                    <Button variant='outline' size='sm'>
-                      <Bell className='mr-2 h-4 w-4' />
-                      Configure
-                    </Button>
-                  </div>
+                  <Alert>
+                    <Bell className='h-4 w-4' />
+                    <AlertDescription>
+                      Notification and preference settings are not yet configurable from the backend.
+                    </AlertDescription>
+                  </Alert>
                 </CardContent>
-              </Card>
+              </Card> */}
             </TabsContent>
 
             {/* Security Tab */}
@@ -361,63 +573,87 @@ export function ProfilePage() {
 
                   <div className='space-y-2'>
                     <Label htmlFor='current_password'>Current Password</Label>
-                    <Input id='current_password' type='password' />
+                    <Input
+                      id='current_password'
+                      type='password'
+                      value={passwordForm.currentPassword}
+                      onChange={(e) =>
+                        setPasswordForm((current) => ({
+                          ...current,
+                          currentPassword: e.target.value,
+                        }))
+                      }
+                    />
                   </div>
 
                   <div className='space-y-2'>
                     <Label htmlFor='new_password'>New Password</Label>
-                    <Input id='new_password' type='password' />
+                    <Input
+                      id='new_password'
+                      type='password'
+                      value={passwordForm.newPassword}
+                      onChange={(e) =>
+                        setPasswordForm((current) => ({
+                          ...current,
+                          newPassword: e.target.value,
+                        }))
+                      }
+                    />
                   </div>
 
                   <div className='space-y-2'>
                     <Label htmlFor='confirm_password'>
                       Confirm New Password
                     </Label>
-                    <Input id='confirm_password' type='password' />
+                    <Input
+                      id='confirm_password'
+                      type='password'
+                      value={passwordForm.confirmPassword}
+                      onChange={(e) =>
+                        setPasswordForm((current) => ({
+                          ...current,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
+                    />
                   </div>
 
-                  <Button>
-                    <Lock className='mr-2 h-4 w-4' />
-                    Update Password
+                  <Button onClick={handleChangePassword} disabled={passwordLoading}>
+                    {passwordLoading ? (
+                      <>
+                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        Updating...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className='mr-2 h-4 w-4' />
+                        Update Password
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card>
+              {/* <Card>
                 <CardHeader>
-                  <CardTitle>Account Security</CardTitle>
+                  <CardTitle>Additional Security</CardTitle>
                   <CardDescription>
-                    Manage your account security settings
+                    More account-protection tools will be added here soon
                   </CardDescription>
                 </CardHeader>
                 <CardContent className='space-y-4'>
-                  <div className='flex items-center justify-between'>
-                    <div className='space-y-0.5'>
-                      <Label>Two-Factor Authentication</Label>
-                      <p className='text-sm text-muted-foreground'>
-                        Add an extra layer of security
-                      </p>
-                    </div>
-                    <Button variant='outline'>Enable</Button>
-                  </div>
-
-                  <Separator />
-
-                  <div className='flex items-center justify-between'>
-                    <div className='space-y-0.5'>
-                      <Label>Active Sessions</Label>
-                      <p className='text-sm text-muted-foreground'>
-                        Manage your active sessions
-                      </p>
-                    </div>
-                    <Button variant='outline'>View</Button>
-                  </div>
+                  <Alert>
+                    <Lock className='h-4 w-4' />
+                    <AlertDescription>
+                      Two-factor authentication and active session management are not yet available through the backend.
+                    </AlertDescription>
+                  </Alert>
                 </CardContent>
-              </Card>
+              </Card> */}
             </TabsContent>
 
-            {/* Achievements Tab */}
-            <TabsContent value='achievements' className='space-y-6'>
+            
+            {/* <TabsContent value='achievements' className='space-y-6'>
               <Card>
                 <CardHeader>
                   <CardTitle>Your Achievements</CardTitle>
@@ -463,7 +699,7 @@ export function ProfilePage() {
                 </CardContent>
               </Card>
 
-              {/* Milestones */}
+       
               <Card>
                 <CardHeader>
                   <CardTitle>Upcoming Milestones</CardTitle>
@@ -521,7 +757,7 @@ export function ProfilePage() {
                   ))}
                 </CardContent>
               </Card>
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
         </div>
       </div>

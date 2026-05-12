@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -38,6 +38,160 @@ interface EnhancedAppointmentBookingProps {
   psychologist?: any;
 }
 
+type AvailabilityDayKey =
+  | 'sunday'
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday';
+
+interface AvailabilityDaySchedule {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+type SlotStatus = 'available' | 'pending' | 'confirmed';
+
+interface TimeSlot {
+  time: string;
+  label: string;
+  available: boolean;
+  status: SlotStatus;
+  statusLabel?: string;
+}
+
+const DAY_KEYS_BY_INDEX: AvailabilityDayKey[] = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+const BOOKING_SLOT_INTERVAL_MINUTES = 30;
+
+const getPsychologistDisplayName = (psychologist?: any) =>
+  psychologist?.fullName || psychologist?.name || 'Psychologist';
+
+const normalizeBookingDate = (value: string) => {
+  if (!value) return '';
+  if (value.includes('T')) return value.split('T')[0];
+
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split('T')[0];
+  }
+
+  return value;
+};
+
+const normalizeBookingTime = (value: string) => {
+  if (!value) return '';
+
+  const isoMatch = value.match(/^([01][0-9]|2[0-3]):([0-5][0-9])(?::[0-5][0-9])?$/);
+  if (isoMatch) {
+    return `${isoMatch[1]}:${isoMatch[2]}`;
+  }
+
+  const twelveHourMatch = value.match(/^([0]?[1-9]|1[0-2]):([0-5][0-9])\s*([AP]M)$/i);
+  if (twelveHourMatch) {
+    let hours = Number(twelveHourMatch[1]);
+    const minutes = twelveHourMatch[2];
+    const period = twelveHourMatch[3].toUpperCase();
+
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+  }
+
+  return value;
+};
+
+const normalizeSlotStatus = (value: string): SlotStatus => {
+  if (value === 'confirmed') return 'confirmed';
+  if (value === 'pending' || value === 'emergency') return 'pending';
+  return 'available';
+};
+
+const getSlotStatusLabel = (status: SlotStatus) => {
+  switch (status) {
+    case 'pending':
+      return 'Pending confirmation';
+    case 'confirmed':
+      return 'Booked';
+    default:
+      return undefined;
+  }
+};
+
+const toMinutes = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const fromMinutes = (totalMinutes: number) => {
+  const hours = Math.floor(totalMinutes / 60)
+    .toString()
+    .padStart(2, '0');
+  const minutes = (totalMinutes % 60).toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const formatTimeLabel = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+};
+
+const isSameDate = (left: Date, right: Date) =>
+  left.toDateString() === right.toDateString();
+
+const getDayKey = (date: Date): AvailabilityDayKey => DAY_KEYS_BY_INDEX[date.getDay()];
+
+const createTimeSlots = (
+  daySchedule?: AvailabilityDaySchedule | null,
+  bookedSlotStatuses?: Record<string, SlotStatus>,
+  dateKey?: string,
+): TimeSlot[] => {
+  if (!daySchedule?.enabled) return [];
+
+  const slots: TimeSlot[] = [];
+  const startMinutes = toMinutes(daySchedule.start);
+  const endMinutes = toMinutes(daySchedule.end);
+
+  for (
+    let currentMinutes = startMinutes;
+    currentMinutes < endMinutes;
+    currentMinutes += BOOKING_SLOT_INTERVAL_MINUTES
+  ) {
+    const time = fromMinutes(currentMinutes);
+    const status =
+      dateKey && bookedSlotStatuses
+        ? bookedSlotStatuses[`${dateKey}|${time}`] ?? 'available'
+        : 'available';
+
+    slots.push({
+      time,
+      label: formatTimeLabel(time),
+      available: status === 'available',
+      status,
+      statusLabel: getSlotStatusLabel(status),
+    });
+  }
+
+  return slots;
+};
+
 export function EnhancedAppointmentBooking({ onNavigate, psychologist }: EnhancedAppointmentBookingProps) {
   const { user } = useAuth();
   const [step, setStep] = useState<'calendar' | 'time' | 'details' | 'payment'>('calendar');
@@ -60,43 +214,178 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
     push: true,
     timing: '24h' // 1h, 24h, 48h
   });
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
+  const [availabilitySchedule, setAvailabilitySchedule] = useState<
+    Partial<Record<AvailabilityDayKey, AvailabilityDaySchedule>>
+  >({});
+  const [bookedSlotStatuses, setBookedSlotStatuses] = useState<Record<string, SlotStatus>>({});
 
-  // Generate next 30 days for calendar (extended from 14)
-  const generateAvailableDates = () => {
-    const dates = [];
+  const psychologistId =
+    psychologist?.psychologistId || psychologist?.userId || psychologist?.id;
+  const psychologistName = getPsychologistDisplayName(psychologist);
+
+  useEffect(() => {
+    if (!psychologistId) return;
+
+    let isMounted = true;
+
+    const loadAvailability = async () => {
+      try {
+        setAvailabilityLoading(true);
+        const response = await api.psychologist.getAvailability(psychologistId);
+
+        if (!isMounted) return;
+        setAvailabilitySchedule(
+          (response?.schedule as Partial<Record<AvailabilityDayKey, AvailabilityDaySchedule>>) ?? {},
+        );
+      } catch (error: any) {
+        if (!isMounted) return;
+
+        const availabilityErrorMessage = String(error?.message || '').toLowerCase();
+        const isNotFound =
+          availabilityErrorMessage.includes('404') ||
+          availabilityErrorMessage.includes('no availability') ||
+          availabilityErrorMessage.includes('availability schedule');
+
+        if (!isNotFound) {
+          console.error('Error loading psychologist availability:', error);
+          toast.error(error?.message ?? 'Failed to load psychologist availability');
+        }
+
+        setAvailabilitySchedule({});
+      } finally {
+        if (isMounted) {
+          setAvailabilityLoading(false);
+          setAvailabilityLoaded(true);
+        }
+      }
+    };
+
+    loadAvailability();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [psychologistId]);
+
+  useEffect(() => {
+    if (!psychologistId) return;
+
+    const loadBookedSlotStatuses = () => {
+      try {
+        const storedBookings = [
+          ...JSON.parse(localStorage.getItem('psychologist_bookings') || '[]'),
+          ...JSON.parse(localStorage.getItem('appointment_bookings') || '[]'),
+        ];
+
+        const nextStatuses = storedBookings.reduce(
+          (accumulator: Record<string, SlotStatus>, booking: any) => {
+            const bookingPsychologistId =
+              booking.psychologistId ?? booking.psychologist_id ?? '';
+            if (bookingPsychologistId !== psychologistId) {
+              return accumulator;
+            }
+
+            const normalizedStatus = normalizeSlotStatus(booking.status ?? '');
+            if (normalizedStatus === 'available') {
+              return accumulator;
+            }
+
+            const normalizedDate = normalizeBookingDate(booking.date ?? '');
+            const normalizedTime = normalizeBookingTime(booking.time ?? '');
+
+            if (!normalizedDate || !normalizedTime) {
+              return accumulator;
+            }
+
+            const key = `${normalizedDate}|${normalizedTime}`;
+            if (
+              accumulator[key] !== 'confirmed' ||
+              normalizedStatus === 'confirmed'
+            ) {
+              accumulator[key] = normalizedStatus;
+            }
+
+            return accumulator;
+          },
+          {},
+        );
+
+        setBookedSlotStatuses(nextStatuses);
+      } catch (error) {
+        console.error('Error loading stored booked slots:', error);
+        setBookedSlotStatuses({});
+      }
+    };
+
+    loadBookedSlotStatuses();
+    window.addEventListener('storage', loadBookedSlotStatuses);
+
+    return () => {
+      window.removeEventListener('storage', loadBookedSlotStatuses);
+    };
+  }, [psychologistId]);
+
+  const availableDates = useMemo(() => {
+    const dates: Date[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     for (let i = 1; i <= 30; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() + i);
-      // Skip Sundays (unless emergency)
-      if (date.getDay() !== 0 || isEmergency) {
+      const daySchedule = availabilitySchedule[getDayKey(date)];
+
+      if (daySchedule?.enabled) {
         dates.push(date);
       }
     }
-    return dates;
-  };
 
-  // Enhanced time slots with emergency slots
-  const generateTimeSlots = () => {
-    const regularTimes = [
-      '09:00 AM', '10:00 AM', '11:00 AM',
-      '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM'
-    ];
-    
-    const emergencyTimes = [
-      '08:00 AM', '12:00 PM', '06:00 PM', '07:00 PM'
-    ];
-    
-    const times = isEmergency ? [...regularTimes, ...emergencyTimes] : regularTimes;
-    
-    return times.sort().map(time => ({
-      time,
-      available: true,
-      isEmergency: emergencyTimes.includes(time)
-    }));
-  };
+    return dates;
+  }, [availabilitySchedule]);
+
+  const selectedDaySchedule = selectedDate
+    ? availabilitySchedule[getDayKey(selectedDate)]
+    : undefined;
+  const selectedDateKey = selectedDate
+    ? normalizeBookingDate(selectedDate.toISOString())
+    : '';
+
+  const timeSlots = useMemo(
+    () =>
+      createTimeSlots(
+        selectedDaySchedule,
+        bookedSlotStatuses,
+        selectedDateKey,
+      ),
+    [bookedSlotStatuses, selectedDateKey, selectedDaySchedule],
+  );
+
+  const selectedTimeLabel = selectedTime ? formatTimeLabel(selectedTime) : '';
+
+  useEffect(() => {
+    if (selectedDate && !availableDates.some((date) => isSameDate(date, selectedDate))) {
+      setSelectedDate(null);
+      setSelectedTime('');
+      setStep('calendar');
+    }
+  }, [availableDates, selectedDate]);
+
+  useEffect(() => {
+    if (
+      selectedTime &&
+      step !== 'payment' &&
+      !timeSlots.some(
+        (slot) => slot.time === selectedTime && slot.available,
+      )
+    ) {
+      setSelectedTime('');
+      if (step === 'details' || step === 'payment') {
+        setStep('time');
+      }
+    }
+  }, [selectedTime, step, timeSlots]);
 
   // Calculate recurring appointments
   const calculateRecurringDates = useMemo(() => {
@@ -154,10 +443,19 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
     const now = new Date();
     const hoursUntilSession = (sessionDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-    const psychologistId = psychologist?.psychologistId || psychologist?.userId || psychologist?.id;
-
     if (!psychologistId) {
       toast.error('Psychologist identifier is missing');
+      return;
+    }
+
+    const selectedSlot = timeSlots.find((slot) => slot.time === selectedTime);
+    if (selectedSlot && !selectedSlot.available) {
+      toast.error(
+        selectedSlot.status === 'pending'
+          ? 'This time is already pending confirmation. Please choose another slot.'
+          : 'This time has already been booked. Please choose another slot.',
+      );
+      setStep('time');
       return;
     }
 
@@ -184,13 +482,13 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
         id: newBookingId,
         studentId: user.id,
         psychologistId,
-        psychologistName: psychologist?.fullName || psychologist?.name,
+        psychologistName,
         date: selectedDate.toISOString(),
         time: selectedTime,
         bookingType: isEmergency ? 'emergency' : 'standard',
         sessionType,
         notes,
-        status: isEmergency ? 'emergency' : 'pending',
+        status: response?.status ?? 'pending',
         isRecurring,
         recurringFrequency: isRecurring ? recurringFrequency : null,
         recurringDates: isRecurring ? calculateRecurringDates.map(d => d.toISOString()) : [],
@@ -202,6 +500,12 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
       const existingBookings = JSON.parse(localStorage.getItem('psychologist_bookings') || '[]');
       existingBookings.push(booking);
       localStorage.setItem('psychologist_bookings', JSON.stringify(existingBookings));
+      setBookedSlotStatuses((current) => ({
+        ...current,
+        [`${normalizeBookingDate(booking.date)}|${normalizeBookingTime(booking.time)}`]: normalizeSlotStatus(
+          booking.status,
+        ),
+      }));
 
       scheduleReminders(booking);
 
@@ -247,7 +551,7 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
     const waitlistEntry = {
       id: `WL${Date.now()}`,
       studentId: user?.id,
-      psychologistId: psychologist?.id,
+      psychologistId,
       preferredDate: selectedDate.toISOString(),
       preferredTime: selectedTime,
       sessionType,
@@ -276,13 +580,9 @@ METHOD:PUBLISH\n`;
 
     appointments.forEach((date, index) => {
       const startDateTime = new Date(date);
-      const [time, period] = selectedTime.split(' ');
-      const [hours, minutes] = time.split(':');
-      let hour = parseInt(hours);
-      if (period === 'PM' && hour !== 12) hour += 12;
-      if (period === 'AM' && hour === 12) hour = 0;
-      
-      startDateTime.setHours(hour, parseInt(minutes), 0, 0);
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+
+      startDateTime.setHours(hours, minutes, 0, 0);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 1 hour session
 
       const formatDate = (d: Date) => {
@@ -294,7 +594,7 @@ UID:${bookingId || 'TEMP'}-${index}@cerebrolearn.com
 DTSTAMP:${formatDate(new Date())}
 DTSTART:${formatDate(startDateTime)}
 DTEND:${formatDate(endDateTime)}
-SUMMARY:Therapy Session with ${psychologist?.name}
+SUMMARY:Therapy Session with ${psychologistName}
 DESCRIPTION:${sessionType}\\n${notes}
 LOCATION:${psychologist?.location || 'Online'}
 STATUS:CONFIRMED
@@ -322,9 +622,6 @@ END:VEVENT\n`;
     toast.success('Calendar event downloaded! Import to your calendar app.');
   };
 
-  const availableDates = generateAvailableDates();
-  const timeSlots = generateTimeSlots();
-
   if (!psychologist) {
     return (
       <div className="container mx-auto px-6 py-8">
@@ -350,7 +647,7 @@ END:VEVENT\n`;
             Back to Psychologists
           </Button>
           <h1 className="text-4xl font-bold mb-2">Book an Appointment</h1>
-          <p className="text-muted-foreground">Schedule your session with {psychologist.name}</p>
+          <p className="text-muted-foreground">Schedule your session with {psychologistName}</p>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -360,14 +657,14 @@ END:VEVENT\n`;
               <CardContent className="p-6">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                    {psychologist?.name?.charAt(0) || 'P'}
+                    {psychologistName.charAt(0) || 'P'}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{psychologist?.name || 'Psychologist'}</h3>
+                    <h3 className="font-semibold text-lg">{psychologistName}</h3>
                     <div className="flex items-center gap-1 text-sm">
                       <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                       <span className="font-medium">{psychologist?.rating || 5.0}</span>
-                      <span className="text-muted-foreground">({psychologist?.reviews || 0} reviews)</span>
+                      <span className="text-muted-foreground">({psychologist?.reviewCount || psychologist?.reviews || 0} reviews)</span>
                     </div>
                   </div>
                 </div>
@@ -383,7 +680,7 @@ END:VEVENT\n`;
                   </div>
                   <div className="flex items-start gap-2">
                     <Award className="h-4 w-4 text-muted-foreground mt-0.5" />
-                    <span>{psychologist.experience} years experience</span>
+                    <span>{psychologist.yearsOfExperience || psychologist.experience || 'N/A'} years experience</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <DollarSign className="h-4 w-4 text-muted-foreground mt-0.5" />
@@ -465,32 +762,45 @@ END:VEVENT\n`;
                   <TabsContent value="calendar" className="space-y-4">
                     <div>
                       <Label className="mb-3 block">Select Date</Label>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-96 overflow-y-auto p-2">
-                        {availableDates.map((date) => {
-                          const isSelected = selectedDate?.toDateString() === date.toDateString();
-                          return (
-                            <button
-                              key={date.toISOString()}
-                              onClick={() => setSelectedDate(date)}
-                              className={`p-3 border-2 rounded-lg transition-all text-center ${
-                                isSelected
-                                  ? 'border-primary bg-primary/10'
-                                  : 'border-border hover:border-primary/50'
-                              }`}
-                            >
-                              <div className="text-xs text-muted-foreground">
-                                {date.toLocaleDateString('en-US', { weekday: 'short' })}
-                              </div>
-                              <div className="text-lg font-semibold">
-                                {date.getDate()}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {date.toLocaleDateString('en-US', { month: 'short' })}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {availabilityLoading ? (
+                        <div className="rounded-lg border p-6 text-center text-sm text-muted-foreground">
+                          Loading psychologist availability...
+                        </div>
+                      ) : availableDates.length > 0 ? (
+                        <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-96 overflow-y-auto p-2">
+                          {availableDates.map((date) => {
+                            const isSelected = selectedDate?.toDateString() === date.toDateString();
+                            return (
+                              <button
+                                key={date.toISOString()}
+                                onClick={() => {
+                                  setSelectedDate(date);
+                                  setSelectedTime('');
+                                }}
+                                className={`p-3 border-2 rounded-lg transition-all text-center ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10'
+                                    : 'border-border hover:border-primary/50'
+                                }`}
+                              >
+                                <div className="text-xs text-muted-foreground">
+                                  {date.toLocaleDateString('en-US', { weekday: 'short' })}
+                                </div>
+                                <div className="text-lg font-semibold">{date.getDate()}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {date.toLocaleDateString('en-US', { month: 'short' })}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : availabilityLoaded ? (
+                        <Alert>
+                          <AlertDescription>
+                            This psychologist has not set any available booking days yet.
+                          </AlertDescription>
+                        </Alert>
+                      ) : null}
                     </div>
 
                     {selectedDate && (
@@ -505,36 +815,62 @@ END:VEVENT\n`;
                   <TabsContent value="time" className="space-y-4">
                     <div>
                       <Label className="mb-3 block">Select Time</Label>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {timeSlots.map((slot) => {
-                          const isSelected = selectedTime === slot.time;
-                          return (
-                            <button
-                              key={slot.time}
-                              onClick={() => slot.available && setSelectedTime(slot.time)}
-                              disabled={!slot.available}
-                              className={`p-3 border-2 rounded-lg transition-all ${
-                                isSelected
-                                  ? 'border-primary bg-primary/10'
-                                  : slot.available
-                                  ? 'border-border hover:border-primary/50'
-                                  : 'border-border bg-muted opacity-50 cursor-not-allowed'
-                              }`}
-                            >
-                              <div className="flex items-center justify-center gap-2">
-                                <Clock className="h-4 w-4" />
-                                <span className="font-medium">{slot.time}</span>
-                              </div>
-                              {slot.isEmergency && (
-                                <Badge variant="destructive" className="mt-1 text-xs">Emergency</Badge>
-                              )}
-                              {!slot.available && (
-                                <div className="text-xs text-muted-foreground mt-1">Booked</div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {selectedDate && selectedDaySchedule?.enabled ? (
+                        <p className="mb-3 text-sm text-muted-foreground">
+                          Available on this day: {formatTimeLabel(selectedDaySchedule.start)} - {formatTimeLabel(selectedDaySchedule.end)}
+                        </p>
+                      ) : null}
+
+                      {timeSlots.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {timeSlots.map((slot) => {
+                            const isSelected = selectedTime === slot.time;
+                            return (
+                              <button
+                                key={slot.time}
+                                onClick={() => slot.available && setSelectedTime(slot.time)}
+                                disabled={!slot.available}
+                                className={`p-3 border-2 rounded-lg transition-all ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10'
+                                    : slot.available
+                                    ? 'border-border hover:border-primary/50'
+                                    : 'border-border bg-muted opacity-50 cursor-not-allowed'
+                                }`}
+                              >
+                                <div className="flex items-center justify-center gap-2">
+                                  <Clock className="h-4 w-4" />
+                                  <span className="font-medium">{slot.label}</span>
+                                </div>
+                                {!slot.available && slot.statusLabel && (
+                                  <div
+                                    className={`mt-1 text-xs ${
+                                      slot.status === 'pending'
+                                        ? 'text-yellow-700 dark:text-yellow-400'
+                                        : 'text-muted-foreground'
+                                    }`}
+                                  >
+                                    {slot.statusLabel}
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <Alert>
+                          <AlertDescription>
+                            No time slots are available for the selected day.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+
+                      {timeSlots.some((slot) => slot.status === 'pending') ||
+                      timeSlots.some((slot) => slot.status === 'confirmed') ? (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          Slots marked <span className="text-yellow-700 dark:text-yellow-400">Pending confirmation</span> are temporarily held, while <span className="font-medium">Booked</span> slots are already confirmed.
+                        </p>
+                      ) : null}
                     </div>
 
                     {/* Waitlist option */}
@@ -729,7 +1065,7 @@ END:VEVENT\n`;
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Psychologist:</span>
-                            <span className="font-medium">{psychologist.fullName || psychologist.name}</span>
+                          <span className="font-medium">{psychologistName}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Date:</span>
@@ -744,7 +1080,7 @@ END:VEVENT\n`;
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Time:</span>
-                          <span className="font-medium">{selectedTime}</span>
+                          <span className="font-medium">{selectedTimeLabel}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Session Type:</span>

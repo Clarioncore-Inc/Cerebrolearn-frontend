@@ -55,6 +55,7 @@ export function PsychologistSignupForm({
   onBack: () => void;
 }) {
   const [step, setStep] = useState<'form' | 'success'>('form');
+  const [currentFormStep, setCurrentFormStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -107,361 +108,616 @@ export function PsychologistSignupForm({
     }
   };
 
+  const onboardingHighlights = [
+    {
+      title: 'Designed for licensed professionals',
+      description:
+        'Create your account now and complete credential verification from your dashboard.',
+      icon: GraduationCap,
+    },
+    {
+      title: 'Flexible consultation setup',
+      description:
+        'Set your rate, specialisation, and availability once your profile is ready.',
+      icon: DollarSign,
+    },
+    {
+      title: 'Secure, guided onboarding',
+      description:
+        'Upload qualifications, submit for review, and start accepting bookings after approval.',
+      icon: Upload,
+    },
+  ];
+
+  const nextSteps = [
+    'Log in to your psychologist dashboard immediately after signup.',
+    'Upload your qualifications and certifications to complete your profile.',
+    'Submit your credentials for verification and review.',
+    'Start accepting consultation bookings once approved.',
+  ];
+
+  const formSteps = [
+    {
+      title: 'Personal Information',
+      description: 'Tell us who you are and how clients can reach you.',
+      icon: User,
+    },
+    {
+      title: 'Professional Information',
+      description:
+        'Share the professional details that help us verify and present your practice.',
+      icon: GraduationCap,
+    },
+    {
+      title: 'Professional Bio',
+      description:
+        'Introduce your approach, your background, and what clients can expect when working with you.',
+      icon: FileText,
+    },
+  ];
+
+  const validateCurrentStep = () => {
+    if (currentFormStep === 0) {
+      if (!formData.fullName || !formData.email || !formData.password || !formData.location) {
+        setError('Please complete all personal information fields before continuing.');
+        return false;
+      }
+
+      if (formData.password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return false;
+      }
+    }
+
+    if (currentFormStep === 1) {
+      if (
+        !formData.licenseNumber ||
+        !formData.yearsOfExperience ||
+        !formData.hourlyRate ||
+        !formData.specialization
+      ) {
+        setError('Please complete all professional information fields before continuing.');
+        return false;
+      }
+    }
+
+    if (currentFormStep === 2) {
+      if (!formData.bio || !formData.aboutYou) {
+        setError('Please complete your professional bio before submitting.');
+        return false;
+      }
+    }
+
+    setError('');
+    return true;
+  };
+
+  const handleNextStep = () => {
+    if (!validateCurrentStep()) return;
+    setCurrentFormStep((prev) => Math.min(prev + 1, formSteps.length - 1));
+  };
+
+  const handlePreviousStep = () => {
+    if (currentFormStep === 0) {
+      onBack();
+      return;
+    }
+
+    setError('');
+    setCurrentFormStep((prev) => Math.max(prev - 1, 0));
+  };
+
   if (step === 'success') {
     return (
-      <Card className='w-full max-w-2xl mx-auto'>
-        <CardHeader className='text-center'>
-          <div className='mx-auto mb-4 w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center'>
-            <CheckCircle2 className='h-8 w-8 text-primary' />
-          </div>
-          <CardTitle className='text-2xl'>
-            Account Created Successfully!
-          </CardTitle>
-          <CardDescription>
-            Welcome to CerebroLearn's psychologist network
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='space-y-4'>
-          <div className='bg-muted/50 rounded-lg p-6 space-y-3'>
-            <h3 className='font-semibold text-lg'>Next Steps:</h3>
-            <ul className='space-y-2 text-sm text-muted-foreground'>
-              <li className='flex items-start gap-2'>
-                <span className='text-primary mt-1'>1.</span>
-                <span>Log in to your psychologist dashboard</span>
-              </li>
-              <li className='flex items-start gap-2'>
-                <span className='text-primary mt-1'>2.</span>
-                <span>
-                  Complete your profile by uploading your qualifications and
-                  certifications
-                </span>
-              </li>
-              <li className='flex items-start gap-2'>
-                <span className='text-primary mt-1'>3.</span>
-                <span>Submit your credentials for verification</span>
-              </li>
-              <li className='flex items-start gap-2'>
-                <span className='text-primary mt-1'>4.</span>
-                <span>
-                  Once approved, you can start accepting consultation bookings
-                </span>
-              </li>
-            </ul>
+      <div className='mx-auto w-full max-w-4xl rounded-[2rem] border bg-background/95 shadow-2xl shadow-primary/10 backdrop-blur'>
+        <div className='grid gap-0 lg:grid-cols-[0.92fr_1.08fr]'>
+          <div className='relative overflow-hidden rounded-t-[2rem] bg-gradient-to-br from-primary via-primary/90 to-slate-950 p-8 text-white lg:rounded-l-[2rem] lg:rounded-tr-none lg:p-10'>
+            <div className='absolute -left-14 top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl' />
+            <div className='absolute bottom-0 right-0 h-48 w-48 rounded-full bg-white/10 blur-3xl' />
+            <div className='relative space-y-6'>
+              <div className='inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium'>
+                <CheckCircle2 className='h-4 w-4' />
+                Welcome to the network
+              </div>
+              <div>
+                <h2 className='text-3xl font-semibold leading-tight'>
+                  Your psychologist account is ready.
+                </h2>
+                <p className='mt-3 text-sm leading-6 text-white/80'>
+                  You can sign in right away, complete your professional profile,
+                  and submit your credentials for review.
+                </p>
+              </div>
+              <div className='rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm'>
+                <p className='text-sm font-semibold uppercase tracking-[0.22em] text-white/70'>
+                  Next steps
+                </p>
+                <div className='mt-4 space-y-4'>
+                  {nextSteps.map((stepText, index) => (
+                    <div key={stepText} className='flex items-start gap-3'>
+                      <div className='flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold'>
+                        {index + 1}
+                      </div>
+                      <p className='text-sm leading-6 text-white/85'>{stepText}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <Alert>
-            <AlertDescription>
-              <strong>Important:</strong> You can log in now, but you won't be
-              able to accept bookings until your credentials are verified.
-            </AlertDescription>
-          </Alert>
-        </CardContent>
-        <CardFooter className='flex flex-col gap-3'>
-          <Button onClick={onToggleMode} className='w-full'>
-            Go to Login
-          </Button>
-          <Button onClick={onBack} variant='outline' className='w-full'>
-            Back to Signup Options
-          </Button>
-        </CardFooter>
-      </Card>
+          <Card className='rounded-none border-0 bg-transparent p-0 shadow-none'>
+            <CardHeader className='border-b bg-background/80 text-center backdrop-blur-sm'>
+              <div className='mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10'>
+                <CheckCircle2 className='h-8 w-8 text-primary' />
+              </div>
+              <CardTitle className='text-2xl font-semibold'>
+                Account Created Successfully
+              </CardTitle>
+              <CardDescription className='mx-auto max-w-md text-base'>
+                Welcome to CerebroLearn&apos;s psychologist network. Your account is active, and your verification journey starts now.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-6 pt-8'>
+              <div className='rounded-2xl border bg-muted/30 p-5'>
+                <h3 className='text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground'>
+                  Important to know
+                </h3>
+                <p className='mt-3 text-sm leading-6 text-muted-foreground'>
+                  You can log in now, but you won&apos;t be able to accept bookings until your credentials have been reviewed and approved.
+                </p>
+              </div>
+            </CardContent>
+            <CardFooter className='flex flex-col gap-3 border-t bg-background/80 backdrop-blur-sm sm:flex-row'>
+              <Button onClick={onBack} variant='outline' className='w-full sm:flex-1'>
+                Back to Signup Options
+              </Button>
+              <Button onClick={onToggleMode} className='w-full sm:flex-1'>
+                Go to Login
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className='w-full max-w-2xl mx-auto'>
-      <CardHeader>
-        <CardTitle>Join as a Licensed Psychologist</CardTitle>
-        <CardDescription>
-          Create your account to provide professional psychological
-          consultations through CerebroLearn
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className='space-y-6'>
-          {error && (
-            <Alert variant='destructive'>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Personal Information */}
-          <div className='space-y-4'>
-            <h3 className='text-lg font-semibold flex items-center gap-2'>
-              <User className='h-5 w-5 text-primary' />
-              Personal Information
-            </h3>
-
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <div className='space-y-2'>
-                <Label htmlFor='fullName'>Full Name *</Label>
-                <Input
-                  id='fullName'
-                  type='text'
-                  placeholder='Dr. Jane Smith'
-                  value={formData.fullName}
-                  onChange={(e) =>
-                    handleInputChange('fullName', e.target.value)
-                  }
-                  required
-                />
+    <div className='mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border bg-background/95 shadow-2xl shadow-primary/10 backdrop-blur'>
+      <div className='grid gap-0 lg:grid-cols-[0.9fr_1.1fr]'>
+        <div className='relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-slate-950 p-8 text-white lg:p-10'>
+          <div className='absolute -left-10 top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl' />
+          <div className='absolute bottom-0 right-0 h-56 w-56 rounded-full bg-white/10 blur-3xl' />
+          <div className='relative flex h-full flex-col justify-between gap-8'>
+            <div className='space-y-6'>
+              <div className='inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium backdrop-blur-sm'>
+                <CheckCircle2 className='h-4 w-4' />
+                Licensed psychologists only
               </div>
 
-              <div className='space-y-2'>
-                <Label htmlFor='email'>Email Address *</Label>
-                <div className='relative'>
-                  <Mail className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-                  <Input
-                    id='email'
-                    type='email'
-                    placeholder='jane.smith@example.com'
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className='pl-9'
-                    required
-                  />
+              <div className='space-y-4'>
+                <h2 className='text-3xl font-semibold leading-tight lg:text-4xl'>
+                  Build your practice on a platform learners can trust.
+                </h2>
+                <p className='max-w-xl text-sm leading-7 text-white/80 lg:text-base'>
+                  Create your account, complete your profile, and join a verified
+                  network of psychologists offering high-quality consultations
+                  through CerebroLearn.
+                </p>
+              </div>
+
+              <div className='rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm'>
+                <div className='flex items-center gap-4'>
+                  <div className='flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15'>
+                    <User className='h-7 w-7' />
+                  </div>
+                  <div>
+                    <p className='text-xs font-semibold uppercase tracking-[0.24em] text-white/65'>
+                      Professional onboarding
+                    </p>
+                    <p className='mt-1 text-xl font-semibold'>
+                      Calm, guided, and verification-ready
+                    </p>
+                  </div>
                 </div>
-              </div>
 
-              <div className='space-y-2'>
-                <Label htmlFor='password'>Password *</Label>
-                <div className='relative'>
-                  <Lock className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-                  <Input
-                    id='password'
-                    type='password'
-                    placeholder='••••••••'
-                    value={formData.password}
-                    onChange={(e) =>
-                      handleInputChange('password', e.target.value)
-                    }
-                    className='pl-9'
-                    required
-                    minLength={8}
-                  />
-                </div>
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='location'>Location *</Label>
-                <div className='relative'>
-                  <MapPin className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-                  <Input
-                    id='location'
-                    type='text'
-                    placeholder='New York, NY'
-                    value={formData.location}
-                    onChange={(e) =>
-                      handleInputChange('location', e.target.value)
-                    }
-                    className='pl-9'
-                    required
-                  />
+                <div className='mt-6 space-y-4'>
+                  {onboardingHighlights.map(({ title, description, icon: Icon }) => (
+                    <div key={title} className='flex items-start gap-3'>
+                      <div className='mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
+                        <Icon className='h-5 w-5' />
+                      </div>
+                      <div>
+                        <p className='font-medium text-white'>{title}</p>
+                        <p className='mt-1 text-sm leading-6 text-white/75'>
+                          {description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
+
+            {/* <div className='grid gap-3 sm:grid-cols-2'>
+              <div className='rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm'>
+                <p className='text-xs uppercase tracking-[0.2em] text-white/60'>
+                  Flexible setup
+                </p>
+                <p className='mt-2 text-sm leading-6 text-white/85'>
+                  Configure your rate, expertise, and availability after signup.
+                </p>
+              </div>
+              <div className='rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm'>
+                <p className='text-xs uppercase tracking-[0.2em] text-white/60'>
+                  Secure review
+                </p>
+                <p className='mt-2 text-sm leading-6 text-white/85'>
+                  Accept bookings only after your qualifications are approved.
+                </p>
+              </div>
+            </div> */}
           </div>
+        </div>
 
-          {/* Professional Credentials */}
-          <div className='space-y-4'>
-            <h3 className='text-lg font-semibold flex items-center gap-2'>
-              <GraduationCap className='h-5 w-5 text-primary' />
-              Professional Information
-            </h3>
-
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <div className='space-y-2'>
-                <Label htmlFor='licenseNumber'>License Number *</Label>
-                <div className='relative'>
-                  <FileText className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-                  <Input
-                    id='licenseNumber'
-                    type='text'
-                    placeholder='PSY-12345'
-                    value={formData.licenseNumber}
-                    onChange={(e) =>
-                      handleInputChange('licenseNumber', e.target.value)
-                    }
-                    className='pl-9'
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='yearsOfExperience'>Years of Experience *</Label>
-                <Select
-                  value={formData.yearsOfExperience}
-                  onValueChange={(value) =>
-                    handleInputChange('yearsOfExperience', value)
-                  }
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Select experience' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='0-2'>0-2 years</SelectItem>
-                    <SelectItem value='3-5'>3-5 years</SelectItem>
-                    <SelectItem value='6-10'>6-10 years</SelectItem>
-                    <SelectItem value='11-15'>11-15 years</SelectItem>
-                    <SelectItem value='16+'>16+ years</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className='space-y-2'>
-                <Label htmlFor='hourlyRate'>Hourly Rate (USD) *</Label>
-                <div className='relative'>
-                  <DollarSign className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-                  <Input
-                    id='hourlyRate'
-                    type='number'
-                    placeholder='75'
-                    min='0'
-                    step='0.01'
-                    value={formData.hourlyRate}
-                    onChange={(e) =>
-                      handleInputChange('hourlyRate', e.target.value)
-                    }
-                    className='pl-9'
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className='space-y-2 md:col-span-2'>
-                <Label htmlFor='specialization'>Specialization *</Label>
-                <Select
-                  value={formData.specialization}
-                  onValueChange={(value) =>
-                    handleInputChange('specialization', value)
-                  }
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder='Select specialization' />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value='clinical'>
-                      Clinical Psychology
-                    </SelectItem>
-                    <SelectItem value='cognitive'>
-                      Cognitive Psychology
-                    </SelectItem>
-                    <SelectItem value='developmental'>
-                      Developmental Psychology
-                    </SelectItem>
-                    <SelectItem value='educational'>
-                      Educational Psychology
-                    </SelectItem>
-                    <SelectItem value='neuropsychology'>
-                      Neuropsychology
-                    </SelectItem>
-                    <SelectItem value='organizational'>
-                      Organizational Psychology
-                    </SelectItem>
-                    <SelectItem value='counseling'>
-                      Counseling Psychology
-                    </SelectItem>
-                    <SelectItem value='forensic'>
-                      Forensic Psychology
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+        <Card className='rounded-none border-0 bg-transparent p-0 shadow-none'>
+          <CardHeader className='border-b bg-background/80 backdrop-blur-sm'>
+            <div className='mb-3 flex items-center justify-between gap-4'>
+              <Button
+                type='button'
+                onClick={handlePreviousStep}
+                variant='ghost'
+                className='px-0'
+              >
+                Back
+              </Button>
+              <div className='rounded-full border bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground'>
+                Step {currentFormStep + 1} of {formSteps.length}
               </div>
             </div>
-          </div>
-
-          {/* Professional Bio */}
-          <div className='space-y-4'>
-            <h3 className='text-lg font-semibold flex items-center gap-2'>
-              <FileText className='h-5 w-5 text-primary' />
-              Professional Bio
-            </h3>
-
-            <div className='space-y-2'>
-              <Label htmlFor='bio'>Professional Bio *</Label>
-              <Textarea
-                id='bio'
-                placeholder='Share your professional background, approach to therapy, areas of expertise, and what makes you passionate about helping others...'
-                value={formData.bio}
-                onChange={(e) => handleInputChange('bio', e.target.value)}
-                rows={4}
-                required
-                maxLength={1000}
-              />
-              <p className='text-xs text-muted-foreground'>
-                {formData.bio.length}/1000 characters
-              </p>
-            </div>
-
-            <div className='space-y-2'>
-              <Label htmlFor='aboutYou'>About You *</Label>
-              <Textarea
-                id='aboutYou'
-                placeholder='Tell clients about yourself — your personality, your approach to sessions, and what they can expect working with you...'
-                value={formData.aboutYou}
-                onChange={(e) => handleInputChange('aboutYou', e.target.value)}
-                rows={4}
-                required
-                maxLength={1000}
-              />
-              <p className='text-xs text-muted-foreground'>
-                {formData.aboutYou.length}/1000 characters
-              </p>
-            </div>
-          </div>
-
-          <div className='bg-muted/50 rounded-lg p-4 space-y-2'>
-            <p className='text-sm font-medium'>After creating your account:</p>
-            <ul className='text-sm text-muted-foreground space-y-1'>
-              <li>• You'll be able to log in immediately</li>
-              <li>
-                • Complete your profile by uploading qualifications from your
-                dashboard
-              </li>
-              <li>• Submit your credentials for verification</li>
-              <li>• Start accepting bookings once approved</li>
-            </ul>
-          </div>
-
-          <div className='flex gap-3'>
-            <Button
-              type='button'
-              onClick={onBack}
-              variant='outline'
-              className='flex-1'
-            >
-              Back
-            </Button>
-            <Button type='submit' className='flex-1' disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  Creating Account...
-                </>
-              ) : (
-                <>
-                  <User className='mr-2 h-4 w-4' />
-                  Create Account
-                </>
+            <CardTitle className='text-2xl font-semibold lg:text-3xl'>
+              Join as a Licensed Psychologist
+            </CardTitle>
+            <CardDescription className='max-w-xl text-base leading-7'>
+              Create your account to offer professional psychological consultations through CerebroLearn.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className='pt-8'>
+            <form onSubmit={handleSubmit} className='space-y-6'>
+              {error && (
+                <Alert variant='destructive'>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-      <CardFooter className='flex justify-center border-t pt-6'>
-        <p className='text-sm text-muted-foreground'>
-          Already have an account?{' '}
-          <button
-            onClick={onToggleMode}
-            className='text-primary hover:underline font-medium'
-          >
-            Sign in
-          </button>
-        </p>
-      </CardFooter>
-    </Card>
+
+              <div className='grid gap-3 sm:grid-cols-3'>
+                {formSteps.map((formStep, index) => {
+                  const Icon = formStep.icon;
+                  const isActive = index === currentFormStep;
+                  const isCompleted = index < currentFormStep;
+
+                  return (
+                    <button
+                      key={formStep.title}
+                      type='button'
+                      onClick={() => {
+                        if (index <= currentFormStep) {
+                          setError('');
+                          setCurrentFormStep(index);
+                        }
+                      }}
+                      className={`rounded-2xl border p-4 text-left transition ${
+                        isActive
+                          ? 'border-primary bg-primary/5 shadow-sm'
+                          : isCompleted
+                            ? 'border-primary/30 bg-primary/5 hover:bg-primary/10'
+                            : 'border-border bg-muted/20 text-muted-foreground'
+                      }`}
+                    >
+                      <div className='flex items-center gap-3'>
+                        <div
+                          className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                            isActive || isCompleted
+                              ? 'bg-primary/10 text-primary'
+                              : 'bg-muted text-muted-foreground'
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <CheckCircle2 className='h-5 w-5' />
+                          ) : (
+                            <Icon className='h-5 w-5' />
+                          )}
+                        </div>
+                        <div>
+                          <p className='text-sm font-semibold text-foreground'>
+                            {formStep.title}
+                          </p>
+                          <p className='text-xs text-muted-foreground'>Step {index + 1}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {currentFormStep === 0 ? (
+              <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
+                <div className='space-y-1'>
+                  <h3 className='text-lg font-semibold flex items-center gap-2'>
+                    <User className='h-5 w-5 text-primary' />
+                    {formSteps[0].title}
+                  </h3>
+                  <p className='text-sm text-muted-foreground'>
+                    {formSteps[0].description}
+                  </p>
+                </div>
+
+                <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                  <div className='space-y-2'>
+                    <Label htmlFor='fullName'>Full Name *</Label>
+                    <Input
+                      id='fullName'
+                      type='text'
+                      placeholder='Dr. Jane Smith'
+                      value={formData.fullName}
+                      onChange={(e) => handleInputChange('fullName', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className='space-y-2'>
+                    <Label htmlFor='email'>Email Address *</Label>
+                    <div className='relative'>
+                      <Mail className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                      <Input
+                        id='email'
+                        type='email'
+                        placeholder='jane.smith@example.com'
+                        value={formData.email}
+                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        className='pl-9'
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className='space-y-2'>
+                    <Label htmlFor='password'>Password *</Label>
+                    <div className='relative'>
+                      <Lock className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                      <Input
+                        id='password'
+                        type='password'
+                        placeholder='••••••••'
+                        value={formData.password}
+                        onChange={(e) => handleInputChange('password', e.target.value)}
+                        className='pl-9'
+                        required
+                        minLength={8}
+                      />
+                    </div>
+                  </div>
+
+                  <div className='space-y-2'>
+                    <Label htmlFor='location'>Location *</Label>
+                    <div className='relative'>
+                      <MapPin className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                      <Input
+                        id='location'
+                        type='text'
+                        placeholder='New York, NY'
+                        value={formData.location}
+                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        className='pl-9'
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              ) : null}
+
+              {currentFormStep === 1 ? (
+              <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
+                <div className='space-y-1'>
+                  <h3 className='text-lg font-semibold flex items-center gap-2'>
+                    <GraduationCap className='h-5 w-5 text-primary' />
+                    {formSteps[1].title}
+                  </h3>
+                  <p className='text-sm text-muted-foreground'>
+                    {formSteps[1].description}
+                  </p>
+                </div>
+
+                <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+                  <div className='space-y-2'>
+                    <Label htmlFor='licenseNumber'>License Number *</Label>
+                    <div className='relative'>
+                      <FileText className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                      <Input
+                        id='licenseNumber'
+                        type='text'
+                        placeholder='PSY-12345'
+                        value={formData.licenseNumber}
+                        onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
+                        className='pl-9'
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className='space-y-2'>
+                    <Label htmlFor='yearsOfExperience'>Years of Experience *</Label>
+                    <Select
+                      value={formData.yearsOfExperience}
+                      onValueChange={(value) => handleInputChange('yearsOfExperience', value)}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Select experience' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='0-2'>0-2 years</SelectItem>
+                        <SelectItem value='3-5'>3-5 years</SelectItem>
+                        <SelectItem value='6-10'>6-10 years</SelectItem>
+                        <SelectItem value='11-15'>11-15 years</SelectItem>
+                        <SelectItem value='16+'>16+ years</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className='space-y-2'>
+                    <Label htmlFor='hourlyRate'>Hourly Rate (USD) *</Label>
+                    <div className='relative'>
+                      <DollarSign className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                      <Input
+                        id='hourlyRate'
+                        type='number'
+                        placeholder='75'
+                        min='0'
+                        step='0.01'
+                        value={formData.hourlyRate}
+                        onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
+                        className='pl-9'
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className='space-y-2 md:col-span-2'>
+                    <Label htmlFor='specialization'>Specialization *</Label>
+                    <Select
+                      value={formData.specialization}
+                      onValueChange={(value) => handleInputChange('specialization', value)}
+                      required
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Select specialization' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value='clinical'>Clinical Psychology</SelectItem>
+                        <SelectItem value='cognitive'>Cognitive Psychology</SelectItem>
+                        <SelectItem value='developmental'>Developmental Psychology</SelectItem>
+                        <SelectItem value='educational'>Educational Psychology</SelectItem>
+                        <SelectItem value='neuropsychology'>Neuropsychology</SelectItem>
+                        <SelectItem value='organizational'>Organizational Psychology</SelectItem>
+                        <SelectItem value='counseling'>Counseling Psychology</SelectItem>
+                        <SelectItem value='forensic'>Forensic Psychology</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              ) : null}
+
+              {currentFormStep === 2 ? (
+              <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
+                <div className='space-y-1'>
+                  <h3 className='text-lg font-semibold flex items-center gap-2'>
+                    <FileText className='h-5 w-5 text-primary' />
+                    {formSteps[2].title}
+                  </h3>
+                  <p className='text-sm text-muted-foreground'>
+                    {formSteps[2].description}
+                  </p>
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='bio'>Professional Bio *</Label>
+                  <Textarea
+                    id='bio'
+                    placeholder='Share your professional background, approach to therapy, areas of expertise, and what makes you passionate about helping others...'
+                    value={formData.bio}
+                    onChange={(e) => handleInputChange('bio', e.target.value)}
+                    rows={4}
+                    required
+                    maxLength={1000}
+                  />
+                  <p className='text-xs text-muted-foreground'>
+                    {formData.bio.length}/1000 characters
+                  </p>
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='aboutYou'>About You *</Label>
+                  <Textarea
+                    id='aboutYou'
+                    placeholder='Tell clients about yourself — your personality, your approach to sessions, and what they can expect working with you...'
+                    value={formData.aboutYou}
+                    onChange={(e) => handleInputChange('aboutYou', e.target.value)}
+                    rows={4}
+                    required
+                    maxLength={1000}
+                  />
+                  <p className='text-xs text-muted-foreground'>
+                    {formData.aboutYou.length}/1000 characters
+                  </p>
+                </div>
+              </div>
+              ) : null}
+
+              {currentFormStep === formSteps.length - 1 ? (
+              <div className='rounded-2xl border bg-primary/5 p-5'>
+                <p className='text-sm font-semibold uppercase tracking-[0.16em] text-primary'>
+                  After creating your account
+                </p>
+                <div className='mt-4 grid gap-3 sm:grid-cols-2'>
+                  {nextSteps.map((stepText) => (
+                    <div key={stepText} className='flex items-start gap-3 rounded-xl bg-background/70 p-3'>
+                      <CheckCircle2 className='mt-0.5 h-4 w-4 flex-shrink-0 text-primary' />
+                      <p className='text-sm leading-6 text-muted-foreground'>
+                        {stepText}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              ) : null}
+
+              <div className='flex flex-col-reverse gap-3 pt-2 sm:flex-row'>
+                <Button
+                  type='button'
+                  onClick={handlePreviousStep}
+                  variant='outline'
+                  className='flex-1'
+                >
+                  {currentFormStep === 0 ? 'Back' : 'Previous'}
+                </Button>
+                {currentFormStep < formSteps.length - 1 ? (
+                  <Button type='button' className='flex-1' onClick={handleNextStep}>
+                    Continue
+                  </Button>
+                ) : (
+                  <Button type='submit' className='flex-1' disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                        Creating Account...
+                      </>
+                    ) : (
+                      <>
+                        <User className='mr-2 h-4 w-4' />
+                        Create Account
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+          <CardFooter className='justify-center border-t bg-background/80 backdrop-blur-sm'>
+            <p className='text-sm text-muted-foreground'>
+              Already have an account?{' '}
+              <button
+                onClick={onToggleMode}
+                className='font-medium text-primary hover:underline'
+              >
+                Sign in
+              </button>
+            </p>
+          </CardFooter>
+        </Card>
+      </div>
+    </div>
   );
 }

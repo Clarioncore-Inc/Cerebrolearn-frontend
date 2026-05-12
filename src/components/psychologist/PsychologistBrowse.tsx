@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { 
+	ArrowLeft,
   Search, 
   MapPin, 
   Star, 
@@ -173,10 +175,23 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
     new Set(psychologists.map((psychologist) => psychologist.location).filter(Boolean)),
   );
 
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    onNavigate('student-sessions');
+  };
+
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4">
       {/* Header */}
       <div className="mb-8">
+        <Button variant="ghost" onClick={handleGoBack} className="mb-4 px-0 hover:bg-transparent">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <h1 className="text-3xl font-bold mb-2">Find a Psychologist</h1>
         <p className="text-muted-foreground">
           Connect with verified mental health professionals for consultations and assessments
@@ -266,9 +281,12 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
             <CardHeader>
               <div className="flex items-start gap-4">
                 {/* Avatar */}
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <GraduationCap className="h-8 w-8 text-primary" />
-                </div>
+                <Avatar className="w-16 h-16 flex-shrink-0">
+                  <AvatarImage src={psychologist.avatar} alt={psychologist.fullName} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {psychologist.fullName?.charAt(0).toUpperCase() || 'P'}
+                  </AvatarFallback>
+                </Avatar>
 
                 {/* Header Info */}
                 <div className="flex-1 min-w-0">
