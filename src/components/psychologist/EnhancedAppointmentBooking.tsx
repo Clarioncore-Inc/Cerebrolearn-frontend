@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../../contexts/AuthContext';
-import api from '../../utils/api-client';
+import api, { SessionType } from '../../utils/api-client';
 
 interface EnhancedAppointmentBookingProps {
   onNavigate: (page: string, data?: any) => void;
@@ -220,6 +220,19 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
     Partial<Record<AvailabilityDayKey, AvailabilityDaySchedule>>
   >({});
   const [bookedSlotStatuses, setBookedSlotStatuses] = useState<Record<string, SlotStatus>>({});
+
+  // Session types from API
+  const [sessionTypesList, setSessionTypesList] = useState<SessionType[]>([]);
+  const [sessionTypesLoading, setSessionTypesLoading] = useState(false);
+  const [selectedSessionTypePrice, setSelectedSessionTypePrice] = useState(0);
+
+  useEffect(() => {
+    setSessionTypesLoading(true);
+    api.psychologist.listSessionTypes()
+      .then((data) => setSessionTypesList(Array.isArray(data) ? data : []))
+      .catch(() => toast.error('Failed to load session types'))
+      .finally(() => setSessionTypesLoading(false));
+  }, []);
 
   const psychologistId =
     psychologist?.psychologistId || psychologist?.userId || psychologist?.id;
@@ -415,8 +428,7 @@ export function EnhancedAppointmentBooking({ onNavigate, psychologist }: Enhance
   }, [isRecurring, selectedDate, recurringEndDate, recurringFrequency]);
 
   const getSessionPrice = () => {
-    const basePrice = sessionType === 'Initial Consultation (60 min)' ? 150 : sessionType === 'IQ Test Review (45 min)' ? 100 : 120;
-    return basePrice + (isEmergency ? 50 : 0);
+    return selectedSessionTypePrice + (isEmergency ? 50 : 0);
   };
 
   const bookingCount = isRecurring ? Math.max(calculateRecurringDates.length, 1) : 1;
@@ -904,15 +916,27 @@ END:VEVENT\n`;
                   <TabsContent value="details" className="space-y-4">
                     <div className="space-y-2">
                       <Label>Session Type</Label>
-                      <Select value={sessionType} onValueChange={setSessionType}>
+                      <Select
+                        value={sessionType}
+                        onValueChange={(val) => {
+                          const st = sessionTypesList.find((s) => s.name === val);
+                          setSessionType(val);
+                          setSelectedSessionTypePrice(st ? Number(st.price) : 0);
+                        }}
+                        disabled={sessionTypesLoading}
+                      >
                         <SelectTrigger>
-                          <SelectValue placeholder="Select session type" />
+                          <SelectValue placeholder={sessionTypesLoading ? 'Loading...' : 'Select session type'} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Initial Consultation (60 min)">Initial Consultation (60 min) - $150</SelectItem>
-                          <SelectItem value="Follow-up Session (50 min)">Follow-up Session (50 min) - $120</SelectItem>
-                          <SelectItem value="Therapy Session (50 min)">Therapy Session (50 min) - $120</SelectItem>
-                          <SelectItem value="IQ Test Review (45 min)">IQ Test Review (45 min) - $100</SelectItem>
+                          {sessionTypesList.map((st) => (
+                            <SelectItem key={st.id} value={st.name}>
+                              {st.name} — ${Number(st.price).toFixed(2)}
+                            </SelectItem>
+                          ))}
+                          {!sessionTypesLoading && sessionTypesList.length === 0 && (
+                            <SelectItem value="_none" disabled>No session types available</SelectItem>
+                          )}
                         </SelectContent>
                       </Select>
                     </div>

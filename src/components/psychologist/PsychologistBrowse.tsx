@@ -62,7 +62,8 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
           .filter((item: any) => {
             const status = item.status ?? (item.is_approved ? 'approved' : 'pending');
             const isSuspended = item.user?.is_suspended || item.user?.is_active === false;
-            return status === 'approved' && !isSuspended;
+            const isProfilePublic = item.is_profile_public ?? item.isProfilePublic ?? true;
+            return status === 'approved' && !isSuspended && isProfilePublic;
           })
           .map((item: any) => ({
             id: item.id ?? item._id ?? '',

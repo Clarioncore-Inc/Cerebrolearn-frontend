@@ -3,20 +3,32 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
+import {
   Search,
   Calendar,
   Clock,
   User,
   CheckCircle,
   XCircle,
-  AlertCircle,
   Filter,
   BarChart3,
-  TrendingUp
+  Link as LinkIcon,
+  Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { meetingConfigApi, MeetingConfig, MeetingConfigUpsert } from '../../utils/api-client';
 
 export function AdminBookingManagement() {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -31,8 +43,18 @@ export function AdminBookingManagement() {
   });
   const [dailyBookings, setDailyBookings] = useState<any[]>([]);
 
+  // Meeting config state
+  const [meetingConfig, setMeetingConfig] = useState<MeetingConfig | null>(null);
+  const [meetingForm, setMeetingForm] = useState<MeetingConfigUpsert>({ name: '', link: '', password: '' });
+  const [meetingConfigLoading, setMeetingConfigLoading] = useState(false);
+  const [meetingConfigSaving, setMeetingConfigSaving] = useState(false);
+
+  // Cancel booking confirmation
+  const [cancelTarget, setCancelTarget] = useState<any | null>(null);
+
   useEffect(() => {
     loadBookings();
+    loadMeetingConfig();
   }, []);
 
   const loadBookings = () => {
@@ -80,19 +102,50 @@ export function AdminBookingManagement() {
     setDailyBookings(chartData);
   };
 
-  const handleCancelBooking = (booking: any) => {
-    if (!confirm(`Cancel booking for ${booking.studentName}?`)) {
+  const loadMeetingConfig = async () => {
+    setMeetingConfigLoading(true);
+    try {
+      const config = await meetingConfigApi.get();
+      setMeetingConfig(config);
+      setMeetingForm({ name: config.name, link: config.link, password: config.password ?? '' });
+    } catch {
+      // 404 means not configured yet — that's fine
+    } finally {
+      setMeetingConfigLoading(false);
+    }
+  };
+
+  const handleSaveMeetingConfig = async () => {
+    if (!meetingForm.name || !meetingForm.link) {
+      toast.error('Platform name and link are required');
       return;
     }
+    setMeetingConfigSaving(true);
+    try {
+      const saved = await meetingConfigApi.upsert(meetingForm);
+      setMeetingConfig(saved);
+      toast.success('Meeting configuration saved');
+    } catch {
+      toast.error('Failed to save meeting configuration');
+    } finally {
+      setMeetingConfigSaving(false);
+    }
+  };
 
+  const handleCancelBooking = (booking: any) => {
+    setCancelTarget(booking);
+  };
+
+  const confirmCancelBooking = () => {
+    if (!cancelTarget) return;
     const allBookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
     const updated = allBookings.map((b: any) =>
-      b.id === booking.id
+      b.id === cancelTarget.id
         ? { ...b, status: 'cancelled', cancelledAt: new Date().toISOString() }
         : b
     );
     localStorage.setItem('appointment_bookings', JSON.stringify(updated));
-
+    setCancelTarget(null);
     toast.success('Booking cancelled');
     loadBookings();
   };
@@ -149,6 +202,60 @@ export function AdminBookingManagement() {
           Monitor and manage all appointment bookings
         </p>
       </div>
+
+      {/* Meeting Configuration */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LinkIcon className="h-5 w-5" />
+            Meeting Configuration
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            This link is included in Slack confirmation messages when a psychologist confirms a booking.
+          </p>
+        </CardHeader>
+        <CardContent>
+          {meetingConfigLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="meeting-name">Platform Name</Label>
+                <Input
+                  id="meeting-name"
+                  placeholder="e.g. Zoom, Google Meet"
+                  value={meetingForm.name}
+                  onChange={e => setMeetingForm(f => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="meeting-link">Meeting Link</Label>
+                <Input
+                  id="meeting-link"
+                  placeholder="https://..."
+                  value={meetingForm.link}
+                  onChange={e => setMeetingForm(f => ({ ...f, link: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="meeting-password">Password / Passcode</Label>
+                <Input
+                  id="meeting-password"
+                  placeholder="Optional"
+                  value={meetingForm.password ?? ''}
+                  onChange={e => setMeetingForm(f => ({ ...f, password: e.target.value }))}
+                />
+              </div>
+              <div className="md:col-span-3 flex justify-end">
+                <Button onClick={handleSaveMeetingConfig} disabled={meetingConfigSaving}>
+                  <Save className="h-4 w-4 mr-2" />
+                  {meetingConfigSaving ? 'Saving…' : meetingConfig ? 'Update Configuration' : 'Save Configuration'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -392,6 +499,28 @@ export function AdminBookingManagement() {
           ))}
         </div>
       )}
+
+      {/* Cancel Booking Confirmation Dialog */}
+      <AlertDialog open={!!cancelTarget} onOpenChange={(open: boolean) => { if (!open) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel the booking for{' '}
+              <span className="font-semibold">{cancelTarget?.studentName}</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, Keep It</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={confirmCancelBooking}
+            >
+              Yes, Cancel Booking
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

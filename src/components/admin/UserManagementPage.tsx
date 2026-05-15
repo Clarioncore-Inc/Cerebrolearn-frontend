@@ -100,9 +100,9 @@ export function UserManagementPage() {
 
     // Status filter
     if (statusFilter === 'suspended') {
-      filtered = filtered.filter(isUserSuspended);
+      filtered = filtered.filter(isUserInactiveOrSuspended);
     } else if (statusFilter === 'active') {
-      filtered = filtered.filter((user) => !isUserSuspended(user));
+      filtered = filtered.filter((user) => getUserAccountStatus(user) === 'active');
     }
 
     setFilteredUsers(filtered);
@@ -147,11 +147,44 @@ export function UserManagementPage() {
     setPendingSuspensionUser({ user, currentlySuspended });
   };
 
-  const isUserSuspended = (user: User) => {
-    if (typeof user.suspended === 'boolean') return user.suspended;
-    if (typeof user.is_suspended === 'boolean') return user.is_suspended;
-    if (typeof user.is_active === 'boolean') return !user.is_active;
-    return false;
+  const parseBooleanish = (value: unknown): boolean | null => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+
+    if (typeof value === 'string') {
+      const normalizedValue = value.trim().toLowerCase();
+
+      if (['true', '1', 'yes'].includes(normalizedValue)) return true;
+      if (['false', '0', 'no'].includes(normalizedValue)) return false;
+    }
+
+    return null;
+  };
+
+  const getUserAccountStatus = (user: User): 'active' | 'inactive' | 'suspended' => {
+    const suspended = parseBooleanish(user.suspended);
+    if (suspended === true) return 'suspended';
+
+    const isSuspended = parseBooleanish(user.is_suspended);
+    if (isSuspended === true) return 'suspended';
+
+    const isActive = parseBooleanish(user.is_active);
+    if (isActive === false) return 'inactive';
+    if (isActive === true) return 'active';
+
+    const userStatus = String((user as User & { status?: unknown }).status ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (userStatus === 'suspended') return 'suspended';
+    if (userStatus === 'inactive' || userStatus === 'disabled') return 'inactive';
+    if (userStatus === 'active') return 'active';
+
+    return 'active';
+  };
+
+  const isUserInactiveOrSuspended = (user: User) => {
+    return getUserAccountStatus(user) !== 'active';
   };
 
   const getRoleBadgeColor = (role: string) => {
@@ -218,8 +251,8 @@ export function UserManagementPage() {
       icon: CheckCircle,
     },
     {
-      label: 'Suspended',
-      value: users.filter(isUserSuspended).length,
+      label: 'Inactive/Suspended',
+      value: users.filter(isUserInactiveOrSuspended).length,
       icon: Ban,
     },
   ];
@@ -288,7 +321,7 @@ export function UserManagementPage() {
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
+                <SelectItem value="suspended">Inactive / Suspended</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -326,7 +359,7 @@ export function UserManagementPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((user) => {
-                    const suspended = isUserSuspended(user);
+                    const userStatus = getUserAccountStatus(user);
 
                     return (
                     <TableRow key={user.id}>
@@ -361,9 +394,13 @@ export function UserManagementPage() {
                         <span>{user.streak || 0} days</span>
                       </TableCell>
                       <TableCell>
-                        {suspended ? (
+                        {userStatus === 'suspended' ? (
                           <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
                             Suspended
+                          </Badge>
+                        ) : userStatus === 'inactive' ? (
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">
+                            Inactive
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
@@ -388,23 +425,30 @@ export function UserManagementPage() {
                             <UserCog className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button
-                            variant={suspended ? 'default' : 'destructive'}
-                            size="sm"
-                            onClick={() => handleSuspensionAction(user, suspended)}
-                          >
-                            {suspended ? (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Activate
-                              </>
-                            ) : (
-                              <>
-                                <Ban className="h-4 w-4 mr-1" />
-                                Suspend
-                              </>
-                            )}
-                          </Button>
+                          {userStatus === 'suspended' ? (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleSuspensionAction(user, true)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Activate
+                            </Button>
+                          ) : userStatus === 'inactive' ? (
+                            <Button variant="outline" size="sm" disabled>
+                              <Ban className="h-4 w-4 mr-1" />
+                              Inactive
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleSuspensionAction(user, false)}
+                            >
+                              <Ban className="h-4 w-4 mr-1" />
+                              Suspend
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

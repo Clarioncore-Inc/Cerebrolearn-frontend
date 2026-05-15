@@ -35,6 +35,8 @@ import {
 import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from '../ui/alert';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface Application {
   id: string;
   userId: string;
@@ -68,6 +70,9 @@ export function PsychologistManagementPage() {
   const [reviewNotes, setReviewNotes] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [accountStatusSubmitting, setAccountStatusSubmitting] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -216,6 +221,42 @@ export function PsychologistManagementPage() {
     }
   };
 
+  const validateInviteEmail = (email: string) => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      return 'Email is required';
+    }
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      return 'Please enter a valid email address';
+    }
+
+    return '';
+  };
+
+  const handleInvitePsychologist = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const validationError = validateInviteEmail(inviteEmail);
+    if (validationError) {
+      setInviteError(validationError);
+      return;
+    }
+
+    try {
+      setInviteSubmitting(true);
+      setInviteError('');
+      await api.psychologist.invite({ email: inviteEmail.trim() });
+      toast.success('Psychologist invitation sent successfully');
+      setInviteEmail('');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Failed to send psychologist invitation');
+    } finally {
+      setInviteSubmitting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -252,6 +293,46 @@ export function PsychologistManagementPage() {
           Review and manage psychologist applications
         </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Invite Psychologist</CardTitle>
+          <CardDescription>Send a psychologist invitation by email</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleInvitePsychologist} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email</Label>
+              <div className="relative max-w-xl">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setInviteEmail(nextValue);
+                    if (inviteError) {
+                      setInviteError(validateInviteEmail(nextValue));
+                    }
+                  }}
+                  onBlur={() => setInviteError(validateInviteEmail(inviteEmail))}
+                  className="pl-9"
+                  required
+                  aria-invalid={!!inviteError}
+                />
+              </div>
+              {inviteError ? (
+                <p className="text-sm text-destructive">{inviteError}</p>
+              ) : null}
+            </div>
+
+            <Button type="submit" disabled={inviteSubmitting}>
+              {inviteSubmitting ? 'Sending...' : 'Send Invitation'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

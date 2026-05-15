@@ -290,84 +290,51 @@ export function PsychologistSignupForm({
     );
   }
 
+  const ctx = stepContextuals[currentFormStep];
+  const CtxIcon = ctx.icon;
+
   return (
     <div className='mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border bg-background/95 shadow-2xl shadow-primary/10 backdrop-blur'>
       <div className='grid gap-0 lg:grid-cols-[0.9fr_1.1fr]'>
-        <div className='relative overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-slate-950 p-8 text-white lg:p-10'>
-          <div className='absolute -left-10 top-10 h-40 w-40 rounded-full bg-white/10 blur-3xl' />
-          <div className='absolute bottom-0 right-0 h-56 w-56 rounded-full bg-white/10 blur-3xl' />
-          <div className='relative flex h-full flex-col justify-between gap-8'>
-            <div className='space-y-6'>
-              <div className='inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium backdrop-blur-sm'>
-                <CheckCircle2 className='h-4 w-4' />
-                Licensed psychologists only
+
+        {/* ── Left contextual panel ── */}
+        <div className='relative hidden overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-slate-950 p-8 text-white lg:flex lg:flex-col lg:rounded-l-[2rem] lg:p-10'>
+          <div className='absolute -left-14 top-8 h-40 w-40 rounded-full bg-white/10 blur-3xl' />
+          <div className='absolute bottom-0 right-0 h-48 w-48 rounded-full bg-white/10 blur-3xl' />
+
+          <div className='relative flex flex-1 flex-col justify-between gap-10'>
+            {/* Step context */}
+            <div className='space-y-5'>
+              <div className='inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium'>
+                <CtxIcon className='h-4 w-4' />
+                {ctx.label}
               </div>
-
-              <div className='space-y-4'>
-                <h2 className='text-3xl font-semibold leading-tight lg:text-4xl'>
-                  Build your practice on a platform clients can trust.
-                </h2>
-                <p className='max-w-xl text-sm leading-7 text-white/80 lg:text-base'>
-                  Create your account, complete your profile, and join a verified
-                  network of psychologists offering high-quality consultations
-                  through CerebroLearn.
-                </p>
-              </div>
-
-              <div className='rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm'>
-                <div className='flex items-center gap-3'>
-                  <div className='mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
-                    <User className='h-5 w-5' />
-                  </div>
-                  <div>
-                    <p className='font-medium text-white'>
-                      Professional onboarding
-                    </p>
-                    <p className='mt-1 text-sm leading-6 text-white/75'>
-                      Calm, guided, and verification-ready
-                    </p>
-                  </div>
-                </div>
-
-                <div className='mt-6 space-y-4'>
-                  {onboardingHighlights.map(({ title, description, icon: Icon }) => (
-                    <div key={title} className='flex items-start gap-3'>
-                      <div className='mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
-                        <Icon className='h-5 w-5' />
-                      </div>
-                      <div>
-                        <p className='font-medium text-white'>{title}</p>
-                        <p className='mt-1 text-sm leading-6 text-white/75'>
-                          {description}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div>
+                <h2 className='text-2xl font-semibold leading-tight'>{ctx.heading}</h2>
+                <p className='mt-3 text-sm leading-6 text-white/80'>{ctx.body}</p>
               </div>
             </div>
 
-            {/* Per-step contextual hint */}
-            {(() => {
-              const ctx = stepContextuals[currentFormStep];
-              const CtxIcon = ctx.icon;
-              return (
-                <div className='rounded-3xl border border-white/15 bg-white/10 p-6 backdrop-blur-sm'>
-                  <p className='text-xs font-semibold uppercase tracking-[0.22em] text-white/60'>
-                    {ctx.label}
-                  </p>
-                  <div className='mt-3 flex items-start gap-3'>
-                    <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
-                      <CtxIcon className='h-5 w-5' />
+            {/* Onboarding highlights */}
+            <div className='space-y-3'>
+              {onboardingHighlights.map((item) => {
+                const ItemIcon = item.icon;
+                return (
+                  <div
+                    key={item.title}
+                    className='flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm'
+                  >
+                    <div className='flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-white/15'>
+                      <ItemIcon className='h-4 w-4' />
                     </div>
                     <div>
-                      <p className='font-semibold text-white'>{ctx.heading}</p>
-                      <p className='mt-1 text-sm leading-6 text-white/75'>{ctx.body}</p>
+                      <p className='text-sm font-semibold'>{item.title}</p>
+                      <p className='mt-0.5 text-xs leading-5 text-white/70'>{item.description}</p>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -396,13 +363,6 @@ export function PsychologistSignupForm({
                 Step {currentFormStep + 1} of {formSteps.length}
               </span>
             </div>
-
-            <CardTitle className='text-2xl font-semibold lg:text-3xl'>
-              Join as a Licensed Psychologist
-            </CardTitle>
-            <CardDescription className='max-w-xl text-base leading-7 pb-5'>
-              Create your account to offer professional psychological consultations through CerebroLearn.
-            </CardDescription>
           </CardHeader>
           <CardContent className='pt-8'>
             <form onSubmit={handleSubmit} className='space-y-6'>
@@ -470,27 +430,26 @@ export function PsychologistSignupForm({
 
               {currentFormStep === 0 ? (
               <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
-                <div className='space-y-1 mb-4'>
-                  <h3 className='text-lg font-semibold flex items-center gap-2'>
-                    <User className='h-5 w-5 text-primary' />
-                    {formSteps[0].title}
-                  </h3>
-                  <p className='text-sm text-muted-foreground'>
-                    {formSteps[0].description}
-                  </p>
+                <div className='mb-4 flex items-center gap-2'>
+                  <User className='h-5 w-5 text-primary' />
+                  <h3 className='text-lg font-semibold'>{formSteps[0].title}</h3>
                 </div>
 
                 <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                   <div className='space-y-2'>
                     <Label htmlFor='fullName'>Full Name *</Label>
-                    <Input
-                      id='fullName'
-                      type='text'
-                      placeholder='Dr. Jane Smith'
-                      value={formData.fullName}
-                      onChange={(e) => handleInputChange('fullName', e.target.value)}
-                      required
-                    />
+                    <div className='relative'>
+                      <User className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                      <Input
+                        id='fullName'
+                        type='text'
+                        placeholder='Dr. Jane Smith'
+                        value={formData.fullName}
+                        onChange={(e) => handleInputChange('fullName', e.target.value)}
+                        className='pl-9'
+                        required
+                      />
+                    </div>
                   </div>
 
                   <div className='space-y-2'>
@@ -547,14 +506,9 @@ export function PsychologistSignupForm({
 
               {currentFormStep === 1 ? (
               <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
-                <div className='space-y-1 mb-4'>
-                  <h3 className='text-lg font-semibold flex items-center gap-2'>
-                    <GraduationCap className='h-5 w-5 text-primary' />
-                    {formSteps[1].title}
-                  </h3>
-                  <p className='text-sm text-muted-foreground'>
-                    {formSteps[1].description}
-                  </p>
+                <div className='mb-4 flex items-center gap-2'>
+                  <GraduationCap className='h-5 w-5 text-primary' />
+                  <h3 className='text-lg font-semibold'>{formSteps[1].title}</h3>
                 </div>
 
                 <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
@@ -640,14 +594,9 @@ export function PsychologistSignupForm({
 
               {currentFormStep === 2 ? (
               <div className='space-y-5 rounded-2xl border bg-muted/20 p-6 md:p-7'>
-                <div className='space-y-1 mb-4'>
-                  <h3 className='text-lg font-semibold flex items-center gap-2'>
-                    <FileText className='h-5 w-5 text-primary' />
-                    {formSteps[2].title}
-                  </h3>
-                  <p className='text-sm text-muted-foreground'>
-                    {formSteps[2].description}
-                  </p>
+                <div className='mb-4 flex items-center gap-2'>
+                  <FileText className='h-5 w-5 text-primary' />
+                  <h3 className='text-lg font-semibold'>{formSteps[2].title}</h3>
                 </div>
 
                 <div className='space-y-2'>

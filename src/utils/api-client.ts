@@ -630,6 +630,52 @@ export const adminApi = {
 };
 
 // ========================================
+// SESSION TYPE API (Admin)
+// ========================================
+
+export interface SessionType {
+  id: string;
+  name: string;
+  price: number;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SessionTypeCreate {
+  name: string;
+  price: number;
+  description?: string;
+}
+
+export interface SessionTypeUpdate {
+  name?: string;
+  price?: number;
+  description?: string;
+}
+
+export const sessionTypeApi = {
+  list: () => request<SessionType[]>('/admin/session-types'),
+
+  get: (id: string) => request<SessionType>(`/admin/session-types/${id}`),
+
+  create: (data: SessionTypeCreate) =>
+    request<SessionType>('/admin/session-types', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: SessionTypeUpdate) =>
+    request<SessionType>(`/admin/session-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<null>(`/admin/session-types/${id}`, { method: 'DELETE' }),
+};
+
+// ========================================
 // STORAGE API
 // ========================================
 export const storageApi = {
@@ -659,11 +705,46 @@ export const storageApi = {
 };
 
 // ========================================
+// MEETING CONFIG API
+// ========================================
+export interface MeetingConfig {
+  id: string;
+  name: string;
+  link: string;
+  password?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingConfigUpsert {
+  name: string;
+  link: string;
+  password?: string;
+}
+
+export const meetingConfigApi = {
+  get: () => request<MeetingConfig>('/admin/meeting-config'),
+  upsert: (data: MeetingConfigUpsert) =>
+    request<MeetingConfig>('/admin/meeting-config', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ========================================
 // PSYCHOLOGIST API
 // ========================================
 export const psychologistApi = {
   list: () =>
     request<any[] | { items?: any[]; results?: any[] }>('/psychologist/list/'),
+
+  getOwnProfile: () => request<any>('/psychologist/profile'),
+
+  invite: (data: { email: string }) =>
+    request<any>('/psychologist/admin/invite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   getAvailability: (id: string) =>
     request<{
@@ -795,6 +876,8 @@ export const psychologistApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  listSessionTypes: () => request<SessionType[]>('/psychologist/session-types'),
 };
 
 // Export all APIs

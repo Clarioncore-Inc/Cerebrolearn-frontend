@@ -442,9 +442,7 @@ export function PsychologistDashboard({
       }
 
       try {
-        const data = await psychologistApi.list();
-        const list = Array.isArray(data) ? data : data.items ?? data.results ?? [];
-        const userApp = list.find((item: any) => item.user?.email === user.email || item.email === user.email);
+        const userApp = await psychologistApi.getOwnProfile();
 
         if (!isMounted) return;
 
@@ -475,9 +473,9 @@ export function PsychologistDashboard({
 
           setApplication(normalizedApplication);
           setApplicationStatus(normalizedApplication.status);
-          setProfessionalProfile(
-            createProfessionalProfileForm(normalizedApplication, parsedProfile),
-          );
+          // Pass userApp directly so snake_case fields (is_profile_public,
+          // allow_emergency_bookings, etc.) are read without falling back to defaults.
+          setProfessionalProfile(createProfessionalProfileForm(userApp));
 
           setQualifications((current) =>
             current || normalizedApplication.qualifications || '',
@@ -732,7 +730,7 @@ export function PsychologistDashboard({
     setSettingsSaving(true);
 
     try {
-      const updatedProfile = await psychologistApi.updateProfile({
+      await psychologistApi.updateProfile({
         bio: professionalProfile.bio.trim() || undefined,
         hourly_rate: trimmedHourlyRate ? Number(trimmedHourlyRate) : undefined,
         default_session_duration: Number(professionalProfile.defaultSessionDuration),
@@ -743,51 +741,11 @@ export function PsychologistDashboard({
         visible_profile_fields: professionalProfile.visibleProfileFields,
       });
 
-      const nextForm = createProfessionalProfileForm(updatedProfile, profile);
+      // Re-fetch the profile from the server so the form reflects exactly
+      // what was persisted (avoids stale defaults and confirms the save).
+      const freshData = await psychologistApi.getOwnProfile();
+      const nextForm = createProfessionalProfileForm(freshData);
       setProfessionalProfile(nextForm);
-      setProfile((current: any) => ({
-        ...(current || {}),
-        bio: updatedProfile?.bio ?? nextForm.bio,
-        hourlyRate: nextForm.hourlyRate,
-        defaultSessionDuration: nextForm.defaultSessionDuration,
-        defaultBookingType: nextForm.defaultBookingType,
-        allowEmergencyBookings: nextForm.allowEmergencyBookings,
-        isProfilePublic: nextForm.isProfilePublic,
-        acceptingNewClients: nextForm.acceptingNewClients,
-        visibleProfileFields: nextForm.visibleProfileFields,
-      }));
-      setApplication((current: any) =>
-        current
-          ? {
-              ...current,
-              bio: updatedProfile?.bio ?? nextForm.bio,
-              hourlyRate: nextForm.hourlyRate,
-              defaultSessionDuration: nextForm.defaultSessionDuration,
-              defaultBookingType: nextForm.defaultBookingType,
-              allowEmergencyBookings: nextForm.allowEmergencyBookings,
-              isProfilePublic: nextForm.isProfilePublic,
-              acceptingNewClients: nextForm.acceptingNewClients,
-              visibleProfileFields: nextForm.visibleProfileFields,
-            }
-          : current,
-      );
-
-      if (user?.email) {
-        localStorage.setItem(
-          `psychologist_profile_${user.email}`,
-          JSON.stringify({
-            ...(profile || {}),
-            bio: updatedProfile?.bio ?? nextForm.bio,
-            hourlyRate: nextForm.hourlyRate,
-            defaultSessionDuration: nextForm.defaultSessionDuration,
-            defaultBookingType: nextForm.defaultBookingType,
-            allowEmergencyBookings: nextForm.allowEmergencyBookings,
-            isProfilePublic: nextForm.isProfilePublic,
-            acceptingNewClients: nextForm.acceptingNewClients,
-            visibleProfileFields: nextForm.visibleProfileFields,
-          }),
-        );
-      }
 
       toast.success('Professional profile updated successfully');
     } catch (error) {
@@ -1328,13 +1286,6 @@ export function PsychologistDashboard({
         <div className='flex items-center justify-between mb-2'>
           <h1 className='text-3xl font-bold'>Psychologist Dashboard</h1>
           <div className='flex gap-2'>
-            <Button
-              variant='outline'
-              onClick={() => onNavigate('psychologist-earnings')}
-            >
-              <DollarSign className='h-4 w-4 mr-2' />
-              View Earnings
-            </Button>
             <Button onClick={() => onNavigate('psychologist-availability')}>
               <Calendar className='h-4 w-4 mr-2' />
               Manage Availability
@@ -1347,7 +1298,7 @@ export function PsychologistDashboard({
       </div>
 
       {/* Stats Overview */}
-      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8'>
+      <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8'>
         <Card>
           <CardHeader className='flex flex-row items-center justify-between pb-2'>
             <CardTitle className='text-sm font-medium text-muted-foreground'>
@@ -1383,24 +1334,6 @@ export function PsychologistDashboard({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className='flex flex-row items-center justify-between pb-2'>
-            <CardTitle className='text-sm font-medium text-muted-foreground'>
-              Total Earnings
-            </CardTitle>
-            <DollarSign className='h-4 w-4 text-muted-foreground' />
-          </CardHeader>
-          <CardContent>
-            <div className='text-2xl font-bold'>
-              ${stats.totalEarnings.toLocaleString()}
-            </div>
-            <p className='text-xs text-muted-foreground mt-1'>
-              {stats.completedSessions > 0
-                ? `$${(stats.totalEarnings / stats.completedSessions).toFixed(0)} per session avg`
-                : 'No completed sessions yet'}
-            </p>
-          </CardContent>
-        </Card>
 
         <Card>
           <CardHeader className='flex flex-row items-center justify-between pb-2'>

@@ -341,7 +341,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               </>
             )}
 
-            {booking.status === 'confirmed' && !past && (
+            {/* {booking.status === 'confirmed' && !past && (
               <>
                 <Button
                   size="sm"
@@ -359,7 +359,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
                   <MessageSquare className="h-4 w-4" />
                 </Button>
               </>
-            )}
+            )} */}
 
             {booking.status === 'confirmed' && past && (
               <div className="w-full text-center py-2 text-sm text-muted-foreground">
