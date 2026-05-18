@@ -50,9 +50,11 @@ interface PsychologistApplicationData {
 export function PsychologistSignupForm({
   onToggleMode,
   onBack,
+  inviteToken,
 }: {
   onToggleMode: () => void;
   onBack: () => void;
+  inviteToken?: string;
 }) {
   const [step, setStep] = useState<'form' | 'success'>('form');
   const [currentFormStep, setCurrentFormStep] = useState(0);
@@ -84,17 +86,32 @@ export function PsychologistSignupForm({
     setLoading(true);
 
     try {
-      await psychologistApi.register({
-        email: formData.email,
-        full_name: formData.fullName,
-        password: formData.password,
-        bio: formData.bio,
-        license_number: formData.licenseNumber,
-        years_of_experience: formData.yearsOfExperience,
-        specialization: formData.specialization,
-        about_you: formData.aboutYou,
-        location: formData.location,
-      });
+      if (inviteToken) {
+        await psychologistApi.acceptInvite({
+          token: inviteToken,
+          full_name: formData.fullName,
+          password: formData.password,
+          hourly_rate: 0,
+          bio: formData.bio,
+          license_number: formData.licenseNumber,
+          years_of_experience: formData.yearsOfExperience,
+          specialization: formData.specialization,
+          about_you: formData.aboutYou,
+          location: formData.location,
+        });
+      } else {
+        await psychologistApi.register({
+          email: formData.email,
+          full_name: formData.fullName,
+          password: formData.password,
+          bio: formData.bio,
+          license_number: formData.licenseNumber,
+          years_of_experience: formData.yearsOfExperience,
+          specialization: formData.specialization,
+          about_you: formData.aboutYou,
+          location: formData.location,
+        });
+      }
 
       toast.success('Account created successfully!');
       setStep('success');
@@ -172,7 +189,8 @@ export function PsychologistSignupForm({
 
   const validateCurrentStep = () => {
     if (currentFormStep === 0) {
-      if (!formData.fullName || !formData.email || !formData.password || !formData.location) {
+      const emailValid = inviteToken ? true : !!formData.email;
+      if (!formData.fullName || !emailValid || !formData.password || !formData.location) {
         setError('Please complete all personal information fields before continuing.');
         return false;
       }
@@ -447,6 +465,7 @@ export function PsychologistSignupForm({
                     </div>
                   </div>
 
+                  {!inviteToken && (
                   <div className='space-y-2'>
                     <Label htmlFor='email'>Email Address *</Label>
                     <div className='relative'>
@@ -462,6 +481,7 @@ export function PsychologistSignupForm({
                       />
                     </div>
                   </div>
+                  )}
 
                   <div className='space-y-2'>
                     <Label htmlFor='password'>Password *</Label>

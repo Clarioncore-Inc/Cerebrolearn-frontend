@@ -179,11 +179,15 @@ function AppContent() {
     'login' | 'signup' | 'signup-choice' | 'psychologist-signup'
   >(pageData?.authMode ?? 'signup-choice');
 
-  // Handle hidden psychologist signup link (?join=psychologist)
+  // Handle hidden psychologist signup link (?join=psychologist&token=...)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('join') === 'psychologist') {
-      navigate(pageToPath('psychologist-signup'), { replace: true });
+      const token = params.get('token');
+      navigate(pageToPath('psychologist-signup'), {
+        replace: true,
+        state: token ? { inviteToken: token } : null,
+      });
     }
   }, []);
 
@@ -560,6 +564,7 @@ function AppContent() {
             <PsychologistSignupForm
               onToggleMode={() => handleNavigate('auth', { authMode: 'login' })}
               onBack={() => handleNavigate('landing')}
+              inviteToken={pageData?.inviteToken}
             />
           </div>
         );

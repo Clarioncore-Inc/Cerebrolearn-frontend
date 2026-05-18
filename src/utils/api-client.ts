@@ -214,7 +214,7 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'http://127.0.0.1:8000/api';
+const BASE_URL = 'https://backened-core.onrender.com/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -1131,6 +1131,23 @@ export const psychologistApi = {
     location: string;
   }) =>
     request<{ success: boolean }>('/psychologist/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  acceptInvite: (data: {
+    token: string;
+    full_name: string;
+    password: string;
+    hourly_rate: number;
+    bio?: string;
+    license_number?: string;
+    years_of_experience?: string;
+    specialization?: string;
+    about_you?: string;
+    location?: string;
+  }) =>
+    request<{ user: any; profile: any }>('/psychologist/accept-invite', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
