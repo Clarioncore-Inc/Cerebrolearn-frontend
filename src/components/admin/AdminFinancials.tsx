@@ -4,7 +4,17 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
+import {
   DollarSign,
   TrendingUp,
   Download,
@@ -18,9 +28,14 @@ import {
   Wallet,
   ArrowUpRight,
   ArrowDownRight,
-  RefreshCw
+  RefreshCw,
+  Plus,
+  Trash2,
+  Edit,
+  Tag
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { sessionTypeApi, SessionType } from '../../utils/api-client';
 
 export function AdminFinancials() {
   const [stats, setStats] = useState({
@@ -37,8 +52,17 @@ export function AdminFinancials() {
   const [searchQuery, setSearchQuery] = useState('');
   const [revenueData, setRevenueData] = useState<any[]>([]);
 
+  // Session Type state
+  const [sessionTypes, setSessionTypes] = useState<SessionType[]>([]);
+  const [sessionTypeLoading, setSessionTypeLoading] = useState(false);
+  const [sessionTypeForm, setSessionTypeForm] = useState<{ name: string; price: number | ''; description: string }>({ name: '', price: '', description: '' });
+  const [editingSessionType, setEditingSessionType] = useState<SessionType | null>(null);
+  const [showSessionTypeForm, setShowSessionTypeForm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<SessionType | null>(null);
+
   useEffect(() => {
     loadFinancialData();
+    loadSessionTypes();
   }, []);
 
   const loadFinancialData = () => {
@@ -260,6 +284,58 @@ Requested: ${new Date(r.requestDate).toLocaleDateString()}
     tx.receiptNumber?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // ── Session Type handlers ──────────────────────────────────────────────────
+
+  const loadSessionTypes = async () => {
+    try {
+      setSessionTypeLoading(true);
+      const data = await sessionTypeApi.list();
+      setSessionTypes(data);
+    } catch {
+      toast.error('Failed to load session types');
+    } finally {
+      setSessionTypeLoading(false);
+    }
+  };
+
+  const handleSessionTypeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = { ...sessionTypeForm, price: Number(sessionTypeForm.price) };
+      if (editingSessionType) {
+        await sessionTypeApi.update(editingSessionType.id, payload);
+        toast.success('Session type updated');
+      } else {
+        await sessionTypeApi.create(payload);
+        toast.success('Session type created');
+      }
+      setSessionTypeForm({ name: '', price: '', description: '' });
+      setEditingSessionType(null);
+      setShowSessionTypeForm(false);
+      loadSessionTypes();
+    } catch {
+      toast.error('Failed to save session type');
+    }
+  };
+
+  const handleEditSessionType = (st: SessionType) => {
+    setEditingSessionType(st);
+    setSessionTypeForm({ name: st.name, price: st.price, description: st.description ?? '' });
+    setShowSessionTypeForm(true);
+  };
+
+  const handleDeleteSessionType = async () => {
+    if (!deleteConfirm) return;
+    try {
+      await sessionTypeApi.delete(deleteConfirm.id);
+      toast.success('Session type deleted');
+      setDeleteConfirm(null);
+      loadSessionTypes();
+    } catch {
+      toast.error('Failed to delete session type');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -384,7 +460,7 @@ Requested: ${new Date(r.requestDate).toLocaleDateString()}
 
       {/* Tabs */}
       <Tabs defaultValue="transactions">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="transactions">
             Transactions ({transactions.length})
           </TabsTrigger>
@@ -393,6 +469,9 @@ Requested: ${new Date(r.requestDate).toLocaleDateString()}
           </TabsTrigger>
           <TabsTrigger value="refunds">
             Refund Requests ({refundRequests.filter(r => r.status === 'pending').length})
+          </TabsTrigger>
+          <TabsTrigger value="session-types">
+            Session Types ({sessionTypes.length})
           </TabsTrigger>
         </TabsList>
 
@@ -619,7 +698,141 @@ Requested: ${new Date(r.requestDate).toLocaleDateString()}
             </div>
           )}
         </TabsContent>
+
+        {/* Session Types Tab */}
+        <TabsContent value="session-types" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Define the session types available on the platform with their pricing.
+            </p>
+            <Button
+              size="sm"
+              onClick={() => {
+                setEditingSessionType(null);
+                setSessionTypeForm({ name: '', price: '', description: '' });
+                setShowSessionTypeForm(v => !v);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Session Type
+            </Button>
+          </div>
+
+          {/* Inline form */}
+          {showSessionTypeForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Tag className="h-4 w-4" />
+                  {editingSessionType ? 'Edit Session Type' : 'New Session Type'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSessionTypeSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Name <span className="text-destructive">*</span></label>
+                    <Input
+                      required
+                      placeholder="e.g. Individual Therapy"
+                      value={sessionTypeForm.name}
+                      onChange={e => setSessionTypeForm(f => ({ ...f, name: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Price (USD) <span className="text-destructive">*</span></label>
+                    <Input
+                      required
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="e.g. 150.00"
+                      value={sessionTypeForm.price}
+                      onChange={e => setSessionTypeForm(f => ({ ...f, price: e.target.value === '' ? '' : parseFloat(e.target.value) }))}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium">Description</label>
+                    <Input
+                      placeholder="Optional description"
+                      value={sessionTypeForm.description ?? ''}
+                      onChange={e => setSessionTypeForm(f => ({ ...f, description: e.target.value }))}
+                    />
+                  </div>
+                  <div className="md:col-span-3 flex gap-2 justify-end">
+                    <Button type="button" variant="outline" onClick={() => setShowSessionTypeForm(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={sessionTypeLoading}>
+                      {editingSessionType ? 'Update' : 'Create'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* List */}
+          {sessionTypes.length === 0 ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground">
+                No session types defined yet. Click "Add Session Type" to create one.
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {sessionTypes.map((st) => (
+                <Card key={st.id}>
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Tag className="h-4 w-4 text-muted-foreground" />
+                          <h4 className="font-semibold">{st.name}</h4>
+                        </div>
+                        {st.description && (
+                          <p className="text-sm text-muted-foreground">{st.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-xl font-bold text-green-600">${Number(st.price).toFixed(2)}</div>
+                        <Button size="sm" variant="outline" onClick={() => handleEditSessionType(st)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => setDeleteConfirm(st)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Delete Confirmation Modal */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open: boolean) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Session Type</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete{' '}
+              <span className="font-semibold text-foreground">{deleteConfirm?.name}</span>?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteConfirm(null)}>No, Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteSessionType}
+            >
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -31,7 +31,6 @@ export function GlobalSearch({ onNavigate }: GlobalSearchProps) {
     
     // Psychologist Tools
     { id: 'psychologists', title: 'Psychologists', description: 'Manage psychologist profiles', category: 'Psychology', icon: UserCheck, action: () => navigate('psychologists') },
-    { id: 'psychologist_management', title: 'Psychologist Management', description: 'Verify and manage psychologists', category: 'Psychology', icon: UserCheck, action: () => navigate('admin_psychologist_management') },
     { id: 'booking_management', title: 'Booking Management', description: 'Monitor appointments and bookings', category: 'Psychology', icon: FileCheck, action: () => navigate('admin_booking_management') },
     { id: 'financials', title: 'Financials', description: 'Revenue and payouts', category: 'Finance', icon: BarChart3, action: () => navigate('admin_financials') },
     

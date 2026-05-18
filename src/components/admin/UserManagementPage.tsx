@@ -27,7 +27,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '../ui/dialog';
-import { Search, UserCog, Ban, CheckCircle, Mail, Award } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
+import { Search, UserCog, Ban, CheckCircle, Mail, Award, Brain } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import type { User } from '../../types/database';
 
@@ -37,8 +47,18 @@ export function UserManagementPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedRole, setSelectedRole] = useState<string>('');
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [pendingRoleChange, setPendingRoleChange] = useState<{
+    user: User;
+    newRole: string;
+  } | null>(null);
+  const [pendingSuspensionUser, setPendingSuspensionUser] = useState<{
+    user: User;
+    currentlySuspended: boolean;
+  } | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -46,13 +66,13 @@ export function UserManagementPage() {
 
   useEffect(() => {
     filterUsers();
-  }, [users, searchQuery, roleFilter]);
+  }, [users, searchQuery, roleFilter, statusFilter]);
 
   const loadUsers = async () => {
     try {
       setLoading(true);
       const response = await api.admin.getUsers();
-      setUsers(response.users || []);
+      setUsers(response.users || response.items || []);
     } catch (error) {
       console.error('Error loading users:', error);
       toast.error('Failed to load users');
@@ -78,18 +98,36 @@ export function UserManagementPage() {
       filtered = filtered.filter((user) => user.role === roleFilter);
     }
 
+    // Status filter
+    if (statusFilter === 'suspended') {
+      filtered = filtered.filter(isUserInactiveOrSuspended);
+    } else if (statusFilter === 'active') {
+      filtered = filtered.filter((user) => getUserAccountStatus(user) === 'active');
+    }
+
     setFilteredUsers(filtered);
   };
 
-  const handleUpdateRole = async (userId: string, newRole: string) => {
+  const handleUpdateRole = async (user: User, newRole: string) => {
     try {
-      await api.admin.updateUserRole(userId, newRole);
+      await api.admin.updateUserRole(user.id, newRole);
       toast.success('User role updated successfully');
+      setSelectedRole(newRole);
+      setPendingRoleChange(null);
+      setEditDialogOpen(false);
       loadUsers();
     } catch (error) {
       console.error('Error updating role:', error);
       toast.error('Failed to update user role');
     }
+  };
+
+  const handleRequestRoleChange = (user: User, newRole: string) => {
+    if (user.role === newRole) {
+      return;
+    }
+
+    setPendingRoleChange({ user, newRole });
   };
 
   const handleToggleSuspension = async (userId: string, currentlySuspended: boolean) => {
@@ -105,12 +143,61 @@ export function UserManagementPage() {
     }
   };
 
+  const handleSuspensionAction = (user: User, currentlySuspended: boolean) => {
+    setPendingSuspensionUser({ user, currentlySuspended });
+  };
+
+  const parseBooleanish = (value: unknown): boolean | null => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+
+    if (typeof value === 'string') {
+      const normalizedValue = value.trim().toLowerCase();
+
+      if (['true', '1', 'yes'].includes(normalizedValue)) return true;
+      if (['false', '0', 'no'].includes(normalizedValue)) return false;
+    }
+
+    return null;
+  };
+
+  const getUserAccountStatus = (user: User): 'active' | 'inactive' | 'suspended' => {
+    const suspended = parseBooleanish(user.suspended);
+    if (suspended === true) return 'suspended';
+
+    const isSuspended = parseBooleanish(user.is_suspended);
+    if (isSuspended === true) return 'suspended';
+
+    const isActive = parseBooleanish(user.is_active);
+    if (isActive === false) return 'inactive';
+    if (isActive === true) return 'active';
+
+    const userStatus = String((user as User & { status?: unknown }).status ?? '')
+      .trim()
+      .toLowerCase();
+
+    if (userStatus === 'suspended') return 'suspended';
+    if (userStatus === 'inactive' || userStatus === 'disabled') return 'inactive';
+    if (userStatus === 'active') return 'active';
+
+    return 'active';
+  };
+
+  const isUserInactiveOrSuspended = (user: User) => {
+    return getUserAccountStatus(user) !== 'active';
+  };
+
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin':
         return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'instructor':
       case 'creator':
         return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+      case 'psychologist':
+        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      case 'psychologist_pending':
+        return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
       case 'org_admin':
         return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       default:
@@ -120,14 +207,25 @@ export function UserManagementPage() {
 
   const getRoleDisplayName = (role: string) => {
     switch (role) {
+      case 'instructor':
+        return 'Instructor';
       case 'creator':
         return 'Course Creator';
+      case 'psychologist':
+        return 'Psychologist';
+      case 'psychologist_pending':
+        return 'Psychologist Pending';
       case 'org_admin':
         return 'Org Admin';
       case 'admin':
         return 'Platform Admin';
-      default:
+      case 'learner':
         return 'Learner';
+      default:
+        return role
+          .split('_')
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
     }
   };
 
@@ -138,9 +236,14 @@ export function UserManagementPage() {
       icon: UserCog,
     },
     {
-      label: 'Course Creators',
-      value: users.filter((u) => u.role === 'creator').length,
+      label: 'Instructors',
+      value: users.filter((u) => u.role === 'creator' || u.role === 'instructor').length,
       icon: Award,
+    },
+    {
+      label: 'Psychologists',
+      value: users.filter((u) => u.role === 'psychologist' || u.role === 'psychologist_pending').length,
+      icon: Brain,
     },
     {
       label: 'Learners',
@@ -148,8 +251,8 @@ export function UserManagementPage() {
       icon: CheckCircle,
     },
     {
-      label: 'Suspended',
-      value: users.filter((u) => u.suspended).length,
+      label: 'Inactive/Suspended',
+      value: users.filter(isUserInactiveOrSuspended).length,
       icon: Ban,
     },
   ];
@@ -165,7 +268,7 @@ export function UserManagementPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         {stats.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-6">
@@ -203,9 +306,22 @@ export function UserManagementPage() {
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="learner">Learners</SelectItem>
+                <SelectItem value="instructor">Instructors</SelectItem>
                 <SelectItem value="creator">Course Creators</SelectItem>
+                <SelectItem value="psychologist">Psychologists</SelectItem>
+                <SelectItem value="psychologist_pending">Pending Psychologists</SelectItem>
                 <SelectItem value="org_admin">Org Admins</SelectItem>
                 <SelectItem value="admin">Platform Admins</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="suspended">Inactive / Suspended</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -242,7 +358,10 @@ export function UserManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {filteredUsers.map((user) => {
+                    const userStatus = getUserAccountStatus(user);
+
+                    return (
                     <TableRow key={user.id}>
                       <TableCell>
                         <div className="flex items-center gap-3">
@@ -275,9 +394,13 @@ export function UserManagementPage() {
                         <span>{user.streak || 0} days</span>
                       </TableCell>
                       <TableCell>
-                        {user.suspended ? (
+                        {userStatus === 'suspended' ? (
                           <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/20">
                             Suspended
+                          </Badge>
+                        ) : userStatus === 'inactive' ? (
+                          <Badge variant="outline" className="bg-gray-500/10 text-gray-500 border-gray-500/20">
+                            Inactive
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="bg-green-500/10 text-green-500 border-green-500/20">
@@ -295,33 +418,41 @@ export function UserManagementPage() {
                             size="sm"
                             onClick={() => {
                               setSelectedUser(user);
+                              setSelectedRole(user.role);
                               setEditDialogOpen(true);
                             }}
                           >
                             <UserCog className="h-4 w-4 mr-1" />
                             Edit
                           </Button>
-                          <Button
-                            variant={user.suspended ? 'default' : 'destructive'}
-                            size="sm"
-                            onClick={() => handleToggleSuspension(user.id, user.suspended || false)}
-                          >
-                            {user.suspended ? (
-                              <>
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Activate
-                              </>
-                            ) : (
-                              <>
-                                <Ban className="h-4 w-4 mr-1" />
-                                Suspend
-                              </>
-                            )}
-                          </Button>
+                          {userStatus === 'suspended' ? (
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => handleSuspensionAction(user, true)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Activate
+                            </Button>
+                          ) : userStatus === 'inactive' ? (
+                            <Button variant="outline" size="sm" disabled>
+                              <Ban className="h-4 w-4 mr-1" />
+                              Inactive
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleSuspensionAction(user, false)}
+                            >
+                              <Ban className="h-4 w-4 mr-1" />
+                              Suspend
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </div>
@@ -330,7 +461,17 @@ export function UserManagementPage() {
       </Card>
 
       {/* Edit User Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <Dialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setPendingRoleChange(null);
+            setSelectedUser(null);
+            setSelectedRole('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit User Role</DialogTitle>
@@ -343,18 +484,18 @@ export function UserManagementPage() {
               <div>
                 <label className="text-sm font-medium mb-2 block">User Role</label>
                 <Select
-                  defaultValue={selectedUser.role}
-                  onValueChange={(value) => {
-                    handleUpdateRole(selectedUser.id, value);
-                    setEditDialogOpen(false);
-                  }}
+                  value={selectedRole || selectedUser.role}
+                  onValueChange={(value) => handleRequestRoleChange(selectedUser, value)}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="learner">Learner</SelectItem>
+                    <SelectItem value="instructor">Instructor</SelectItem>
                     <SelectItem value="creator">Course Creator</SelectItem>
+                    <SelectItem value="psychologist">Psychologist</SelectItem>
+                    <SelectItem value="psychologist_pending">Psychologist Pending</SelectItem>
                     <SelectItem value="org_admin">Organization Admin</SelectItem>
                     <SelectItem value="admin">Platform Admin</SelectItem>
                   </SelectContent>
@@ -369,6 +510,84 @@ export function UserManagementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!pendingRoleChange}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingRoleChange(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm role change</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingRoleChange
+                ? `Are you sure you want to change ${pendingRoleChange.user.full_name}'s role from ${getRoleDisplayName(pendingRoleChange.user.role)} to ${getRoleDisplayName(pendingRoleChange.newRole)}?`
+                : 'Are you sure you want to change this user role?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingRoleChange) {
+                  handleUpdateRole(pendingRoleChange.user, pendingRoleChange.newRole);
+                }
+              }}
+            >
+              Yes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!pendingSuspensionUser}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingSuspensionUser(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingSuspensionUser?.currentlySuspended ? 'Confirm activation' : 'Confirm suspension'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingSuspensionUser
+                ? pendingSuspensionUser.currentlySuspended
+                  ? `Are you sure you want to activate ${pendingSuspensionUser.user.full_name}'s account?`
+                  : `Are you sure you want to suspend ${pendingSuspensionUser.user.full_name}'s account?`
+                : 'Are you sure you want to change this account status?'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingSuspensionUser) {
+                  const pendingStatusChange = pendingSuspensionUser;
+                  setPendingSuspensionUser(null);
+                  handleToggleSuspension(
+                    pendingStatusChange.user.id,
+                    pendingStatusChange.currentlySuspended,
+                  );
+                }
+              }}
+              className={
+                pendingSuspensionUser?.currentlySuspended
+                  ? ''
+                  : 'bg-destructive hover:bg-destructive/90'
+              }
+            >
+              Yes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

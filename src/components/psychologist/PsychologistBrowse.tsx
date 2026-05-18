@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../utils/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { 
+	ArrowLeft,
   Search, 
   MapPin, 
   Star, 
@@ -22,6 +25,7 @@ interface PsychologistBrowseProps {
 
 interface Psychologist {
   id: string;
+  psychologistId: string;
   fullName: string;
   email: string;
   specialization: string;
@@ -43,113 +47,63 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
   const [specializationFilter, setSpecializationFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Load verified psychologists from applications
-    const applications = JSON.parse(localStorage.getItem('psychologist_applications') || '[]');
-    const verifiedApps = applications.filter((app: any) => app.status === 'approved');
+    let isMounted = true;
 
-    // Load ratings data
-    const ratings = JSON.parse(localStorage.getItem('psychologist_ratings') || '{}');
+    const loadPsychologists = async () => {
+      try {
+        setLoading(true);
+        const data = await api.psychologist.list();
+        const list = Array.isArray(data) ? data : data.items ?? data.results ?? [];
 
-    const psychs: Psychologist[] = verifiedApps.map((app: any) => {
-      const ratingData = ratings[app.email] || { average: 4.5, count: 0 };
-      
-      return {
-        id: app.id,
-        fullName: app.fullName,
-        email: app.email,
-        specialization: app.specialization,
-        yearsOfExperience: app.yearsOfExperience,
-        location: app.location,
-        bio: app.bio,
-        rating: ratingData.average,
-        reviewCount: ratingData.count,
-        sessionsCompleted: Math.floor(Math.random() * 100) + 20,
-        hourlyRate: 150,
-        verified: true,
-      };
-    });
+        const psychs: Psychologist[] = list
+          .filter((item: any) => {
+            const status = item.status ?? (item.is_approved ? 'approved' : 'pending');
+            const isSuspended = item.user?.is_suspended || item.user?.is_active === false;
+            const isProfilePublic = item.is_profile_public ?? item.isProfilePublic ?? true;
+            return status === 'approved' && !isSuspended && isProfilePublic;
+          })
+          .map((item: any) => ({
+            id: item.id ?? item._id ?? '',
+            psychologistId: item.user?.id ?? item.id ?? item._id ?? '',
+            fullName: item.user?.full_name ?? item.full_name ?? 'Psychologist',
+            email: item.user?.email ?? item.email ?? '',
+            specialization: item.specialization ?? 'general',
+            yearsOfExperience: item.years_of_experience ?? item.yearsOfExperience ?? 'N/A',
+            location: item.location ?? item.user?.location ?? 'N/A',
+            bio: item.bio ?? 'No bio available yet.',
+            rating: Number(item.rating ?? item.average_rating ?? 0),
+            reviewCount: Number(item.review_count ?? item.total_reviews ?? 0),
+            sessionsCompleted: Number(item.sessions_completed ?? item.total_sessions ?? 0),
+            hourlyRate: Number(item.hourly_rate ?? item.hourlyRate ?? 0),
+            avatar: item.user?.avatar ?? item.avatar ?? undefined,
+            verified: true,
+          }));
 
-    // Add some mock psychologists if none exist
-    if (psychs.length === 0) {
-      const mockPsychologists: Psychologist[] = [
-        {
-          id: 'psych_1',
-          fullName: 'Dr. Sarah Johnson',
-          email: 'sarah.johnson@cerebrolearn.com',
-          specialization: 'clinical',
-          yearsOfExperience: '11-15',
-          location: 'New York, NY',
-          bio: 'Experienced clinical psychologist specializing in cognitive behavioral therapy and anxiety disorders. Over 15 years of experience helping clients achieve their mental health goals.',
-          rating: 4.9,
-          reviewCount: 47,
-          sessionsCompleted: 89,
-          hourlyRate: 200,
-          verified: true,
-        },
-        {
-          id: 'psych_2',
-          fullName: 'Dr. Michael Chen',
-          email: 'michael.chen@cerebrolearn.com',
-          specialization: 'educational',
-          yearsOfExperience: '6-10',
-          location: 'San Francisco, CA',
-          bio: 'Educational psychologist focused on learning strategies and academic performance optimization. Passionate about helping students reach their full potential.',
-          rating: 4.8,
-          reviewCount: 38,
-          sessionsCompleted: 72,
-          hourlyRate: 175,
-          verified: true,
-        },
-        {
-          id: 'psych_3',
-          fullName: 'Dr. Emily Rodriguez',
-          email: 'emily.rodriguez@cerebrolearn.com',
-          specialization: 'cognitive',
-          yearsOfExperience: '16+',
-          location: 'Boston, MA',
-          bio: 'Cognitive psychologist with expertise in memory, learning, and problem-solving. Specializing in helping individuals optimize their cognitive abilities.',
-          rating: 4.95,
-          reviewCount: 62,
-          sessionsCompleted: 124,
-          hourlyRate: 225,
-          verified: true,
-        },
-        {
-          id: 'psych_4',
-          fullName: 'Dr. James Williams',
-          email: 'james.williams@cerebrolearn.com',
-          specialization: 'neuropsychology',
-          yearsOfExperience: '11-15',
-          location: 'Chicago, IL',
-          bio: 'Neuropsychologist specializing in cognitive assessment and brain-behavior relationships. Expert in IQ testing and interpretation.',
-          rating: 4.85,
-          reviewCount: 41,
-          sessionsCompleted: 95,
-          hourlyRate: 210,
-          verified: true,
-        },
-        {
-          id: 'psych_5',
-          fullName: 'Dr. Lisa Anderson',
-          email: 'lisa.anderson@cerebrolearn.com',
-          specialization: 'counseling',
-          yearsOfExperience: '6-10',
-          location: 'Seattle, WA',
-          bio: 'Counseling psychologist dedicated to career guidance and personal development. Helping clients make informed decisions about their future.',
-          rating: 4.75,
-          reviewCount: 35,
-          sessionsCompleted: 68,
-          hourlyRate: 165,
-          verified: true,
-        },
-      ];
-      psychs.push(...mockPsychologists);
-    }
+        if (!isMounted) return;
 
-    setPsychologists(psychs);
-    setFilteredPsychologists(psychs);
+        setPsychologists(psychs);
+        setFilteredPsychologists(psychs);
+      } catch (error) {
+        console.error('Error loading psychologists:', error);
+        if (isMounted) {
+          setPsychologists([]);
+          setFilteredPsychologists([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadPsychologists();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -214,10 +168,31 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
     return labels[spec] || spec;
   };
 
+  const specializationOptions = Array.from(
+    new Set(psychologists.map((psychologist) => psychologist.specialization).filter(Boolean)),
+  );
+
+  const locationOptions = Array.from(
+    new Set(psychologists.map((psychologist) => psychologist.location).filter(Boolean)),
+  );
+
+  const handleGoBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    onNavigate('student-sessions');
+  };
+
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4">
       {/* Header */}
       <div className="mb-8">
+        <Button variant="ghost" onClick={handleGoBack} className="mb-4 px-0 hover:bg-transparent">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
         <h1 className="text-3xl font-bold mb-2">Find a Psychologist</h1>
         <p className="text-muted-foreground">
           Connect with verified mental health professionals for consultations and assessments
@@ -248,14 +223,11 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Specializations</SelectItem>
-                <SelectItem value="clinical">Clinical</SelectItem>
-                <SelectItem value="cognitive">Cognitive</SelectItem>
-                <SelectItem value="educational">Educational</SelectItem>
-                <SelectItem value="neuropsychology">Neuropsychology</SelectItem>
-                <SelectItem value="counseling">Counseling</SelectItem>
-                <SelectItem value="developmental">Developmental</SelectItem>
-                <SelectItem value="organizational">Organizational</SelectItem>
-                <SelectItem value="forensic">Forensic</SelectItem>
+                {specializationOptions.map((specialization) => (
+                  <SelectItem key={specialization} value={specialization}>
+                    {getSpecializationLabel(specialization)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -266,12 +238,11 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Locations</SelectItem>
-                <SelectItem value="New York">New York</SelectItem>
-                <SelectItem value="San Francisco">San Francisco</SelectItem>
-                <SelectItem value="Boston">Boston</SelectItem>
-                <SelectItem value="Chicago">Chicago</SelectItem>
-                <SelectItem value="Seattle">Seattle</SelectItem>
-                <SelectItem value="Los Angeles">Los Angeles</SelectItem>
+                {locationOptions.map((location) => (
+                  <SelectItem key={location} value={location}>
+                    {location}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -294,7 +265,14 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
 
       {/* Results Count */}
       <div className="mb-4 text-sm text-muted-foreground">
+        {loading
+          ? 'Loading psychologists...'
+          : null}
+        {!loading ? (
+          <>
         Showing {filteredPsychologists.length} psychologist{filteredPsychologists.length !== 1 ? 's' : ''}
+          </>
+        ) : null}
       </div>
 
       {/* Psychologist Cards */}
@@ -304,9 +282,12 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
             <CardHeader>
               <div className="flex items-start gap-4">
                 {/* Avatar */}
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <GraduationCap className="h-8 w-8 text-primary" />
-                </div>
+                <Avatar className="w-16 h-16 flex-shrink-0">
+                  <AvatarImage src={psychologist.avatar} alt={psychologist.fullName} />
+                  <AvatarFallback className="bg-primary/10 text-primary">
+                    {psychologist.fullName?.charAt(0).toUpperCase() || 'P'}
+                  </AvatarFallback>
+                </Avatar>
 
                 {/* Header Info */}
                 <div className="flex-1 min-w-0">

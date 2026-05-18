@@ -151,10 +151,9 @@ export function PsychologistAnalytics() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+     <div className="container py-6 space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Analytics & Insights</h2>
+        <h1 className="mb-2">Analytics & Insights</h1>
         <p className="text-muted-foreground">
           System-wide performance metrics and trends
         </p>

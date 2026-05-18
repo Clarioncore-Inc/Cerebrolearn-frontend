@@ -1,22 +1,19 @@
-import { useState, useEffect } from 'react';
-import { 
-  ThumbsUp, 
-  MessageCircle, 
-  Star, 
-  MoreVertical,
-  Flag,
-  Trash2,
-  EyeOff,
-  Eye,
+import { useEffect, useState } from 'react';
+import {
+  Check,
   ChevronDown,
   ChevronUp,
   Edit,
-  Check,
-  X
+  MessageCircle,
+  MoreVertical,
+  ThumbsDown,
+  ThumbsUp,
+  Star,
+  Trash2,
+  X,
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Badge } from '../ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +22,21 @@ import {
 } from '../ui/dropdown-menu';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../../contexts/AuthContext';
+import { reviewsApi } from '../../utils/api-client';
+
+interface ReviewThread {
+  id: string;
+  reviewId: string;
+  userId: string;
+  userName: string;
+  userAvatar: string;
+  content: string;
+  date: string;
+  likeCount: number;
+  dislikeCount: number;
+  parentId?: string | null;
+  replies: ReviewThread[];
+}
 
 interface Review {
   id: string;
@@ -34,24 +46,7 @@ interface Review {
   rating: number;
   comment: string;
   date: string;
-  likes: number;
-  likedBy: string[];
-  replies: Reply[];
-  hidden: boolean;
-  reported: boolean;
-  edited?: boolean;
-  editedAt?: string;
-}
-
-interface Reply {
-  id: string;
-  userId: string;
-  userName: string;
-  userAvatar: string;
-  comment: string;
-  date: string;
-  likes: number;
-  likedBy: string[];
+  threads: ReviewThread[];
   edited?: boolean;
   editedAt?: string;
 }
@@ -64,273 +59,70 @@ interface ReviewSystemProps {
 
 export function ReviewSystem({ courseId, reviews: initialReviews, onReviewsUpdate }: ReviewSystemProps) {
   const { user, profile } = useAuth();
-  const [reviews, setReviews] = useState<Review[]>(initialReviews);
+
+  const mapThread = (thread: any): ReviewThread => ({
+    id: thread.id,
+    reviewId: thread.review_id ?? thread.reviewId,
+    userId: thread.user_id ?? thread.userId,
+    userName:
+      thread.user?.full_name ?? thread.user?.name ?? thread.userName ?? user?.email ?? 'Anonymous',
+    userAvatar:
+      thread.user?.full_name?.charAt(0).toUpperCase() ??
+      thread.user?.name?.charAt(0).toUpperCase() ??
+      thread.userAvatar ??
+      'A',
+    content: thread.content ?? '',
+    date: thread.created_at ?? thread.date ?? new Date().toISOString(),
+    likeCount: Number(thread.like_count ?? thread.likeCount ?? 0),
+    dislikeCount: Number(thread.dislike_count ?? thread.dislikeCount ?? 0),
+    parentId: thread.parent_id ?? thread.parentId ?? null,
+    replies: (thread.replies ?? []).map(mapThread),
+  });
+
+  const mapReview = (review: any): Review => ({
+    id: review.id,
+    userId: review.user_id ?? review.userId,
+    userName:
+      review.user?.full_name ?? review.user?.name ?? review.userName ?? user?.email ?? 'Anonymous',
+    userAvatar:
+      review.user?.full_name?.charAt(0).toUpperCase() ??
+      review.user?.name?.charAt(0).toUpperCase() ??
+      review.userAvatar ??
+      'A',
+    rating: Number(review.rating ?? 0),
+    comment: review.comment ?? '',
+    date: review.created_at ?? review.date ?? new Date().toISOString(),
+    threads: (review.threads ?? []).map(mapThread),
+    edited: review.edited,
+    editedAt: review.editedAt ?? review.updated_at,
+  });
+
+  const [reviews, setReviews] = useState<Review[]>(initialReviews.map(mapReview));
   const [expandedReviews, setExpandedReviews] = useState<Set<string>>(new Set());
-  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyTarget, setReplyTarget] = useState<{ reviewId: string; parentId?: string | null } | null>(null);
   const [replyText, setReplyText] = useState('');
   const [editingReview, setEditingReview] = useState<string | null>(null);
-  const [editingReply, setEditingReply] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [editRating, setEditRating] = useState(0);
+  const [newRating, setNewRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [savingReviewEdit, setSavingReviewEdit] = useState(false);
+  const [deletingReviewId, setDeletingReviewId] = useState<string | null>(null);
+  const [loadingThreads, setLoadingThreads] = useState<Record<string, boolean>>({});
+  const [threadActionLoading, setThreadActionLoading] = useState<Record<string, boolean>>({});
+  const [threadReactionState, setThreadReactionState] = useState<Record<string, 'like' | 'dislike' | null>>({});
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'org_admin';
   const currentUserId = user?.id || 'anonymous';
 
   useEffect(() => {
-    // Load reviews from localStorage
-    const loadReviews = () => {
-      const reviewsKey = `cerebrolearn_reviews_${courseId}`;
-      const storedReviews = localStorage.getItem(reviewsKey);
-      
-      if (storedReviews) {
-        try {
-          const parsed = JSON.parse(storedReviews);
-          setReviews(parsed);
-        } catch (error) {
-          console.error('Error loading reviews:', error);
-        }
-      } else {
-        // Initialize with provided reviews
-        const enhancedReviews = initialReviews.map(review => ({
-          ...review,
-          id: review.id || `review-${Date.now()}-${Math.random()}`,
-          likes: review.likes || 0,
-          likedBy: review.likedBy || [],
-          replies: review.replies || [],
-          hidden: review.hidden || false,
-          reported: review.reported || false
-        }));
-        setReviews(enhancedReviews);
-        localStorage.setItem(reviewsKey, JSON.stringify(enhancedReviews));
-      }
-    };
-
-    loadReviews();
-  }, [courseId]);
+    setReviews(initialReviews.map(mapReview));
+  }, [courseId, initialReviews]);
 
   const saveReviews = (updatedReviews: Review[]) => {
-    const reviewsKey = `cerebrolearn_reviews_${courseId}`;
-    localStorage.setItem(reviewsKey, JSON.stringify(updatedReviews));
     setReviews(updatedReviews);
-    if (onReviewsUpdate) {
-      onReviewsUpdate(updatedReviews);
-    }
-  };
-
-  const handleLike = (reviewId: string, isReply: boolean = false, parentReviewId?: string) => {
-    if (!user) {
-      toast.error('Please log in to like reviews');
-      return;
-    }
-
-    const updatedReviews = reviews.map(review => {
-      if (!isReply && review.id === reviewId) {
-        const hasLiked = review.likedBy.includes(currentUserId);
-        return {
-          ...review,
-          likes: hasLiked ? review.likes - 1 : review.likes + 1,
-          likedBy: hasLiked 
-            ? review.likedBy.filter(id => id !== currentUserId)
-            : [...review.likedBy, currentUserId]
-        };
-      }
-      
-      if (isReply && review.id === parentReviewId) {
-        return {
-          ...review,
-          replies: review.replies.map(reply => {
-            if (reply.id === reviewId) {
-              const hasLiked = reply.likedBy.includes(currentUserId);
-              return {
-                ...reply,
-                likes: hasLiked ? reply.likes - 1 : reply.likes + 1,
-                likedBy: hasLiked
-                  ? reply.likedBy.filter(id => id !== currentUserId)
-                  : [...reply.likedBy, currentUserId]
-              };
-            }
-            return reply;
-          })
-        };
-      }
-      
-      return review;
-    });
-
-    saveReviews(updatedReviews);
-    toast.success(isReply ? 'Reply liked!' : 'Review liked!');
-  };
-
-  const handleReply = (reviewId: string) => {
-    if (!user) {
-      toast.error('Please log in to reply');
-      return;
-    }
-
-    if (!replyText.trim()) {
-      toast.error('Please enter a reply');
-      return;
-    }
-
-    const newReply: Reply = {
-      id: `reply-${Date.now()}-${Math.random()}`,
-      userId: currentUserId,
-      userName: profile?.name || user.email || 'Anonymous',
-      userAvatar: profile?.name?.charAt(0).toUpperCase() || 'A',
-      comment: replyText,
-      date: new Date().toISOString(),
-      likes: 0,
-      likedBy: []
-    };
-
-    const updatedReviews = reviews.map(review => {
-      if (review.id === reviewId) {
-        return {
-          ...review,
-          replies: [...review.replies, newReply]
-        };
-      }
-      return review;
-    });
-
-    saveReviews(updatedReviews);
-    setReplyText('');
-    setReplyingTo(null);
-    setExpandedReviews(prev => new Set([...prev, reviewId]));
-    toast.success('Reply posted!');
-  };
-
-  const handleHideReview = (reviewId: string) => {
-    if (!isAdmin) {
-      toast.error('Only admins can hide reviews');
-      return;
-    }
-
-    const updatedReviews = reviews.map(review => {
-      if (review.id === reviewId) {
-        return { ...review, hidden: !review.hidden };
-      }
-      return review;
-    });
-
-    saveReviews(updatedReviews);
-    toast.success(`Review ${updatedReviews.find(r => r.id === reviewId)?.hidden ? 'hidden' : 'shown'}`);
-  };
-
-  const handleDeleteReview = (reviewId: string) => {
-    if (!isAdmin) {
-      toast.error('Only admins can delete reviews');
-      return;
-    }
-
-    if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
-      return;
-    }
-
-    const updatedReviews = reviews.filter(review => review.id !== reviewId);
-    saveReviews(updatedReviews);
-    toast.success('Review deleted');
-  };
-
-  const handleReportReview = (reviewId: string) => {
-    if (!user) {
-      toast.error('Please log in to report reviews');
-      return;
-    }
-
-    const updatedReviews = reviews.map(review => {
-      if (review.id === reviewId) {
-        return { ...review, reported: true };
-      }
-      return review;
-    });
-
-    saveReviews(updatedReviews);
-    toast.success('Review reported. Our team will review it shortly.');
-  };
-
-  const handleEditReview = (reviewId: string) => {
-    const review = reviews.find(r => r.id === reviewId);
-    if (review) {
-      setEditingReview(reviewId);
-      setEditText(review.comment);
-    }
-  };
-
-  const handleSaveReviewEdit = (reviewId: string) => {
-    if (!editText.trim()) {
-      toast.error('Review cannot be empty');
-      return;
-    }
-
-    const updatedReviews = reviews.map(review => {
-      if (review.id === reviewId) {
-        return {
-          ...review,
-          comment: editText,
-          edited: true,
-          editedAt: new Date().toISOString()
-        };
-      }
-      return review;
-    });
-
-    saveReviews(updatedReviews);
-    setEditingReview(null);
-    setEditText('');
-    toast.success('Review updated!');
-  };
-
-  const handleEditReply = (replyId: string, parentReviewId: string) => {
-    const review = reviews.find(r => r.id === parentReviewId);
-    const reply = review?.replies.find(r => r.id === replyId);
-    if (reply) {
-      setEditingReply(replyId);
-      setEditText(reply.comment);
-    }
-  };
-
-  const handleSaveReplyEdit = (replyId: string, parentReviewId: string) => {
-    if (!editText.trim()) {
-      toast.error('Reply cannot be empty');
-      return;
-    }
-
-    const updatedReviews = reviews.map(review => {
-      if (review.id === parentReviewId) {
-        return {
-          ...review,
-          replies: review.replies.map(reply => {
-            if (reply.id === replyId) {
-              return {
-                ...reply,
-                comment: editText,
-                edited: true,
-                editedAt: new Date().toISOString()
-              };
-            }
-            return reply;
-          })
-        };
-      }
-      return review;
-    });
-
-    saveReviews(updatedReviews);
-    setEditingReply(null);
-    setEditText('');
-    toast.success('Reply updated!');
-  };
-
-  const toggleReplies = (reviewId: string) => {
-    setExpandedReviews(prev => {
-      const next = new Set(prev);
-      if (next.has(reviewId)) {
-        next.delete(reviewId);
-      } else {
-        next.add(reviewId);
-      }
-      return next;
-    });
+    onReviewsUpdate?.(updatedReviews);
   };
 
   const formatDate = (dateString: string) => {
@@ -338,7 +130,7 @@ export function ReviewSystem({ courseId, reviews: initialReviews, onReviewsUpdat
     const now = new Date();
     const diffInMs = now.getTime() - date.getTime();
     const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-    
+
     if (diffInDays === 0) return 'Today';
     if (diffInDays === 1) return 'Yesterday';
     if (diffInDays < 7) return `${diffInDays} days ago`;
@@ -347,340 +139,513 @@ export function ReviewSystem({ courseId, reviews: initialReviews, onReviewsUpdat
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
-  const visibleReviews = isAdmin ? reviews : reviews.filter(r => !r.hidden);
+  const countThreads = (threads: ReviewThread[]): number =>
+    threads.reduce((sum, thread) => sum + 1 + countThreads(thread.replies), 0);
 
-  if (reviews.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <MessageCircle className="h-16 w-16 mx-auto text-muted-foreground/50 mb-4" />
-        <p className="text-lg font-medium text-muted-foreground">No reviews yet</p>
-        <p className="text-sm text-muted-foreground mt-1">Be the first to review this course!</p>
-      </div>
+  const updateReviewThreads = (reviewId: string, threads: ReviewThread[]) => {
+    const updated = reviews.map((review) =>
+      review.id === reviewId ? { ...review, threads } : review,
     );
-  }
+    saveReviews(updated);
+  };
 
-  return (
-    <div className="space-y-6">
-      {visibleReviews.map((review) => {
-        const hasLiked = review.likedBy.includes(currentUserId);
-        const isExpanded = expandedReviews.has(review.id);
-        const isReplying = replyingTo === review.id;
+  const loadThreadsForReview = async (reviewId: string) => {
+    setLoadingThreads((prev) => ({ ...prev, [reviewId]: true }));
+    try {
+      const threads = await reviewsApi.getThreads(reviewId);
+      updateReviewThreads(reviewId, (threads || []).map(mapThread));
+    } catch (error: any) {
+      console.error('Error loading review threads:', error);
+      toast.error(error?.message ?? 'Failed to load replies');
+    } finally {
+      setLoadingThreads((prev) => ({ ...prev, [reviewId]: false }));
+    }
+  };
 
-        return (
-          <div 
-            key={review.id} 
-            className={`border rounded-lg p-6 ${review.hidden ? 'bg-slate-50 opacity-60' : 'bg-white'} ${review.reported ? 'border-yellow-300' : 'border-slate-200'}`}
-          >
-            {/* Review Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-start gap-4">
-                <Avatar className="w-12 h-12">
-                  <AvatarFallback className="bg-primary text-white text-lg">
-                    {review.userAvatar}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold">{review.userName}</p>
-                    {review.hidden && (
-                      <Badge variant="outline" className="bg-slate-100">
-                        <EyeOff className="w-3 h-3 mr-1" />
-                        Hidden
-                      </Badge>
-                    )}
-                    {review.reported && isAdmin && (
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                        <Flag className="w-3 h-3 mr-1" />
-                        Reported
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">{formatDate(review.date)}</p>
-                </div>
+  const toggleReplies = async (reviewId: string) => {
+    const isExpanded = expandedReviews.has(reviewId);
+    setExpandedReviews((prev) => {
+      const next = new Set(prev);
+      if (isExpanded) {
+        next.delete(reviewId);
+      } else {
+        next.add(reviewId);
+      }
+      return next;
+    });
+
+    if (!isExpanded) {
+      await loadThreadsForReview(reviewId);
+    }
+  };
+
+  const handleCreateReview = async () => {
+    if (!user) {
+      toast.error('Please log in to leave a review');
+      return;
+    }
+    if (newRating < 1 || newRating > 5) {
+      toast.error('Please select a rating');
+      return;
+    }
+
+    setSubmittingReview(true);
+    try {
+      const created = await reviewsApi.create({
+        course_id: courseId,
+        rating: newRating,
+        comment: newComment.trim(),
+      });
+      saveReviews([mapReview(created), ...reviews]);
+      setNewRating(0);
+      setNewComment('');
+      toast.success('Review posted successfully');
+    } catch (error: any) {
+      console.error('Error creating review:', error);
+      toast.error(error?.message ?? 'Failed to post review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    const review = reviews.find((item) => item.id === reviewId);
+    if (!review) return;
+
+    if (!isAdmin && review.userId !== currentUserId) {
+      toast.error('Only the review creator can delete this review');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingReviewId(reviewId);
+    try {
+      await reviewsApi.delete(reviewId);
+      saveReviews(reviews.filter((item) => item.id !== reviewId));
+      toast.success('Review deleted');
+    } catch (error: any) {
+      console.error('Error deleting review:', error);
+      toast.error(error?.message ?? 'Failed to delete review');
+    } finally {
+      setDeletingReviewId(null);
+    }
+  };
+
+  const handleEditReview = (reviewId: string) => {
+    const review = reviews.find((item) => item.id === reviewId);
+    if (!review) return;
+    setEditingReview(reviewId);
+    setEditText(review.comment);
+    setEditRating(review.rating);
+  };
+
+  const handleSaveReviewEdit = async (reviewId: string) => {
+    if (!editText.trim()) {
+      toast.error('Review cannot be empty');
+      return;
+    }
+    if (editRating < 1 || editRating > 5) {
+      toast.error('Please select a rating');
+      return;
+    }
+
+    setSavingReviewEdit(true);
+    try {
+      const updated = await reviewsApi.update(reviewId, {
+        rating: editRating,
+        comment: editText.trim(),
+      });
+
+      const nextReviews = reviews.map((review) =>
+        review.id === reviewId
+          ? {
+              ...mapReview(updated),
+              threads: review.threads,
+              edited: true,
+              editedAt: updated.updated_at ?? new Date().toISOString(),
+            }
+          : review,
+      );
+      saveReviews(nextReviews);
+      setEditingReview(null);
+      setEditText('');
+      setEditRating(0);
+      toast.success('Review updated!');
+    } catch (error: any) {
+      console.error('Error updating review:', error);
+      toast.error(error?.message ?? 'Failed to update review');
+    } finally {
+      setSavingReviewEdit(false);
+    }
+  };
+
+  const handleOpenReply = async (reviewId: string, parentId: string | null = null) => {
+    if (!user) {
+      toast.error('Please log in to reply');
+      return;
+    }
+    setReplyTarget({ reviewId, parentId });
+    setReplyText('');
+    setExpandedReviews((prev) => new Set([...prev, reviewId]));
+    await loadThreadsForReview(reviewId);
+  };
+
+  const handleSubmitReply = async () => {
+    if (!replyTarget) return;
+    if (!replyText.trim()) {
+      toast.error('Please enter a reply');
+      return;
+    }
+
+    const { reviewId, parentId } = replyTarget;
+    setThreadActionLoading((prev) => ({ ...prev, [reviewId]: true }));
+    try {
+      await reviewsApi.createThread(reviewId, {
+        content: replyText.trim(),
+        ...(parentId ? { parent_id: parentId } : {}),
+      });
+      await loadThreadsForReview(reviewId);
+      setReplyTarget(null);
+      setReplyText('');
+      toast.success('Reply posted!');
+    } catch (error: any) {
+      console.error('Error posting reply:', error);
+      toast.error(error?.message ?? 'Failed to post reply');
+    } finally {
+      setThreadActionLoading((prev) => ({ ...prev, [reviewId]: false }));
+    }
+  };
+
+  const handleThreadReaction = async (
+    reviewId: string,
+    threadId: string,
+    reaction: 'like' | 'dislike',
+  ) => {
+    if (!user) {
+      toast.error('Please log in to react');
+      return;
+    }
+
+    setThreadActionLoading((prev) => ({ ...prev, [threadId]: true }));
+    try {
+      await reviewsApi.reactToThread(threadId, { reaction });
+      setThreadReactionState((prev) => ({
+        ...prev,
+        [threadId]: prev[threadId] === reaction ? null : reaction,
+      }));
+      await loadThreadsForReview(reviewId);
+    } catch (error: any) {
+      console.error('Error reacting to thread:', error);
+      toast.error(error?.message ?? 'Failed to react');
+    } finally {
+      setThreadActionLoading((prev) => ({ ...prev, [threadId]: false }));
+    }
+  };
+
+  const renderThread = (reviewId: string, thread: ReviewThread, depth = 0): JSX.Element => {
+    const currentReaction = threadReactionState[thread.id];
+    const isReplyingHere = replyTarget?.reviewId === reviewId && replyTarget?.parentId === thread.id;
+
+    return (
+      <div key={thread.id} className='space-y-3' style={{ marginLeft: depth * 24 }}>
+        <div className='border-l-2 border-slate-200 pl-4'>
+          <div className='flex items-start gap-3'>
+            <Avatar className='w-8 h-8'>
+              <AvatarFallback className='bg-secondary text-white text-sm'>
+                {thread.userAvatar}
+              </AvatarFallback>
+            </Avatar>
+            <div className='flex-1 space-y-2'>
+              <div className='flex items-center gap-2'>
+                <p className='font-medium text-sm'>{thread.userName}</p>
+                <span className='text-xs text-muted-foreground'>{formatDate(thread.date)}</span>
               </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Star Rating */}
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Star
-                      key={star}
-                      className={`w-4 h-4 ${
-                        star <= review.rating
-                          ? 'fill-yellow-400 text-yellow-400'
-                          : 'text-slate-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-
-                {/* Admin Menu */}
-                {isAdmin && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleHideReview(review.id)}>
-                        {review.hidden ? (
-                          <>
-                            <Eye className="w-4 h-4 mr-2" />
-                            Show Review
-                          </>
-                        ) : (
-                          <>
-                            <EyeOff className="w-4 h-4 mr-2" />
-                            Hide Review
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem 
-                        onClick={() => handleDeleteReview(review.id)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Review
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-
-                {/* User's own review menu (can edit) */}
-                {!isAdmin && review.userId === currentUserId && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleEditReview(review.id)}>
-                        <Edit className="w-4 h-4 mr-2" />
-                        Edit Review
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-
-                {/* Report Menu for others' reviews */}
-                {!isAdmin && review.userId !== currentUserId && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => handleReportReview(review.id)}>
-                        <Flag className="w-4 h-4 mr-2" />
-                        Report Review
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            </div>
-
-            {/* Review Content */}
-            {editingReview === review.id ? (
-              <div className="space-y-3 mb-4">
-                <textarea
-                  value={editText}
-                  onChange={(e) => setEditText(e.target.value)}
-                  className="w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                  rows={4}
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleSaveReviewEdit(review.id)}>
-                    <Check className="w-4 h-4 mr-1" />
-                    Save
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      setEditingReview(null);
-                      setEditText('');
-                    }}
-                  >
-                    <X className="w-4 h-4 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="mb-4">
-                <p className="text-slate-700">{review.comment}</p>
-                {review.edited && (
-                  <p className="text-xs text-muted-foreground mt-1 italic">
-                    Edited {formatDate(review.editedAt || review.date)}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Review Actions */}
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleLike(review.id)}
-                className={hasLiked ? 'text-primary' : ''}
-              >
-                <ThumbsUp className={`w-4 h-4 mr-2 ${hasLiked ? 'fill-primary' : ''}`} />
-                {review.likes > 0 && <span>{review.likes}</span>}
-                {review.likes === 0 && 'Like'}
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setReplyingTo(isReplying ? null : review.id)}
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Reply
-              </Button>
-
-              {review.replies.length > 0 && (
+              <p className='text-sm text-slate-700'>{thread.content}</p>
+              <div className='flex flex-wrap items-center gap-2'>
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => toggleReplies(review.id)}
+                  variant='ghost'
+                  size='sm'
+                  className={`h-7 text-xs ${currentReaction === 'like' ? 'text-primary' : ''}`}
+                  onClick={() => handleThreadReaction(reviewId, thread.id, 'like')}
+                  disabled={!!threadActionLoading[thread.id]}
                 >
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 mr-2" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 mr-2" />
-                  )}
-                  {review.replies.length} {review.replies.length === 1 ? 'Reply' : 'Replies'}
+                  <ThumbsUp className={`w-3 h-3 mr-1 ${currentReaction === 'like' ? 'fill-primary' : ''}`} />
+                  {thread.likeCount}
                 </Button>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className={`h-7 text-xs ${currentReaction === 'dislike' ? 'text-red-500' : ''}`}
+                  onClick={() => handleThreadReaction(reviewId, thread.id, 'dislike')}
+                  disabled={!!threadActionLoading[thread.id]}
+                >
+                  <ThumbsDown className={`w-3 h-3 mr-1 ${currentReaction === 'dislike' ? 'fill-current' : ''}`} />
+                  {thread.dislikeCount}
+                </Button>
+                <Button
+                  variant='ghost'
+                  size='sm'
+                  className='h-7 text-xs'
+                  onClick={() => handleOpenReply(reviewId, thread.id)}
+                >
+                  <MessageCircle className='w-3 h-3 mr-1' />
+                  Reply
+                </Button>
+              </div>
+
+              {isReplyingHere && (
+                <div className='space-y-2'>
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder='Write your reply...'
+                    className='w-full p-2 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-sm'
+                    rows={3}
+                  />
+                  <div className='flex gap-2'>
+                    <Button
+                      size='sm'
+                      onClick={handleSubmitReply}
+                      disabled={!!threadActionLoading[reviewId]}
+                    >
+                      Post Reply
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => {
+                        setReplyTarget(null);
+                        setReplyText('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
+          </div>
+        </div>
 
-            {/* Reply Form */}
-            {isReplying && (
-              <div className="mt-4 ml-16 space-y-3">
-                <textarea
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="Write your reply..."
-                  className="w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-                  rows={3}
-                />
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => handleReply(review.id)}>
-                    Post Reply
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => {
-                      setReplyingTo(null);
-                      setReplyText('');
-                    }}
-                  >
-                    Cancel
-                  </Button>
+        {thread.replies.map((reply) => renderThread(reviewId, reply, depth + 1))}
+      </div>
+    );
+  };
+
+  return (
+    <div className='space-y-6'>
+      <div className='border rounded-lg p-6 bg-white space-y-4'>
+        <div>
+          <h3 className='font-semibold'>Write a review</h3>
+          <p className='text-sm text-muted-foreground mt-1'>Share your experience with this course.</p>
+        </div>
+
+        <div className='flex items-center gap-2'>
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type='button'
+              className='transition-transform hover:scale-110'
+              onClick={() => setNewRating(star)}
+              aria-label={`Rate ${star} star${star === 1 ? '' : 's'}`}
+            >
+              <Star className={`w-6 h-6 ${star <= newRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+            </button>
+          ))}
+        </div>
+
+        <textarea
+          value={newComment}
+          onChange={(e) => setNewComment(e.target.value)}
+          placeholder='Write your review...'
+          className='w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary'
+          rows={4}
+        />
+
+        <div className='flex justify-end'>
+          <Button onClick={handleCreateReview} disabled={submittingReview || !user}>
+            {submittingReview ? 'Posting...' : 'Post Review'}
+          </Button>
+        </div>
+      </div>
+
+      {reviews.length === 0 ? (
+        <div className='text-center py-12'>
+          <MessageCircle className='h-16 w-16 mx-auto text-muted-foreground/50 mb-4' />
+          <p className='text-lg font-medium text-muted-foreground'>No reviews yet</p>
+          <p className='text-sm text-muted-foreground mt-1'>Be the first to review this course!</p>
+        </div>
+      ) : (
+        reviews.map((review) => {
+          const isExpanded = expandedReviews.has(review.id);
+          const isTopLevelReplying = replyTarget?.reviewId === review.id && !replyTarget?.parentId;
+          const canDelete = isAdmin || review.userId === currentUserId;
+          const canEdit = review.userId === currentUserId;
+
+          return (
+            <div key={review.id} className='border rounded-lg p-6 bg-white border-slate-200'>
+              <div className='flex items-start justify-between mb-4'>
+                <div className='flex items-start gap-4'>
+                  <Avatar className='w-12 h-12'>
+                    <AvatarFallback className='bg-primary text-white text-lg'>
+                      {review.userAvatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className='font-semibold'>{review.userName}</p>
+                    <p className='text-sm text-muted-foreground'>{formatDate(review.date)}</p>
+                  </div>
+                </div>
+
+                <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-1'>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={`w-4 h-4 ${star <= review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`}
+                      />
+                    ))}
+                  </div>
+
+                  {(canEdit || canDelete) && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant='ghost' size='sm'>
+                          <MoreVertical className='w-4 h-4' />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align='end'>
+                        {canEdit && (
+                          <DropdownMenuItem onClick={() => handleEditReview(review.id)}>
+                            <Edit className='w-4 h-4 mr-2' />
+                            Edit Review
+                          </DropdownMenuItem>
+                        )}
+                        {canDelete && (
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteReview(review.id)}
+                            className='text-red-600'
+                            disabled={deletingReviewId === review.id}
+                          >
+                            <Trash2 className='w-4 h-4 mr-2' />
+                            {deletingReviewId === review.id ? 'Deleting...' : 'Delete Review'}
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               </div>
-            )}
 
-            {/* Threaded Replies */}
-            {isExpanded && review.replies.length > 0 && (
-              <div className="mt-6 ml-16 space-y-4">
-                {review.replies.map((reply) => {
-                  const replyHasLiked = reply.likedBy.includes(currentUserId);
-                  const isOwner = reply.userId === currentUserId;
-                  
-                  return (
-                    <div key={reply.id} className="border-l-2 border-slate-200 pl-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 flex-1">
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback className="bg-secondary text-white text-sm">
-                              {reply.userAvatar}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <p className="font-medium text-sm">{reply.userName}</p>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDate(reply.date)}
-                              </span>
-                            </div>
-                            
-                            {editingReply === reply.id ? (
-                              <div className="space-y-2">
-                                <textarea
-                                  value={editText}
-                                  onChange={(e) => setEditText(e.target.value)}
-                                  className="w-full p-2 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary text-sm"
-                                  rows={3}
-                                />
-                                <div className="flex gap-2">
-                                  <Button size="sm" className="h-7 text-xs" onClick={() => handleSaveReplyEdit(reply.id, review.id)}>
-                                    <Check className="w-3 h-3 mr-1" />
-                                    Save
-                                  </Button>
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    className="h-7 text-xs"
-                                    onClick={() => {
-                                      setEditingReply(null);
-                                      setEditText('');
-                                    }}
-                                  >
-                                    <X className="w-3 h-3 mr-1" />
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <p className="text-sm text-slate-700 mb-1">{reply.comment}</p>
-                                {reply.edited && (
-                                  <p className="text-xs text-muted-foreground italic mb-2">
-                                    Edited {formatDate(reply.editedAt || reply.date)}
-                                  </p>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleLike(reply.id, true, review.id)}
-                                  className={`h-7 text-xs ${replyHasLiked ? 'text-primary' : ''}`}
-                                >
-                                  <ThumbsUp className={`w-3 h-3 mr-1 ${replyHasLiked ? 'fill-primary' : ''}`} />
-                                  {reply.likes > 0 && <span>{reply.likes}</span>}
-                                  {reply.likes === 0 && 'Like'}
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Edit button for reply owner */}
-                        {isOwner && editingReply !== reply.id && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="h-7"
-                            onClick={() => handleEditReply(reply.id, review.id)}
-                          >
-                            <Edit className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              {editingReview === review.id ? (
+                <div className='space-y-3 mb-4'>
+                  <div className='flex items-center gap-2'>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type='button'
+                        className='transition-transform hover:scale-110'
+                        onClick={() => setEditRating(star)}
+                        aria-label={`Edit review rating to ${star}`}
+                      >
+                        <Star className={`w-5 h-5 ${star <= editRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+                      </button>
+                    ))}
+                  </div>
+                  <textarea
+                    value={editText}
+                    onChange={(e) => setEditText(e.target.value)}
+                    className='w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary'
+                    rows={4}
+                  />
+                  <div className='flex gap-2'>
+                    <Button size='sm' onClick={() => handleSaveReviewEdit(review.id)} disabled={savingReviewEdit}>
+                      <Check className='w-4 h-4 mr-1' />
+                      {savingReviewEdit ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => {
+                        setEditingReview(null);
+                        setEditText('');
+                        setEditRating(0);
+                      }}
+                      disabled={savingReviewEdit}
+                    >
+                      <X className='w-4 h-4 mr-1' />
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className='mb-4'>
+                  <p className='text-slate-700'>{review.comment}</p>
+                  {review.edited && (
+                    <p className='text-xs text-muted-foreground mt-1 italic'>
+                      Edited {formatDate(review.editedAt || review.date)}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className='flex flex-wrap items-center gap-4'>
+                <Button variant='ghost' size='sm' onClick={() => handleOpenReply(review.id)}>
+                  <MessageCircle className='w-4 h-4 mr-2' />
+                  Reply
+                </Button>
+
+                <Button variant='ghost' size='sm' onClick={() => toggleReplies(review.id)}>
+                  {isExpanded ? <ChevronUp className='w-4 h-4 mr-2' /> : <ChevronDown className='w-4 h-4 mr-2' />}
+                  {countThreads(review.threads)} {countThreads(review.threads) === 1 ? 'Reply' : 'Replies'}
+                </Button>
               </div>
-            )}
-          </div>
-        );
-      })}
+
+              {isTopLevelReplying && (
+                <div className='mt-4 ml-16 space-y-3'>
+                  <textarea
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    placeholder='Write your reply...'
+                    className='w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary'
+                    rows={3}
+                  />
+                  <div className='flex gap-2'>
+                    <Button size='sm' onClick={handleSubmitReply} disabled={!!threadActionLoading[review.id]}>
+                      Post Reply
+                    </Button>
+                    <Button
+                      size='sm'
+                      variant='outline'
+                      onClick={() => {
+                        setReplyTarget(null);
+                        setReplyText('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {isExpanded && (
+                <div className='mt-6 ml-16 space-y-4'>
+                  {loadingThreads[review.id] ? (
+                    <p className='text-sm text-muted-foreground'>Loading replies...</p>
+                  ) : review.threads.length > 0 ? (
+                    review.threads.map((thread) => renderThread(review.id, thread))
+                  ) : (
+                    <p className='text-sm text-muted-foreground'>No replies yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }

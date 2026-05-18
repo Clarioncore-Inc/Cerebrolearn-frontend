@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import api from '../../utils/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -10,6 +11,7 @@ import {
   Clock, 
   CheckCircle2, 
   XCircle, 
+	Ban,
   Search,
   Filter,
   Eye,
@@ -33,10 +35,14 @@ import {
 import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from '../ui/alert';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 interface Application {
   id: string;
+  userId: string;
   fullName: string;
   email: string;
+  hourlyRate: string;
   licenseNumber: string;
   specialization: string;
   yearsOfExperience: string;
@@ -45,6 +51,7 @@ interface Application {
   qualifications: string;
   certifications: string;
   status: 'pending' | 'approved' | 'rejected';
+  accountStatus: 'active' | 'suspended';
   submittedAt: string;
   reviewedAt: string | null;
   reviewedBy: string | null;
@@ -57,14 +64,22 @@ export function PsychologistManagementPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
+  const [selectedReviewApplication, setSelectedReviewApplication] = useState<Application | null>(null);
+  const [selectedReviewAction, setSelectedReviewAction] = useState<'approve' | 'reject' | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [accountStatusSubmitting, setAccountStatusSubmitting] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
     approved: 0,
     rejected: 0,
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     loadApplications();
@@ -74,73 +89,43 @@ export function PsychologistManagementPage() {
     filterApplications();
   }, [applications, searchQuery, selectedStatus]);
 
-  const loadApplications = () => {
-    // Load from localStorage
-    const stored = localStorage.getItem('psychologist_applications');
-    let apps: Application[] = [];
-    
-    if (stored) {
-      apps = JSON.parse(stored);
-    } else {
-      // Initialize with some demo data
-      apps = [
-        {
-          id: 'app-1',
-          fullName: 'Dr. Sarah Mitchell',
-          email: 'sarah.mitchell@psych.com',
-          licenseNumber: 'PSY-45678',
-          specialization: 'Clinical Psychology',
-          yearsOfExperience: '11-15',
-          bio: 'Licensed clinical psychologist with over 12 years of experience specializing in cognitive behavioral therapy and anxiety disorders. Passionate about helping individuals achieve their mental health goals through evidence-based practices.',
-          location: 'New York, NY',
-          qualifications: 'Ph.D. in Clinical Psychology, Columbia University, 2011\nM.A. in Psychology, NYU, 2008\nB.A. in Psychology, Boston College, 2006',
-          certifications: 'Licensed Clinical Psychologist (NY State)\nCertified CBT Therapist\nACT Therapy Certification',
-          status: 'pending',
-          submittedAt: '2026-02-10T14:30:00Z',
-          reviewedAt: null,
-          reviewedBy: null,
-          reviewNotes: '',
-        },
-        {
-          id: 'app-2',
-          fullName: 'Dr. James Chen',
-          email: 'james.chen@mindhealth.com',
-          licenseNumber: 'PSY-98765',
-          specialization: 'Neuropsychology',
-          yearsOfExperience: '6-10',
-          bio: 'Neuropsychologist specializing in cognitive assessment and rehabilitation. Experienced in working with diverse populations including students, professionals, and elderly individuals.',
-          location: 'San Francisco, CA',
-          qualifications: 'Ph.D. in Neuropsychology, Stanford University, 2016\nM.S. in Neuroscience, MIT, 2013\nB.S. in Psychology, UC Berkeley, 2011',
-          certifications: 'Board Certified Neuropsychologist\nLicensed Psychologist (CA)\nSpecialist in IQ Testing and Assessment',
-          status: 'pending',
-          submittedAt: '2026-02-09T10:15:00Z',
-          reviewedAt: null,
-          reviewedBy: null,
-          reviewNotes: '',
-        },
-        {
-          id: 'app-3',
-          fullName: 'Dr. Emily Rodriguez',
-          email: 'emily.rodriguez@therapy.com',
-          licenseNumber: 'PSY-23456',
-          specialization: 'Educational Psychology',
-          yearsOfExperience: '16+',
-          bio: 'Educational psychologist with 18 years of experience helping students optimize their learning potential. Specialized in learning disabilities, ADHD, and gifted education.',
-          location: 'Austin, TX',
-          qualifications: 'Ph.D. in Educational Psychology, University of Texas, 2005\nM.Ed. in Special Education, 2002\nB.A. in Psychology, Rice University, 1999',
-          certifications: 'Licensed Educational Psychologist\nCertified School Psychologist\nNational Board Certified Teacher',
-          status: 'approved',
-          submittedAt: '2026-02-05T09:00:00Z',
-          reviewedAt: '2026-02-07T16:30:00Z',
-          reviewedBy: 'Admin',
-          reviewNotes: 'Excellent credentials and extensive experience. Approved.',
-        },
-      ];
-      localStorage.setItem('psychologist_applications', JSON.stringify(apps));
+  const loadApplications = async () => {
+    setLoading(true);
+    try {
+      const data = await api.psychologist.list();
+      const list = Array.isArray(data) ? data : data.items ?? data.results ?? [];
+
+      const apps: Application[] = list.map((item: any) => ({
+        id: item.id ?? item._id ?? '',
+        userId: item.user?.id ?? item.userId ?? '',
+        fullName: item.user?.full_name ?? item.full_name ?? item.fullName ?? '',
+        email: item.user?.email ?? item.email ?? '',
+        hourlyRate: item.hourly_rate ?? item.hourlyRate ?? '0.0',
+        licenseNumber: item.license_number ?? item.licenseNumber ?? '',
+        specialization: item.specialization ?? '',
+        yearsOfExperience: item.years_of_experience ?? item.yearsOfExperience ?? '',
+        bio: item.bio ?? '',
+        location: item.location ?? item.user?.location ?? '',
+        qualifications:
+          item.education_and_qualifications ?? item.qualifications ?? '',
+        certifications:
+          item.certification_and_additional_training ?? item.certifications ?? '',
+        status: item.status ?? (item.is_approved ? 'approved' : 'pending'),
+        accountStatus:
+          item.user?.is_suspended || item.user?.is_active === false ? 'suspended' : 'active',
+        submittedAt: item.submitted_at ?? item.submittedAt ?? item.created_at ?? '',
+        reviewedAt: item.reviewed_at ?? item.reviewedAt ?? null,
+        reviewedBy: item.reviewed_by ?? item.reviewedBy ?? null,
+        reviewNotes: item.review_notes ?? item.reviewNotes ?? '',
+      }));
+
+      setApplications(apps);
+      updateStats(apps);
+    } catch (error: any) {
+      toast.error(error.message ?? 'Failed to load applications');
+    } finally {
+      setLoading(false);
     }
-    
-    setApplications(apps);
-    updateStats(apps);
   };
 
   const updateStats = (apps: Application[]) => {
@@ -175,35 +160,101 @@ export function PsychologistManagementPage() {
   };
 
   const handleReview = (application: Application, action: 'approve' | 'reject') => {
-    setSelectedApplication(application);
+    setSelectedReviewApplication(application);
+    setSelectedReviewAction(action);
     setReviewNotes('');
     setReviewDialogOpen(true);
   };
 
-  const submitReview = (action: 'approve' | 'reject') => {
-    if (!selectedApplication) return;
+  const submitReview = async (action: 'approve' | 'reject') => {
+    if (!selectedReviewApplication) return;
 
-    const updatedApplications = applications.map(app => {
-      if (app.id === selectedApplication.id) {
-        return {
-          ...app,
-          status: action === 'approve' ? 'approved' : 'rejected',
-          reviewedAt: new Date().toISOString(),
-          reviewedBy: 'Admin',
-          reviewNotes,
-        };
-      }
-      return app;
-    });
+    try {
+      setReviewSubmitting(true);
+      await api.psychologist.updateStatus(
+        selectedReviewApplication.id,
+        action === 'approve' ? 'approved' : 'rejected',
+      );
 
-    setApplications(updatedApplications);
-    localStorage.setItem('psychologist_applications', JSON.stringify(updatedApplications));
-    updateStats(updatedApplications);
+      toast.success(`Application ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+      setReviewDialogOpen(false);
+      setSelectedReviewApplication(null);
+      setSelectedReviewAction(null);
+      setReviewNotes('');
+      await loadApplications();
+    } catch (error: any) {
+      console.error(`Error trying to ${action} application:`, error);
+      toast.error(error?.message ?? `Failed to ${action} application`);
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
-    toast.success(`Application ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
-    setReviewDialogOpen(false);
-    setSelectedApplication(null);
-    setReviewNotes('');
+  const handleAccountStatusChange = async (application: Application, suspended: boolean) => {
+    if (!application.userId) {
+      toast.error('Unable to update account status for this psychologist');
+      return;
+    }
+
+    try {
+      setAccountStatusSubmitting(true);
+      await api.admin.updateUserStatus(application.userId, suspended);
+
+      const nextAccountStatus: Application['accountStatus'] = suspended ? 'suspended' : 'active';
+
+      setApplications((prev) =>
+        prev.map((app) =>
+          app.id === application.id ? { ...app, accountStatus: nextAccountStatus } : app,
+        ),
+      );
+
+      setSelectedApplication((prev) =>
+        prev?.id === application.id ? { ...prev, accountStatus: nextAccountStatus } : prev,
+      );
+
+      toast.success(`Account ${suspended ? 'suspended' : 'activated'} successfully`);
+    } catch (error: any) {
+      console.error('Error updating psychologist account status:', error);
+      toast.error(error?.message ?? 'Failed to update account status');
+    } finally {
+      setAccountStatusSubmitting(false);
+    }
+  };
+
+  const validateInviteEmail = (email: string) => {
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      return 'Email is required';
+    }
+
+    if (!EMAIL_REGEX.test(trimmedEmail)) {
+      return 'Please enter a valid email address';
+    }
+
+    return '';
+  };
+
+  const handleInvitePsychologist = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const validationError = validateInviteEmail(inviteEmail);
+    if (validationError) {
+      setInviteError(validationError);
+      return;
+    }
+
+    try {
+      setInviteSubmitting(true);
+      setInviteError('');
+      await api.psychologist.invite({ email: inviteEmail.trim() });
+      toast.success('Psychologist invitation sent successfully');
+      setInviteEmail('');
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Failed to send psychologist invitation');
+    } finally {
+      setInviteSubmitting(false);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -235,11 +286,53 @@ export function PsychologistManagementPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container space-y-6 py-6">
       <div>
-        <h2 className="text-4xl font-extrabold mb-2">Psychologist Management</h2>
-        <p className="text-muted-foreground">Review and manage psychologist applications</p>
+        <h1 className="mb-2">Psychologist Management</h1>
+        <p className="text-muted-foreground">
+          Review and manage psychologist applications
+        </p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Invite Psychologist</CardTitle>
+          <CardDescription>Send a psychologist invitation by email</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleInvitePsychologist} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="invite-email">Email</Label>
+              <div className="relative max-w-xl">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="invite-email"
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setInviteEmail(nextValue);
+                    if (inviteError) {
+                      setInviteError(validateInviteEmail(nextValue));
+                    }
+                  }}
+                  onBlur={() => setInviteError(validateInviteEmail(inviteEmail))}
+                  className="pl-9"
+                  required
+                  aria-invalid={!!inviteError}
+                />
+              </div>
+              {inviteError ? (
+                <p className="text-sm text-destructive">{inviteError}</p>
+              ) : null}
+            </div>
+
+            <Button type="submit" disabled={inviteSubmitting}>
+              {inviteSubmitting ? 'Sending...' : 'Send Invitation'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -323,7 +416,11 @@ export function PsychologistManagementPage() {
             </TabsList>
 
             <div className="mt-6 space-y-4">
-              {filteredApplications.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p>Loading applications...</p>
+                </div>
+              ) : filteredApplications.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <UserCheck className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No applications found</p>
@@ -410,7 +507,9 @@ export function PsychologistManagementPage() {
                             </Button>
                             {selectedApplication?.id === application.id && (
                               <ApplicationDetailsDialog
-                                application={application}
+                                application={selectedApplication}
+                                onStatusChange={handleAccountStatusChange}
+                                statusSubmitting={accountStatusSubmitting}
                                 onClose={() => setSelectedApplication(null)}
                               />
                             )}
@@ -449,14 +548,28 @@ export function PsychologistManagementPage() {
       </Card>
 
       {/* Review Dialog */}
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+      <Dialog
+        open={reviewDialogOpen}
+        onOpenChange={(open) => {
+          setReviewDialogOpen(open);
+          if (!open) {
+            setSelectedReviewApplication(null);
+            setSelectedReviewAction(null);
+            setReviewNotes('');
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {selectedApplication?.status === 'pending' ? 'Review Application' : 'Application Review'}
+              {selectedReviewAction === 'approve'
+                ? 'Approve Application'
+                : selectedReviewAction === 'reject'
+                  ? 'Reject Application'
+                  : 'Review Application'}
             </DialogTitle>
             <DialogDescription>
-              {selectedApplication?.fullName} - {selectedApplication?.email}
+              {selectedReviewApplication?.fullName} - {selectedReviewApplication?.email}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -464,7 +577,11 @@ export function PsychologistManagementPage() {
               <Label htmlFor="reviewNotes">Review Notes</Label>
               <Textarea
                 id="reviewNotes"
-                placeholder="Add notes about your decision (optional but recommended for rejections)"
+                placeholder={
+                  selectedReviewAction === 'reject'
+                    ? 'Add notes about why you are rejecting this application (recommended)'
+                    : 'Add notes about this approval (optional)'
+                }
                 value={reviewNotes}
                 onChange={(e) => setReviewNotes(e.target.value)}
                 rows={4}
@@ -472,23 +589,28 @@ export function PsychologistManagementPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setReviewDialogOpen(false)} disabled={reviewSubmitting}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => submitReview('reject')}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Reject Application
-            </Button>
-            <Button
-              onClick={() => submitReview('approve')}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
-              Approve Application
-            </Button>
+            {selectedReviewAction === 'reject' ? (
+              <Button
+                variant="destructive"
+                onClick={() => submitReview('reject')}
+                disabled={reviewSubmitting}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                {reviewSubmitting ? 'Rejecting...' : 'Reject Application'}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => submitReview('approve')}
+                className="bg-green-600 hover:bg-green-700"
+                disabled={reviewSubmitting}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {reviewSubmitting ? 'Approving...' : 'Approve Application'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -497,7 +619,17 @@ export function PsychologistManagementPage() {
 }
 
 // Application Details Dialog Component
-function ApplicationDetailsDialog({ application, onClose }: { application: Application; onClose: () => void }) {
+function ApplicationDetailsDialog({
+  application,
+  onClose,
+  onStatusChange,
+  statusSubmitting,
+}: {
+  application: Application;
+  onClose: () => void;
+  onStatusChange: (application: Application, suspended: boolean) => Promise<void>;
+  statusSubmitting: boolean;
+}) {
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -520,6 +652,16 @@ function ApplicationDetailsDialog({ application, onClose }: { application: Appli
               {application.status === 'rejected' && (
                 <Badge variant="outline" className="bg-red-100 text-red-700">Rejected</Badge>
               )}
+              <Badge
+                variant="outline"
+                className={
+                  application.accountStatus === 'active'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }
+              >
+                Account {application.accountStatus === 'active' ? 'Active' : 'Suspended'}
+              </Badge>
             </div>
           </div>
 
@@ -549,6 +691,10 @@ function ApplicationDetailsDialog({ application, onClose }: { application: Appli
               <div>
                 <span className="text-muted-foreground">Specialization:</span>
                 <p className="font-medium">{application.specialization}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Hourly Rate:</span>
+                <p className="font-medium">${application.hourlyRate}</p>
               </div>
               <div>
                 <span className="text-muted-foreground">Experience:</span>
@@ -612,6 +758,24 @@ function ApplicationDetailsDialog({ application, onClose }: { application: Appli
         </div>
 
         <DialogFooter>
+	          {application.accountStatus === 'active' ? (
+	            <Button
+	              variant="destructive"
+	              onClick={() => onStatusChange(application, true)}
+	              disabled={statusSubmitting}
+	            >
+	              <Ban className="h-4 w-4 mr-2" />
+	              {statusSubmitting ? 'Suspending...' : 'Suspend Account'}
+	            </Button>
+	          ) : (
+	            <Button
+	              onClick={() => onStatusChange(application, false)}
+	              disabled={statusSubmitting}
+	            >
+	              <UserCheck className="h-4 w-4 mr-2" />
+	              {statusSubmitting ? 'Activating...' : 'Activate Account'}
+	            </Button>
+	          )}
           <Button onClick={onClose}>Close</Button>
         </DialogFooter>
       </DialogContent>

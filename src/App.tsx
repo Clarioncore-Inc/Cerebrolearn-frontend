@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import './utils/fetchInterceptor'; // Initialize fetch interceptor FIRST to catch all network calls
+import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Navbar } from './components/layout/Navbar';
@@ -36,7 +36,10 @@ import { ProfilePage } from './components/pages/ProfilePage';
 import { DemoAccountSeeder } from './components/utils/DemoAccountSeeder';
 import { Toaster } from './components/ui/sonner';
 import { initializeDummyData } from './utils/dummyData';
-import { resetCourseDatabase, checkDatabaseStatus } from './utils/resetDatabase';
+import {
+  resetCourseDatabase,
+  checkDatabaseStatus,
+} from './utils/resetDatabase';
 
 // IQ Test imports
 import { IQTestLandingPage } from './components/iq-test/IQTestLandingPage';
@@ -53,6 +56,7 @@ import { PsychologistSignupForm } from './components/psychologist/PsychologistSi
 import { PsychologistDashboard } from './components/psychologist/PsychologistDashboard';
 import { PsychologistManagementPage } from './components/admin/PsychologistManagementPage';
 import { PsychologistBrowse } from './components/psychologist/PsychologistBrowse';
+import { PsychologistProfilePage } from './components/psychologist/PsychologistProfilePage';
 import { AppointmentBooking } from './components/psychologist/AppointmentBooking';
 import { EnhancedAppointmentBooking } from './components/psychologist/EnhancedAppointmentBooking';
 import { AppointmentManager } from './components/psychologist/AppointmentManager';
@@ -72,6 +76,7 @@ import { ProgressDashboard } from './components/learner/ProgressDashboard';
 import { LearningStreakTracker } from './components/learner/LearningStreakTracker';
 import { CourseNotesSystem } from './components/learner/CourseNotesSystem';
 import { CourseComparisonTool } from './components/courses/CourseComparisonTool';
+import { DiscussionForum } from './components/social/DiscussionForum';
 import { StudentSessionsDashboard } from './components/student/StudentSessionsDashboard';
 import { EnhancedTherapyDashboard } from './components/student/EnhancedTherapyDashboard';
 import { SessionPreparation } from './components/student/SessionPreparation';
@@ -112,10 +117,20 @@ if (typeof window !== 'undefined') {
     resetDatabase: resetCourseDatabase,
     checkDatabase: checkDatabaseStatus,
     help: () => {
-      console.log('%c🎓 CerebroLearn Database Utilities', 'font-size: 16px; font-weight: bold; color: #395192;');
-      console.log('%cAvailable commands:', 'font-weight: bold; color: #06B6D4;');
-      console.log('  CerebroLearn.resetDatabase()    - Reset and reload all 26 science & engineering courses');
-      console.log('  CerebroLearn.checkDatabase()    - Check current database status');
+      console.log(
+        '%c🎓 CerebroLearn Database Utilities',
+        'font-size: 16px; font-weight: bold; color: #395192;',
+      );
+      console.log(
+        '%cAvailable commands:',
+        'font-weight: bold; color: #06B6D4;',
+      );
+      console.log(
+        '  CerebroLearn.resetDatabase()    - Reset and reload all 26 science & engineering courses',
+      );
+      console.log(
+        '  CerebroLearn.checkDatabase()    - Check current database status',
+      );
       console.log('  CerebroLearn.help()             - Show this help message');
       console.log('');
       console.log('%c📚 Current Status:', 'font-weight: bold; color: #395192;');
@@ -123,40 +138,87 @@ if (typeof window !== 'undefined') {
       console.log(`  Published Courses: ${status.publishedCourses}`);
       console.log(`  Draft Courses: ${status.draftCourses}`);
       console.log(`  Total Enrollments: ${status.enrollments}`);
-    }
+    },
   };
-  
+
   // Show welcome message in console
-  console.log('%c🎓 Welcome to CerebroLearn!', 'font-size: 20px; font-weight: bold; color: #395192; background: #f0f9ff; padding: 10px;');
-  console.log('%cType CerebroLearn.help() for database utilities', 'color: #06B6D4; font-size: 14px;');
+  console.log(
+    '%c🎓 Welcome to CerebroLearn!',
+    'font-size: 20px; font-weight: bold; color: #395192; background: #f0f9ff; padding: 10px;',
+  );
+  console.log(
+    '%cType CerebroLearn.help() for database utilities',
+    'color: #06B6D4; font-size: 14px;',
+  );
+}
+
+// Map URL pathname → page key used in the renderPage() switch
+function pathToPage(pathname: string): string {
+  if (pathname === '/' || pathname === '') return 'landing';
+  // Strip leading slash
+  return pathname.slice(1);
+}
+
+// Map page key → URL pathname
+function pageToPath(page: string): string {
+  if (page === 'landing') return '/';
+  return '/' + page;
 }
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<string>('landing');
-  const [pageData, setPageData] = useState<any>(null);
-  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'signup-choice' | 'psychologist-signup'>('signup-choice');
+  const navigate = useNavigate();
+  const location = useLocation();
 
+  // Derive current page from the URL
+  const currentPage = pathToPage(location.pathname);
+  // pageData travels as router state (survives back/forward)
+  const pageData: any = location.state ?? null;
+
+  const [authMode, setAuthMode] = useState<
+    'login' | 'signup' | 'signup-choice' | 'psychologist-signup'
+  >(pageData?.authMode ?? 'signup-choice');
+
+  // Handle hidden psychologist signup link (?join=psychologist&token=...)
   useEffect(() => {
-    if (!loading) {
-      if (user && currentPage === 'landing') {
-        setCurrentPage('dashboard');
-      } else if (!user && currentPage !== 'landing' && currentPage !== 'auth' && currentPage !== 'catalog') {
-        setCurrentPage('landing');
-      }
+    const params = new URLSearchParams(location.search);
+    if (params.get('join') === 'psychologist') {
+      const token = params.get('token');
+      navigate(pageToPath('psychologist-signup'), {
+        replace: true,
+        state: token ? { inviteToken: token } : null,
+      });
+    }
+  }, []);
+
+  // Auth guard: redirect after login/logout
+  useEffect(() => {
+    if (loading) return;
+    if (user && (currentPage === 'landing' || currentPage === 'auth')) {
+      navigate(pageToPath('dashboard'), { replace: true });
+    } else if (
+      !user &&
+      currentPage !== 'landing' &&
+      currentPage !== 'auth' &&
+      currentPage !== 'catalog' &&
+      currentPage !== 'psychologist-signup'
+    ) {
+      navigate(pageToPath('landing'), { replace: true });
     }
   }, [user, loading]);
 
   const handleNavigate = (page: string, data?: any) => {
-    setCurrentPage(page);
-    setPageData(data || null);
+    if (page === 'auth') {
+      setAuthMode(data?.authMode ?? 'signup-choice');
+    }
+    navigate(pageToPath(page), { state: data || null });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className='min-h-screen flex items-center justify-center'>
+        <div className='animate-spin rounded-full h-12 w-12 border-b-2 border-primary'></div>
       </div>
     );
   }
@@ -168,26 +230,22 @@ function AppContent() {
 
       case 'auth':
         return (
-          <div className="container py-16">
+          <div className='container py-16'>
             {authMode === 'login' ? (
-              <LoginForm onToggleMode={() => setAuthMode('signup')} />
+              <LoginForm onToggleMode={() => setAuthMode('signup-choice')} />
             ) : authMode === 'signup-choice' ? (
-              <SignupChoice 
+              <SignupChoice
                 onSelectRegular={() => setAuthMode('signup')}
                 onSelectPsychologist={() => setAuthMode('psychologist-signup')}
                 onToggleMode={() => setAuthMode('login')}
               />
             ) : authMode === 'psychologist-signup' ? (
-              <PsychologistSignupForm 
+              <PsychologistSignupForm
                 onToggleMode={() => setAuthMode('login')}
                 onBack={() => setAuthMode('signup-choice')}
               />
             ) : (
-              <SignupChoice 
-                onSelectRegular={() => setAuthMode('signup')}
-                onSelectPsychologist={() => setAuthMode('psychologist-signup')}
-                onToggleMode={() => setAuthMode('login')}
-              />
+              <SignupForm onToggleMode={() => setAuthMode('login')} />
             )}
           </div>
         );
@@ -198,10 +256,21 @@ function AppContent() {
           return null;
         }
 
-        if (profile?.role === 'psychologist' || profile?.role === 'psychologist_pending') {
+        if (
+          profile?.role === 'psychologist' ||
+          profile?.role === 'psychologist_pending'
+        ) {
           return <PsychologistDashboard onNavigate={handleNavigate} />;
-        } else if (profile?.role === 'course_creator' || profile?.role === 'instructor') {
-          return <CourseCreatorDashboard onNavigate={handleNavigate} currentPage="creator-dashboard" />;
+        } else if (
+          profile?.role === 'course_creator' ||
+          profile?.role === 'instructor'
+        ) {
+          return (
+            <CourseCreatorDashboard
+              onNavigate={handleNavigate}
+              currentPage='creator-dashboard'
+            />
+          );
         } else if (profile?.role === 'admin' || profile?.role === 'org_admin') {
           return <AdminPortal />;
         } else {
@@ -211,46 +280,87 @@ function AppContent() {
       // Legacy instructor routes - redirect to creator routes
       case 'instructor':
       case 'instructor-dashboard':
-        return <CourseCreatorDashboard onNavigate={handleNavigate} currentPage="creator-dashboard" />;
+        return (
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-dashboard'
+          />
+        );
 
       case 'instructor-course-management':
-        return <CourseCreatorDashboard onNavigate={handleNavigate} currentPage="creator-courses" />;
+        return (
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-courses'
+          />
+        );
 
       // Course Creator routes
       case 'creator-dashboard':
       case 'creator':
-        return <CourseCreatorDashboard onNavigate={handleNavigate} currentPage="creator-dashboard" />;
+        return (
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-dashboard'
+          />
+        );
 
       case 'creator-courses':
-        return <CourseCreatorDashboard onNavigate={handleNavigate} currentPage="creator-courses" />;
+        return (
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-courses'
+          />
+        );
+
+      case 'creator-course-edit':
+        return (
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-course-edit'
+            initialSelectedCourse={pageData ?? null}
+          />
+        );
 
       case 'creator-create-course':
         return <CourseCreationWizardPage onNavigate={handleNavigate} />;
 
       case 'creator-analytics':
         return (
-          <SidebarLayout currentPage="creator-analytics" onNavigate={handleNavigate}>
+          <SidebarLayout
+            currentPage='creator-analytics'
+            onNavigate={handleNavigate}
+          >
             <CreatorAnalyticsPage onNavigate={handleNavigate} />
           </SidebarLayout>
         );
 
       case 'creator-subscribers':
         return (
-          <SidebarLayout currentPage="creator-subscribers" onNavigate={handleNavigate}>
+          <SidebarLayout
+            currentPage='creator-subscribers'
+            onNavigate={handleNavigate}
+          >
             <CreatorSubscribersPage onNavigate={handleNavigate} />
           </SidebarLayout>
         );
 
       case 'creator-revenue':
         return (
-          <SidebarLayout currentPage="creator-revenue" onNavigate={handleNavigate}>
+          <SidebarLayout
+            currentPage='creator-revenue'
+            onNavigate={handleNavigate}
+          >
             <CreatorRevenuePage onNavigate={handleNavigate} />
           </SidebarLayout>
         );
 
       case 'creator-settings':
         return (
-          <SidebarLayout currentPage="creator-settings" onNavigate={handleNavigate}>
+          <SidebarLayout
+            currentPage='creator-settings'
+            onNavigate={handleNavigate}
+          >
             <CreatorSettingsPage onNavigate={handleNavigate} />
           </SidebarLayout>
         );
@@ -259,7 +369,12 @@ function AppContent() {
         return <AdminPortal />;
 
       case 'catalog':
-        return <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />;
+        return (
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
+        );
 
       case 'category':
         return pageData ? (
@@ -268,7 +383,10 @@ function AppContent() {
             onNavigate={handleNavigate}
           />
         ) : (
-          <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
         );
 
       case 'subcategory':
@@ -279,7 +397,10 @@ function AppContent() {
             onNavigate={handleNavigate}
           />
         ) : (
-          <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
         );
 
       case 'course-detail':
@@ -291,14 +412,20 @@ function AppContent() {
             onNavigate={handleNavigate}
           />
         ) : (
-          <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
         );
 
       case 'course':
         return pageData ? (
           <CourseDetail course={pageData} onNavigate={handleNavigate} />
         ) : (
-          <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
         );
 
       case 'lesson':
@@ -322,12 +449,17 @@ function AppContent() {
             course={pageData.course}
             onSave={(lesson) => {
               console.log('Lesson saved:', lesson);
-              handleNavigate('instructor');
+              handleNavigate('creator-course-edit', pageData.course);
             }}
-            onCancel={() => handleNavigate('instructor')}
+            onCancel={() =>
+              handleNavigate('creator-course-edit', pageData.course)
+            }
           />
         ) : (
-          <InstructorDashboard onNavigate={handleNavigate} />
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-courses'
+          />
         );
 
       case 'learner-profile':
@@ -342,7 +474,10 @@ function AppContent() {
             }}
           />
         ) : (
-          <CourseCreatorDashboard onNavigate={handleNavigate} currentPage="creator-dashboard" />
+          <CourseCreatorDashboard
+            onNavigate={handleNavigate}
+            currentPage='creator-dashboard'
+          />
         );
 
       case 'quiz-editor':
@@ -370,11 +505,14 @@ function AppContent() {
             onCancel={() => handleNavigate('course', pageData)}
           />
         ) : (
-          <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
         );
 
       case 'profile':
-        return <ProfilePage />;
+        return <ProfilePage onNavigate={handleNavigate} />;
 
       // IQ Test routes
       case 'iq-test-landing':
@@ -385,21 +523,30 @@ function AppContent() {
 
       case 'iq-test-completion':
         return pageData ? (
-          <IQTestCompletion onNavigate={handleNavigate} resultId={pageData.resultId} />
+          <IQTestCompletion
+            onNavigate={handleNavigate}
+            resultId={pageData.resultId}
+          />
         ) : (
           <IQTestLanding onNavigate={handleNavigate} />
         );
 
       case 'iq-test-results':
         return pageData ? (
-          <IQTestResults onNavigate={handleNavigate} resultId={pageData.resultId} />
+          <IQTestResults
+            onNavigate={handleNavigate}
+            resultId={pageData.resultId}
+          />
         ) : (
           <IQTestLanding onNavigate={handleNavigate} />
         );
 
       case 'enhanced-iq-results':
         return pageData ? (
-          <EnhancedIQTestResults onNavigate={handleNavigate} resultId={pageData.resultId} />
+          <EnhancedIQTestResults
+            onNavigate={handleNavigate}
+            resultId={pageData.resultId}
+          />
         ) : (
           <IQTestLanding onNavigate={handleNavigate} />
         );
@@ -412,7 +559,15 @@ function AppContent() {
         return <SignupChoice onNavigate={handleNavigate} />;
 
       case 'psychologist-signup':
-        return <PsychologistSignupForm onNavigate={handleNavigate} />;
+        return (
+          <div className='container py-16'>
+            <PsychologistSignupForm
+              onToggleMode={() => handleNavigate('auth', { authMode: 'login' })}
+              onBack={() => handleNavigate('landing')}
+              inviteToken={pageData?.inviteToken}
+            />
+          </div>
+        );
 
       case 'psychologist-dashboard':
         return <PsychologistDashboard onNavigate={handleNavigate} />;
@@ -423,16 +578,32 @@ function AppContent() {
       case 'browse-psychologists':
         return <PsychologistBrowse onNavigate={handleNavigate} />;
 
+      case 'psychologist-profile':
+        return pageData?.psychologist ? (
+          <PsychologistProfilePage
+            onNavigate={handleNavigate}
+            psychologist={pageData.psychologist}
+          />
+        ) : (
+          <PsychologistBrowse onNavigate={handleNavigate} />
+        );
+
       case 'book-appointment':
         return pageData ? (
-          <AppointmentBooking onNavigate={handleNavigate} psychologist={pageData.psychologist} />
+          <AppointmentBooking
+            onNavigate={handleNavigate}
+            psychologist={pageData.psychologist}
+          />
         ) : (
           <PsychologistBrowse onNavigate={handleNavigate} />
         );
 
       case 'enhanced-book-appointment':
         return pageData ? (
-          <EnhancedAppointmentBooking onNavigate={handleNavigate} psychologist={pageData.psychologist} />
+          <EnhancedAppointmentBooking
+            onNavigate={handleNavigate}
+            psychologist={pageData.psychologist}
+          />
         ) : (
           <PsychologistBrowse onNavigate={handleNavigate} />
         );
@@ -465,7 +636,12 @@ function AppContent() {
         return <PsychologistSessionDashboard onNavigate={handleNavigate} />;
 
       case 'psychologist-appointments':
-        return <PsychologistAppointments onNavigate={handleNavigate} initialTab={pageData?.tab} />;
+        return (
+          <PsychologistAppointments
+            onNavigate={handleNavigate}
+            initialTab={pageData?.tab}
+          />
+        );
 
       case 'psychologist-availability':
         return <AvailabilityManager onNavigate={handleNavigate} />;
@@ -480,7 +656,10 @@ function AppContent() {
 
       case 'session-preparation':
         return pageData ? (
-          <SessionPreparation onNavigate={handleNavigate} appointment={pageData.appointment} />
+          <SessionPreparation
+            onNavigate={handleNavigate}
+            appointment={pageData.appointment}
+          />
         ) : (
           <EnhancedTherapyDashboard onNavigate={handleNavigate} />
         );
@@ -496,7 +675,10 @@ function AppContent() {
       case 'therapy-messages':
       case 'session-messaging':
         return pageData ? (
-          <SessionMessaging onNavigate={handleNavigate} booking={pageData.booking} />
+          <SessionMessaging
+            onNavigate={handleNavigate}
+            booking={pageData.booking}
+          />
         ) : (
           <StudentSessionsDashboard onNavigate={handleNavigate} />
         );
@@ -508,7 +690,10 @@ function AppContent() {
       case 'virtual-waiting-room':
       case 'waiting-room':
         return pageData ? (
-          <VirtualWaitingRoom onNavigate={handleNavigate} appointment={pageData.appointment} />
+          <VirtualWaitingRoom
+            onNavigate={handleNavigate}
+            appointment={pageData.appointment}
+          />
         ) : (
           <EnhancedTherapyDashboard onNavigate={handleNavigate} />
         );
@@ -516,9 +701,9 @@ function AppContent() {
       case 'video-call':
       case 'video-session':
         return pageData ? (
-          <VideoCallRoom 
-            onNavigate={handleNavigate} 
-            appointment={pageData.appointment} 
+          <VideoCallRoom
+            onNavigate={handleNavigate}
+            appointment={pageData.appointment}
             role={pageData.role || 'student'}
           />
         ) : (
@@ -528,8 +713,8 @@ function AppContent() {
       case 'session-feedback':
       case 'feedback':
         return pageData ? (
-          <SessionFeedback 
-            onNavigate={handleNavigate} 
+          <SessionFeedback
+            onNavigate={handleNavigate}
             appointment={pageData.appointment}
             duration={pageData.duration || 3600}
           />
@@ -540,20 +725,23 @@ function AppContent() {
       // Payment routes
       case 'payment-gateway':
         return pageData ? (
-          <PaymentGateway 
-            onNavigate={handleNavigate} 
-            bookingData={pageData.booking} 
+          <PaymentGateway
+            onNavigate={handleNavigate}
+            bookingData={pageData.booking}
             amount={pageData.amount || 150}
           />
         ) : (
-          <CourseCatalog onNavigate={handleNavigate} userRole={profile?.role || 'student'} />
+          <CourseCatalog
+            onNavigate={handleNavigate}
+            userRole={profile?.role || 'student'}
+          />
         );
 
       case 'payment-confirmation':
         return pageData ? (
-          <PaymentConfirmation 
-            onNavigate={handleNavigate} 
-            payment={pageData.payment} 
+          <PaymentConfirmation
+            onNavigate={handleNavigate}
+            payment={pageData.payment}
             booking={pageData.booking}
           />
         ) : (
@@ -581,6 +769,9 @@ function AppContent() {
       case 'goals':
         return <LearningGoalsDashboard onNavigate={handleNavigate} />;
 
+      case 'achievements':
+        return <ProgressDashboard onNavigate={handleNavigate} />;
+
       case 'progress-dashboard':
       case 'learning-progress':
         return <ProgressDashboard onNavigate={handleNavigate} />;
@@ -589,17 +780,30 @@ function AppContent() {
       case 'streak-tracker':
         return <LearningStreakTracker onNavigate={handleNavigate} />;
 
+      case 'schedule':
+        return <LearningStreakTracker onNavigate={handleNavigate} />;
+
       case 'course-notes':
       case 'notes':
         return <CourseNotesSystem onNavigate={handleNavigate} />;
 
+      case 'community':
+      case 'discussions':
+        return (
+          <div className='container py-8'>
+            <DiscussionForum isGeneralForum />
+          </div>
+        );
+
       case 'course-comparison':
       case 'compare-courses':
-        return <CourseComparisonTool 
-          onNavigate={handleNavigate} 
-          courses={[]} 
-          onClose={() => handleNavigate('catalog')} 
-        />;
+        return (
+          <CourseComparisonTool
+            onNavigate={handleNavigate}
+            courses={[]}
+            onClose={() => handleNavigate('catalog')}
+          />
+        );
 
       // Admin Analytics & Compliance routes
       case 'platform-analytics':
@@ -633,17 +837,17 @@ function AppContent() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className='min-h-screen bg-background'>
       <DemoAccountSeeder />
       <Navbar onNavigate={handleNavigate} currentPage={currentPage} />
-      <UniversalBreadcrumb 
-        currentPage={currentPage} 
+      <UniversalBreadcrumb
+        currentPage={currentPage}
         pageData={pageData}
         onNavigate={handleNavigate}
       />
       <main>{renderPage()}</main>
-      <DynamicFooter 
-        onNavigate={handleNavigate} 
+      <DynamicFooter
+        onNavigate={handleNavigate}
         hasSidebar={currentPage.startsWith('creator-')}
       />
       <Toaster />
@@ -653,10 +857,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </ThemeProvider>
+    <BrowserRouter>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </BrowserRouter>
   );
 }

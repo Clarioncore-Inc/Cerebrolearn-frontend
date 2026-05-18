@@ -30,10 +30,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+interface AdminAnalytics {
+  total_users: number;
+  total_courses: number;
+  total_enrollments: number;
+  total_revenue: number;
+}
+
 export function GlobalAnalyticsPage() {
-  const [analytics, setAnalytics] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,14 +48,8 @@ export function GlobalAnalyticsPage() {
   const loadAnalytics = async () => {
     try {
       setLoading(true);
-      const [analyticsData, usersData, coursesData] = await Promise.all([
-        api.admin.getAnalytics(),
-        api.admin.getUsers(),
-        api.admin.getCourses(),
-      ]);
-      setAnalytics(analyticsData.analytics);
-      setUsers(usersData.users || []);
-      setCourses(coursesData.courses || []);
+      const analyticsData = await api.admin.getAnalytics();
+      setAnalytics('analytics' in analyticsData ? analyticsData.analytics : analyticsData);
     } catch (error) {
       console.error('Error loading analytics:', error);
     } finally {
@@ -58,52 +57,34 @@ export function GlobalAnalyticsPage() {
     }
   };
 
-  // Calculate additional metrics
+  const totalUsers = analytics?.total_users || 0;
+  const totalCourses = analytics?.total_courses || 0;
   const totalEnrollments = analytics?.total_enrollments || 0;
   const totalRevenue = analytics?.total_revenue || 0;
-  const avgRevenuePerCourse = courses.length > 0 ? totalRevenue / courses.length : 0;
-  const avgEnrollmentsPerCourse =
-    courses.length > 0
-      ? courses.reduce((sum, c) => sum + (c.enrollments || 0), 0) / courses.length
-      : 0;
+  const avgRevenuePerCourse = totalCourses > 0 ? totalRevenue / totalCourses : 0;
+  const avgEnrollmentsPerCourse = totalCourses > 0 ? totalEnrollments / totalCourses : 0;
+  const usersPerCourse = totalCourses > 0 ? totalUsers / totalCourses : 0;
+  const revenuePerEnrollment = totalEnrollments > 0 ? totalRevenue / totalEnrollments : 0;
 
-  // User growth mock data (would be real time-series data in production)
-  const userGrowthData = [
-    { date: 'Jan', users: 45, active: 32, creators: 8 },
-    { date: 'Feb', users: 72, active: 58, creators: 12 },
-    { date: 'Mar', users: 98, active: 76, creators: 18 },
-    { date: 'Apr', users: 134, active: 102, creators: 24 },
-    { date: 'May', users: 187, active: 145, creators: 32 },
-    { date: 'Jun', users: 243, active: 198, creators: 41 },
+  const platformOverviewData = [
+    { name: 'Users', value: totalUsers },
+    { name: 'Courses', value: totalCourses },
+    { name: 'Enrollments', value: totalEnrollments },
   ];
 
-  // Revenue trend mock data
-  const revenueData = [
-    { month: 'Jan', revenue: 2400, enrollments: 45 },
-    { month: 'Feb', revenue: 3800, enrollments: 72 },
-    { month: 'Mar', revenue: 4200, enrollments: 89 },
-    { month: 'Apr', revenue: 5600, enrollments: 112 },
-    { month: 'May', revenue: 7200, enrollments: 145 },
-    { month: 'Jun', revenue: 8900, enrollments: 178 },
+  const revenueMetricsData = [
+    { metric: 'Total Revenue', value: totalRevenue },
+    { metric: 'Revenue/Course', value: Number(avgRevenuePerCourse.toFixed(2)) },
+    { metric: 'Revenue/Enrollment', value: Number(revenuePerEnrollment.toFixed(2)) },
   ];
 
-  // Course category distribution
-  const categoryData = courses.reduce((acc: any[], course) => {
-    const category = course.category || 'Other';
-    const existing = acc.find((item) => item.name === category);
-    if (existing) {
-      existing.value += 1;
-    } else {
-      acc.push({ name: category, value: 1 });
-    }
-    return acc;
-  }, []);
-
-  // Role distribution
-  const roleData = [
-    { name: 'Learners', value: users.filter((u) => u.role === 'learner').length },
-    { name: 'Creators', value: users.filter((u) => u.role === 'creator').length },
-    { name: 'Admins', value: users.filter((u) => u.role === 'admin').length },
+  const comparisonData = [
+    {
+      name: 'Platform Totals',
+      users: totalUsers,
+      courses: totalCourses,
+      enrollments: totalEnrollments,
+    },
   ];
 
   const COLORS = ['#395192', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981'];
@@ -111,7 +92,7 @@ export function GlobalAnalyticsPage() {
   const stats = [
     {
       title: 'Total Users',
-      value: analytics?.total_users || 0,
+      value: totalUsers,
       change: '+12.5%',
       icon: Users,
       color: 'text-blue-500',
@@ -119,7 +100,7 @@ export function GlobalAnalyticsPage() {
     },
     {
       title: 'Total Courses',
-      value: analytics?.total_courses || 0,
+      value: totalCourses,
       change: '+8.2%',
       icon: BookOpen,
       color: 'text-purple-500',
@@ -155,15 +136,13 @@ export function GlobalAnalyticsPage() {
       icon: DollarSign,
     },
     {
-      label: 'Active Creators',
-      value: users.filter((u) => u.role === 'creator').length,
+      label: 'Users/Course',
+      value: usersPerCourse.toFixed(1),
       icon: UserPlus,
     },
     {
-      label: 'Avg Course Rating',
-      value: (
-        courses.reduce((sum, c) => sum + (c.rating || 0), 0) / courses.length || 0
-      ).toFixed(1),
+      label: 'Revenue/Enrollment',
+      value: `$${revenuePerEnrollment.toFixed(2)}`,
       icon: Award,
     },
   ];
@@ -237,60 +216,40 @@ export function GlobalAnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-semibold">User Growth Trend</CardTitle>
+                <CardTitle className="text-xl font-semibold">Platform Totals Overview</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={userGrowthData}>
-                    <defs>
-                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#395192" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#395192" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
+                  <BarChart data={platformOverviewData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
+                    <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="users"
-                      stroke="#395192"
-                      fillOpacity={1}
-                      fill="url(#colorUsers)"
-                    />
-                  </AreaChart>
+                    <Bar dataKey="value" fill="#395192" radius={[8, 8, 0, 0]} />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-semibold">User Activity Breakdown</CardTitle>
+                <CardTitle className="text-xl font-semibold">Users, Courses & Enrollments</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={userGrowthData}>
+                  <AreaChart data={platformOverviewData}>
+                    <defs>
+                      <linearGradient id="colorOverview" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
+                    <XAxis dataKey="name" />
                     <YAxis />
                     <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="active"
-                      stroke="#10b981"
-                      strokeWidth={2}
-                      name="Active Users"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="creators"
-                      stroke="#8b5cf6"
-                      strokeWidth={2}
-                      name="Creators"
-                    />
-                  </LineChart>
+                    <Area type="monotone" dataKey="value" stroke="#8b5cf6" fill="url(#colorOverview)" />
+                  </AreaChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -301,11 +260,11 @@ export function GlobalAnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-semibold">Revenue Growth</CardTitle>
+                <CardTitle className="text-xl font-semibold">Revenue Metrics</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={revenueData}>
+                  <AreaChart data={revenueMetricsData}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
@@ -313,12 +272,12 @@ export function GlobalAnalyticsPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
+                    <XAxis dataKey="metric" />
                     <YAxis />
                     <Tooltip />
                     <Area
                       type="monotone"
-                      dataKey="revenue"
+                      dataKey="value"
                       stroke="#10b981"
                       fillOpacity={1}
                       fill="url(#colorRevenue)"
@@ -330,19 +289,16 @@ export function GlobalAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-semibold">Enrollments vs Revenue</CardTitle>
+                <CardTitle className="text-xl font-semibold">Revenue Comparison</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={revenueData}>
+                  <BarChart data={revenueMetricsData}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
+                    <XAxis dataKey="metric" />
+                    <YAxis />
                     <Tooltip />
-                    <Legend />
-                    <Bar yAxisId="left" dataKey="enrollments" fill="#395192" name="Enrollments" />
-                    <Bar yAxisId="right" dataKey="revenue" fill="#10b981" name="Revenue ($)" />
+                    <Bar dataKey="value" fill="#10b981" name="Value" radius={[8, 8, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -354,13 +310,13 @@ export function GlobalAnalyticsPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-semibold">Courses by Category</CardTitle>
+                <CardTitle className="text-xl font-semibold">Platform Distribution</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={categoryData}
+                      data={platformOverviewData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -371,7 +327,7 @@ export function GlobalAnalyticsPage() {
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {categoryData.map((entry, index) => (
+                      {platformOverviewData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -383,29 +339,20 @@ export function GlobalAnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-xl font-semibold">Users by Role</CardTitle>
+                <CardTitle className="text-xl font-semibold">Totals Comparison</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={roleData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name} ${(percent * 100).toFixed(0)}%`
-                      }
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {roleData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
+                  <BarChart data={comparisonData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
                     <Tooltip />
-                  </PieChart>
+                    <Legend />
+                    <Bar dataKey="users" fill="#395192" name="Users" />
+                    <Bar dataKey="courses" fill="#8b5cf6" name="Courses" />
+                    <Bar dataKey="enrollments" fill="#10b981" name="Enrollments" />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
@@ -413,67 +360,56 @@ export function GlobalAnalyticsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Top Performers */}
+      {/* Summary */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Top Courses by Enrollment</CardTitle>
+            <CardTitle className="text-xl font-semibold">Platform Summary</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {courses
-                .sort((a, b) => (b.enrollments || 0) - (a.enrollments || 0))
-                .slice(0, 5)
-                .map((course, index) => (
-                  <div key={course.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-sm font-bold">{index + 1}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{course.title}</p>
-                        <p className="text-xs text-muted-foreground">{course.category}</p>
-                      </div>
+              {platformOverviewData.map((item, index) => (
+                <div key={item.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-bold">{index + 1}</span>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{course.enrollments || 0}</p>
-                      <p className="text-xs text-muted-foreground">students</p>
+                    <div>
+                      <p className="font-medium text-sm">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">Current total</p>
                     </div>
                   </div>
-                ))}
+                  <div className="text-right">
+                    <p className="font-medium">{item.value.toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Top Rated Courses</CardTitle>
+            <CardTitle className="text-xl font-semibold">Performance Ratios</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {courses
-                .filter((c) => c.rating > 0)
-                .sort((a, b) => (b.rating || 0) - (a.rating || 0))
-                .slice(0, 5)
-                .map((course, index) => (
-                  <div key={course.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
-                        <span className="text-sm font-bold">{index + 1}</span>
-                      </div>
-                      <div>
-                        <p className="font-medium text-sm">{course.title}</p>
-                        <p className="text-xs text-muted-foreground">{course.category}</p>
-                      </div>
+              {additionalMetrics.map((metric, index) => (
+                <div key={metric.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-yellow-500/10 flex items-center justify-center">
+                      <span className="text-sm font-bold">{index + 1}</span>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{course.rating?.toFixed(1) || '0.0'} ⭐</p>
-                      <p className="text-xs text-muted-foreground">
-                        {course.total_reviews || 0} reviews
-                      </p>
+                    <div>
+                      <p className="font-medium text-sm">{metric.label}</p>
+                      <p className="text-xs text-muted-foreground">Derived from totals</p>
                     </div>
                   </div>
-                ))}
+                  <div className="text-right">
+                    <p className="font-medium">{metric.value}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { psychologistApi } from '../../utils/api-client';
 
 interface MyBookingsProps {
   onNavigate: (page: string, data?: any) => void;
@@ -39,35 +40,94 @@ interface Booking {
   createdAt: string;
   hourlyRate: number;
   meetingLink?: string;
+  rejectionReason?: string;
+  sessionSummary?: string;
 }
 
 export function MyBookings({ onNavigate }: MyBookingsProps) {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [activeTab, setActiveTab] = useState('upcoming');
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
 
-    // Load bookings for current user
-    const allBookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
-    const userBookings = allBookings.filter((b: Booking) => b.studentEmail === user.email);
-    setBookings(userBookings);
+    let isMounted = true;
+
+    const loadBookings = async () => {
+      try {
+        setBookingsLoading(true);
+        setBookingsError(null);
+
+        const data = await psychologistApi.getBookings();
+        const list = Array.isArray(data)
+          ? data
+          : data.bookings ?? data.items ?? data.results ?? [];
+
+        const normalizedBookings: Booking[] = list.map((item: any, index: number) => ({
+          id: item.id ?? item._id ?? `booking-${index}`,
+          psychologistId:
+            item.psychologist?.id ?? item.psychologist_id ?? item.psychologistId ?? '',
+          psychologistName:
+            item.psychologist?.full_name ??
+            item.psychologist_name ??
+            item.psychologistName ??
+            'Psychologist',
+          psychologistEmail:
+            item.psychologist?.email ??
+            item.psychologist_email ??
+            item.psychologistEmail ??
+            '',
+          studentEmail:
+            item.student?.email ?? item.student_email ?? item.studentEmail ?? user.email,
+          studentName:
+            item.student?.full_name ?? item.student_name ?? item.studentName ?? 'Student',
+          date: item.date ?? item.booking_date ?? item.session_date ?? '',
+          time: item.time ?? item.booking_time ?? item.session_time ?? '',
+          sessionType: item.session_type ?? item.sessionType ?? 'Session',
+          notes: item.notes ?? '',
+          status: item.status ?? 'pending',
+          createdAt: item.created_at ?? item.createdAt ?? '',
+          hourlyRate: Number(item.price ?? item.hourly_rate ?? item.hourlyRate ?? 0),
+          meetingLink:
+            item.session_notes?.meeting_link ?? item.sessionNotes?.meeting_link ?? '',
+          rejectionReason: item.rejection_reason ?? item.rejectionReason ?? '',
+          sessionSummary:
+            item.session_notes?.session_summary ??
+            item.sessionSummary ??
+            '',
+        }));
+
+        if (!isMounted) return;
+        setBookings(normalizedBookings);
+      } catch (error) {
+        if (!isMounted) return;
+
+        console.error('[MyBookings] Error loading bookings:', error);
+        setBookings([]);
+        setBookingsError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load your bookings. Please try again.',
+        );
+      } finally {
+        if (isMounted) {
+          setBookingsLoading(false);
+        }
+      }
+    };
+
+    loadBookings();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
-  const handleCancelBooking = (bookingId: string) => {
-    if (!confirm('Are you sure you want to cancel this appointment?')) {
-      return;
-    }
-
-    const allBookings = JSON.parse(localStorage.getItem('appointment_bookings') || '[]');
-    const updatedBookings = allBookings.map((b: Booking) =>
-      b.id === bookingId ? { ...b, status: 'cancelled' } : b
-    );
-    localStorage.setItem('appointment_bookings', JSON.stringify(updatedBookings));
-
-    setBookings(updatedBookings.filter((b: Booking) => b.studentEmail === user?.email));
-    toast.success('Appointment cancelled successfully');
+  const handleCancelBooking = () => {
+    toast.info('Booking cancellation from the learner side is not available yet.');
   };
 
   const handleReschedule = (booking: Booking) => {
@@ -76,8 +136,11 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
   };
 
   const handleJoinCall = (booking: Booking) => {
-    // In a real app, this would open the video call
-    toast.success('Joining video call...');
+    if (booking.meetingLink) {
+      window.open(booking.meetingLink, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    toast.info('Meeting link will appear here when it is available.');
   };
 
   const isUpcoming = (booking: Booking) => {
@@ -117,7 +180,7 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
       case 'pending':
         return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Pending</Badge>;
       case 'cancelled':
-        return <Badge variant="destructive">Cancelled</Badge>;
+        return <Badge variant="destructive">Rejected</Badge>;
       case 'completed':
         return <Badge variant="secondary">Completed</Badge>;
       default:
@@ -168,6 +231,22 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
             </div>
           )}
 
+          {booking.rejectionReason ? (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <strong>Reason provided:</strong> {booking.rejectionReason}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
+          {booking.sessionSummary ? (
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-sm text-muted-foreground">
+                <strong>Session summary:</strong> {booking.sessionSummary}
+              </p>
+            </div>
+          ) : null}
+
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-sm text-muted-foreground">Session Fee:</span>
             <span className="font-semibold">${booking.hourlyRate}</span>
@@ -175,7 +254,7 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
 
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
-            {upcoming && !cancelled && (
+            {upcoming && !cancelled && booking.status === 'confirmed' && (
               <>
                 <Button
                   size="sm"
@@ -203,6 +282,11 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
                   Cancel
                 </Button>
               </>
+            )}
+            {booking.status === 'pending' && (
+              <div className="flex-1 rounded-lg border border-yellow-500/40 bg-yellow-50 p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200">
+                Waiting for the psychologist to confirm or reject this booking.
+              </div>
             )}
             {past && !cancelled && (
               <>
@@ -317,7 +401,21 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
 
         {/* Upcoming Bookings */}
         <TabsContent value="upcoming" className="space-y-4 mt-6">
-          {upcomingBookings.length > 0 ? (
+          {bookingsLoading ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground">
+                Loading your bookings...
+              </div>
+            </Card>
+          ) : bookingsError ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground space-y-2">
+                <AlertCircle className="h-12 w-12 mx-auto opacity-50" />
+                <p className="font-medium text-foreground">Unable to load bookings</p>
+                <p>{bookingsError}</p>
+              </div>
+            </Card>
+          ) : upcomingBookings.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {upcomingBookings.map((booking) => (
                 <BookingCard key={booking.id} booking={booking} />
@@ -341,7 +439,20 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
 
         {/* Past Bookings */}
         <TabsContent value="past" className="space-y-4 mt-6">
-          {pastBookings.length > 0 ? (
+          {bookingsLoading ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground">
+                Loading your bookings...
+              </div>
+            </Card>
+          ) : bookingsError ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground space-y-2">
+                <AlertCircle className="h-12 w-12 mx-auto opacity-50" />
+                <p>{bookingsError}</p>
+              </div>
+            </Card>
+          ) : pastBookings.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {pastBookings.map((booking) => (
                 <BookingCard key={booking.id} booking={booking} />
@@ -362,7 +473,20 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
 
         {/* Cancelled Bookings */}
         <TabsContent value="cancelled" className="space-y-4 mt-6">
-          {cancelledBookings.length > 0 ? (
+          {bookingsLoading ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground">
+                Loading your bookings...
+              </div>
+            </Card>
+          ) : bookingsError ? (
+            <Card className="p-12">
+              <div className="text-center text-muted-foreground space-y-2">
+                <AlertCircle className="h-12 w-12 mx-auto opacity-50" />
+                <p>{bookingsError}</p>
+              </div>
+            </Card>
+          ) : cancelledBookings.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {cancelledBookings.map((booking) => (
                 <BookingCard key={booking.id} booking={booking} />

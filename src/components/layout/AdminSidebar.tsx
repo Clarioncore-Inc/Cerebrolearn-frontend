@@ -40,98 +40,78 @@ export function AdminSidebar({
       id: 'dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard,
-      description: 'Overview & stats',
       isSeparator: false,
     },
     {
       id: 'users',
       label: 'User Management',
       icon: Users,
-      description: 'Manage users & roles',
       isSeparator: false,
     },
     {
       id: 'courses',
       label: 'Course Management',
       icon: BookOpen,
-      description: 'Manage all courses',
       isSeparator: false,
     },
     {
       id: 'categories',
       label: 'Category Management',
       icon: FolderOpen,
-      description: 'Manage categories',
       isSeparator: false,
     },
     {
       id: 'applications',
       label: 'Applications',
       icon: ClipboardCheck,
-      description: 'Review applications',
       isSeparator: false,
     },
     {
       id: 'psychologists',
       label: 'Psychologists',
       icon: UserCheck,
-      description: 'Manage psychologists',
-      isSeparator: false,
-    },
-    {
-      id: 'admin_psychologist_management',
-      label: 'Psychologist Management',
-      icon: UserCheck,
-      description: 'Verify & manage',
       isSeparator: false,
     },
     {
       id: 'admin_booking_management',
       label: 'Booking Management',
       icon: Calendar,
-      description: 'Monitor bookings',
       isSeparator: false,
     },
     {
       id: 'admin_financials',
       label: 'Financials',
       icon: DollarSign,
-      description: 'Revenue & payouts',
       isSeparator: false,
     },
     {
       id: 'psychologist_analytics',
       label: 'Psychologist Analytics',
       icon: BarChart3,
-      description: 'Performance insights',
       isSeparator: false,
     },
     {
       id: 'analytics',
       label: 'Global Analytics',
       icon: BarChart3,
-      description: 'Platform insights',
       isSeparator: false,
     },
     {
       id: 'organizations',
       label: 'Organizations',
       icon: Building2,
-      description: 'Manage orgs',
       isSeparator: false,
     },
     {
       id: 'reports',
       label: 'Reports',
       icon: FileText,
-      description: 'Export reports',
       isSeparator: false,
     },
     {
       id: 'settings',
       label: 'Platform Settings',
       icon: Settings,
-      description: 'Configure platform',
       isSeparator: false,
     },
     {
@@ -193,7 +173,7 @@ export function AdminSidebar({
     >
       <div className="flex flex-col h-full">
         {/* Header */}
-        <div className="p-4 flex items-center justify-between">
+        <div className="p-4 flex items-center justify-between mt-3 ml-3">
           {!collapsed && (
             <div>
               <h2 className="font-semibold">Admin Panel</h2>
@@ -217,7 +197,7 @@ export function AdminSidebar({
         <Separator />
 
         {/* Menu Items */}
-        <ScrollArea className="flex-1 px-3 py-4">
+        <ScrollArea className="flex-1 overflow-hidden px-3 py-4">
           <nav className="space-y-1">
             {menuItems.map((item) => {
               const isActive = currentPage === item.id;
