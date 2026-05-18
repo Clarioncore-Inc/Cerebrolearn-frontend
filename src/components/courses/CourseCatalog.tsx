@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { coursesApi } from '../../utils/api-client';
 import {
   Card,
@@ -68,11 +68,66 @@ export function CourseCatalog({
     filterCourses();
   }, [searchQuery, categoryFilter, levelFilter, courses]);
 
+  const formatCategoryLabel = (value: string = '') =>
+    value
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+
+  const getCategoryIcon = (category: string) => {
+    const normalized = category.toLowerCase();
+
+    if (normalized.includes('math')) return TrendingUp;
+    if (normalized.includes('business') || normalized.includes('finance')) return Award;
+    return BookOpen;
+  };
+
+  const getImageUrl = (course: any) => {
+    const attachment = course.thumbnail ?? course.cover_image;
+    if (!attachment) return '';
+    if (typeof attachment === 'string') {
+      return /^https?:\/\//i.test(attachment) ? attachment : '';
+    }
+    return attachment.url ?? '';
+  };
+
+  const categories = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    courses.forEach((course) => {
+      const rawCategory = typeof course.category === 'string' ? course.category.trim() : '';
+      if (!rawCategory) return;
+      counts.set(rawCategory, (counts.get(rawCategory) ?? 0) + 1);
+    });
+
+    const dynamicCategories = Array.from(counts.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([value, count]) => ({
+        value,
+        label: formatCategoryLabel(value),
+        icon: getCategoryIcon(value),
+        description: `${count} course${count === 1 ? '' : 's'} available`,
+        count,
+      }));
+
+    return [{ value: 'all', label: 'All Categories', icon: BookOpen, count: courses.length }, ...dynamicCategories];
+  }, [courses]);
+
   const loadCourses = async () => {
     try {
-      const data = await coursesApi.getAll();
-      setCourses(data.items || []);
-      setFilteredCourses(data.items || []);
+      const allCourses: any[] = [];
+      let page = 1;
+      let totalPages = 1;
+
+      do {
+        const data = await coursesApi.getAll(page, 100);
+        allCourses.push(...(data.items || []));
+        totalPages = data.pages || 1;
+        page += 1;
+      } while (page <= totalPages);
+
+      setCourses(allCourses);
+      setFilteredCourses(allCourses);
     } catch (error) {
       console.error('Error loading courses:', error);
     } finally {
@@ -103,52 +158,6 @@ export function CourseCatalog({
 
     setFilteredCourses(filtered);
   };
-
-  const categories = [
-    { value: 'all', label: 'All Categories', icon: BookOpen },
-    {
-      value: 'science',
-      label: 'Science',
-      icon: BookOpen,
-      description: 'Physics, Chemistry, Biology, and more',
-    },
-    {
-      value: 'mathematics',
-      label: 'Mathematics',
-      icon: TrendingUp,
-      description: 'Algebra, Calculus, Statistics, and more',
-    },
-    {
-      value: 'technology',
-      label: 'Technology',
-      icon: BookOpen,
-      description: 'Programming, AI, Web Dev, and more',
-    },
-    {
-      value: 'business',
-      label: 'Business',
-      icon: Award,
-      description: 'Marketing, Finance, Entrepreneurship',
-    },
-    {
-      value: 'programming',
-      label: 'Programming',
-      icon: BookOpen,
-      description: 'Web, Mobile, Game Development',
-    },
-    {
-      value: 'design',
-      label: 'Design',
-      icon: BookOpen,
-      description: 'UI/UX, Graphic Design, 3D Modeling',
-    },
-    {
-      value: 'languages',
-      label: 'Languages',
-      icon: BookOpen,
-      description: 'English, Spanish, French, and more',
-    },
-  ];
 
   const levels = [
     { value: 'all', label: 'All Levels' },
@@ -380,7 +389,15 @@ export function CourseCatalog({
                   className={`h-48 bg-gradient-to-br ${levelGradients[course.level as keyof typeof levelGradients] || 'from-indigo-500 to-purple-500'} flex items-center justify-center relative overflow-hidden`}
                 >
                   <div className='absolute inset-0 bg-black/20'></div>
-                  <BookOpen className='h-20 w-20 text-white/90 relative z-10 group-hover:scale-110 transition-transform' />
+                  {getImageUrl(course) ? (
+                    <img
+                      src={getImageUrl(course)}
+                      alt={course.title}
+                      className='h-full w-full object-cover group-hover:scale-110 transition-transform duration-700'
+                    />
+                  ) : (
+                    <BookOpen className='h-20 w-20 text-white/90 relative z-10 group-hover:scale-110 transition-transform' />
+                  )}
 
                   {/* Overlay on hover */}
                   <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-end p-6'>

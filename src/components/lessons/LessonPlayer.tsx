@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { progressApi } from '../../utils/api-client';
+import { coursesApi, progressApi } from '../../utils/api-client';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Progress } from '../ui/progress';
@@ -692,6 +692,24 @@ export function LessonPlayer({
         state: { currentStep },
       });
 
+      if (course?.id && lesson?.id) {
+        try {
+          await coursesApi.saveActivity({
+            course_id: course.id,
+            lesson_id: lesson.id,
+            lesson_index:
+              typeof lesson?.lessonIndex === 'number'
+                ? lesson.lessonIndex
+                : typeof lesson?.position === 'number'
+                  ? lesson.position
+                  : undefined,
+            progress: newProgress,
+          });
+        } catch (activityError) {
+          console.error('Error saving course activity:', activityError);
+        }
+      }
+
       setProgress(newProgress);
 
       if (newProgress === 100 && !completed) {
@@ -777,7 +795,7 @@ export function LessonPlayer({
       <div className='container max-w-4xl py-8'>
         <Button
           variant='ghost'
-          onClick={() => onNavigate('course', course)}
+          onClick={() => onNavigate('course-detail', { courseId: course.id })}
           className='mb-6'
         >
           <ChevronLeft className='mr-2 h-4 w-4' />
@@ -798,7 +816,7 @@ export function LessonPlayer({
       <div className='container max-w-5xl py-8 space-y-6'>
         {/* Header */}
         <div className='flex items-center justify-between'>
-          <Button variant='ghost' onClick={() => onNavigate('course', course)}>
+          <Button variant='ghost' onClick={() => onNavigate('course-detail', { courseId: course.id })}>
             <ChevronLeft className='mr-2 h-4 w-4' />
             Back to Course
           </Button>
@@ -890,7 +908,7 @@ export function LessonPlayer({
               <Button
                 variant='default'
                 size='lg'
-                onClick={() => onNavigate('course', course)}
+                onClick={() => onNavigate('course-detail', { courseId: course.id })}
                 className='bg-green-600 hover:bg-green-700'
               >
                 <CheckCircle2 className='mr-2 h-4 w-4' />

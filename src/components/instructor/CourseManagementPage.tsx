@@ -488,14 +488,24 @@ export function CourseManagementPage({
         courseReviews.length
       : 0;
 
+  const learnerCount = Number(
+    course.total_enrollments ?? course.enrollments ?? enrolledStudents.length ?? 0,
+  );
+
   // Load enrolled students for this course
   useEffect(() => {
     const loadStudents = async () => {
       setLoadingStudents(true);
       try {
         const response = await enrollmentsApi.getByCourse(course.id);
-        if (response.enrollments) {
-          const enrichedStudents = response.enrollments.map(
+        const enrollments = Array.isArray(response)
+          ? response
+          : Array.isArray((response as any)?.enrollments)
+            ? (response as any).enrollments
+            : [];
+
+        if (enrollments.length > 0) {
+          const enrichedStudents = enrollments.map(
             (enrollment: any) => ({
               id: enrollment.user_id || enrollment.id,
               enrollmentId: enrollment.id,
@@ -513,6 +523,8 @@ export function CourseManagementPage({
             }),
           );
           setEnrolledStudents(enrichedStudents);
+        } else {
+          setEnrolledStudents([]);
         }
       } catch (error) {
         console.error('Error loading students:', error);
@@ -640,7 +652,7 @@ export function CourseManagementPage({
                     Total Learners
                   </p>
                   <p className='text-2xl font-bold'>
-                    {course.enrollments || 0}
+                    {learnerCount}
                   </p>
                 </div>
                 <Users className='h-8 w-8 text-blue-500' />

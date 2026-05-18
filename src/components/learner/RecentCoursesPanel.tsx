@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { ScrollArea } from '../ui/scroll-area';
+import { enrollmentsApi } from '../../utils/api-client';
 import { 
   BookOpen, 
   Clock, 
@@ -31,6 +32,7 @@ interface RecentCourse {
   rating?: number;
   category?: string;
   level?: string;
+  subcategory?: string;
 }
 
 export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPanelProps) {
@@ -39,42 +41,73 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadRecentCourses();
+    void loadRecentCourses();
   }, [user]);
 
-  const loadRecentCourses = () => {
-    try {
-      // Get from localStorage
-      const historyKey = `learningHistory_${user?.id || 'guest'}`;
-      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
-      
-      // Get unique courses from history
-      const courseMap = new Map<string, any>();
-      
-      history.forEach((item: any) => {
-        if (!courseMap.has(item.courseId)) {
-          courseMap.set(item.courseId, {
-            id: item.courseId,
-            title: item.courseTitle,
-            lastAccessed: new Date(item.timestamp),
-            progress: item.progress || 0,
-            totalLessons: item.totalLessons || 10,
-            completedLessons: item.completedLessons || 0,
-            thumbnail: item.thumbnail,
-            rating: item.rating,
-            category: item.category,
-            level: item.level
-          });
-        }
-      });
+  const getCourseImageUrl = (course: any) => {
+    const attachment = course?.cover_image ?? course?.thumbnail;
+    if (!attachment) return '';
+    if (typeof attachment === 'string') {
+      return /^https?:\/\//i.test(attachment) ? attachment : '';
+    }
+    return attachment.url ?? '';
+  };
 
-      const courses = Array.from(courseMap.values())
-        .sort((a, b) => b.lastAccessed.getTime() - a.lastAccessed.getTime())
+  const loadRecentCourses = async () => {
+    if (!user) {
+      setRecentCourses([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const enrollments = await enrollmentsApi.getMy();
+
+      const recent = (enrollments || [])
+        .map((enrollment: any) => {
+          const course = enrollment.course;
+          if (!course?.id) return null;
+
+          const totalLessons = Number(
+            course.total_lessons ??
+              course.lessons?.length ??
+              course.sections?.reduce(
+                (sum: number, section: any) => sum + (section.lessons?.length || 0),
+                0,
+              ) ??
+              0,
+          );
+          const progress = Number(enrollment.progress ?? 0);
+          const completedLessons = Math.round((progress / 100) * totalLessons);
+
+          return {
+            id: course.id,
+            title: course.title,
+            lastAccessed: new Date(
+              enrollment.last_accessed ?? enrollment.enrolled_at ?? enrollment.created_at,
+            ),
+            progress,
+            totalLessons,
+            completedLessons,
+            thumbnail: getCourseImageUrl(course),
+            rating: Number(course.rating ?? 0),
+            category: course.category,
+            level: course.level,
+            subcategory: course.subcategory,
+          };
+        })
+        .filter(Boolean)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime(),
+        )
         .slice(0, maxItems);
 
-      setRecentCourses(courses);
+      setRecentCourses(recent as RecentCourse[]);
     } catch (error) {
       console.error('Error loading recent courses:', error);
+      setRecentCourses([]);
     } finally {
       setLoading(false);
     }
@@ -144,12 +177,19 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
         <ScrollArea className="h-[400px] -mx-2 px-2">
           <div className="space-y-3">
             {recentCourses.map((course, index) => (
+              (() => {
+                const progressPercent =
+                  course.totalLessons > 0
+                    ? (course.completedLessons / course.totalLessons) * 100
+                    : Number(course.progress ?? 0);
+
+                return (
               <div
                 key={course.id}
                 className="group relative p-3 rounded-lg border bg-card hover:bg-accent/50 hover:border-primary/30 transition-all cursor-pointer"
                 onClick={() => onNavigate('course-detail', { 
-                  category: 'science', // Default category
-                  subcategory: 'physics', // Default subcategory
+                  category: course.category || 'general',
+                  subcategory: course.subcategory || 'general',
                   courseId: course.id 
                 })}
               >
@@ -203,7 +243,7 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
                     {/* Progress */}
                     <div className="space-y-1">
                       <Progress 
-                        value={(course.completedLessons / course.totalLessons) * 100} 
+                        value={progressPercent} 
                         className="h-1.5"
                       />
                       <div className="flex items-center justify-between text-xs">
@@ -211,7 +251,7 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
                           {course.completedLessons}/{course.totalLessons} lessons
                         </span>
                         <span className="text-primary font-medium">
-                          {Math.round((course.completedLessons / course.totalLessons) * 100)}%
+                          {Math.round(progressPercent)}%
                         </span>
                       </div>
                     </div>
@@ -225,8 +265,8 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
                     onClick={(e) => {
                       e.stopPropagation();
                       onNavigate('course-detail', { 
-                        category: 'science', // Default category
-                        subcategory: 'physics', // Default subcategory
+                        category: course.category || 'general',
+                        subcategory: course.subcategory || 'general',
                         courseId: course.id 
                       });
                     }}
@@ -246,6 +286,8 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
                   )}
                 </div>
               </div>
+                );
+              })()
             ))}
           </div>
         </ScrollArea>

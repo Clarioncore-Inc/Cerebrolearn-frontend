@@ -29,69 +29,69 @@ export function UniversalBreadcrumb({
       currentPage === 'course-detail' ||
       currentPage === 'course-detail-page'
     ) {
-      crumbs.push({ label: 'Courses', page: 'catalog' });
-      if (pageData?.category) {
-        crumbs.push({
-          label: pageData.category,
-          page: 'category',
-          data: { category: pageData.category },
-        });
-      }
-      if (pageData?.title) {
-        crumbs.push({ label: pageData.title, page: currentPage });
-      } else {
-        crumbs.push({ label: 'Course Details', page: currentPage });
-      }
+      // crumbs.push({ label: 'Courses', page: 'catalog' });
+      // if (pageData?.category) {
+      //   crumbs.push({
+      //     label: pageData.category,
+      //     page: 'category',
+      //     data: { category: pageData.category },
+      //   });
+      // }
+      // if (pageData?.title) {
+      //   crumbs.push({ label: pageData.title, page: currentPage });
+      // } else {
+      //   crumbs.push({ label: 'Course Details', page: currentPage });
+      // }
     }
 
     // Lesson breadcrumbs
-    else if (currentPage === 'lesson') {
-      crumbs.push({ label: 'Courses', page: 'catalog' });
-      if (pageData?.courseTitle) {
-        crumbs.push({
-          label: pageData.courseTitle,
-          page: 'course-detail',
-          data: { courseId: pageData.courseId },
-        });
-      }
-      if (pageData?.lessonTitle) {
-        crumbs.push({ label: pageData.lessonTitle, page: currentPage });
-      } else {
-        crumbs.push({ label: 'Lesson', page: currentPage });
-      }
-    }
+    // else if (currentPage === 'lesson') {
+    //   crumbs.push({ label: 'Courses', page: 'catalog' });
+    //   if (pageData?.courseTitle) {
+    //     crumbs.push({
+    //       label: pageData.courseTitle,
+    //       page: 'course-detail',
+    //       data: { courseId: pageData.courseId },
+    //     });
+    //   }
+    //   if (pageData?.lessonTitle) {
+    //     crumbs.push({ label: pageData.lessonTitle, page: currentPage });
+    //   } else {
+    //     crumbs.push({ label: 'Lesson', page: currentPage });
+    //   }
+    // }
 
     // Category breadcrumbs
-    else if (currentPage === 'category') {
-      crumbs.push({ label: 'Courses', page: 'catalog' });
-      if (pageData?.category) {
-        crumbs.push({ label: pageData.category, page: currentPage });
-      } else {
-        crumbs.push({ label: 'Category', page: currentPage });
-      }
-    }
+    // else if (currentPage === 'category') {
+    //   crumbs.push({ label: 'Courses', page: 'catalog' });
+    //   if (pageData?.category) {
+    //     crumbs.push({ label: pageData.category, page: currentPage });
+    //   } else {
+    //     crumbs.push({ label: 'Category', page: currentPage });
+    //   }
+    // }
 
     // Subcategory breadcrumbs
-    else if (currentPage === 'subcategory') {
-      crumbs.push({ label: 'Courses', page: 'catalog' });
-      if (pageData?.category) {
-        crumbs.push({
-          label: pageData.category,
-          page: 'category',
-          data: { category: pageData.category },
-        });
-      }
-      if (pageData?.subcategory) {
-        crumbs.push({ label: pageData.subcategory, page: currentPage });
-      } else {
-        crumbs.push({ label: 'Subcategory', page: currentPage });
-      }
-    }
+    // else if (currentPage === 'subcategory') {
+    //   crumbs.push({ label: 'Courses', page: 'catalog' });
+    //   if (pageData?.category) {
+    //     crumbs.push({
+    //       label: pageData.category,
+    //       page: 'category',
+    //       data: { category: pageData.category },
+    //     });
+    //   }
+    //   if (pageData?.subcategory) {
+    //     crumbs.push({ label: pageData.subcategory, page: currentPage });
+    //   } else {
+    //     crumbs.push({ label: 'Subcategory', page: currentPage });
+    //   }
+    // }
 
     // Catalog breadcrumbs
-    else if (currentPage === 'catalog') {
-      crumbs.push({ label: 'All Courses', page: currentPage });
-    }
+    // else if (currentPage === 'catalog') {
+    //   crumbs.push({ label: 'All Courses', page: currentPage });
+    // }
 
     // IQ Test breadcrumbs
     else if (currentPage === 'iq-test-landing') {

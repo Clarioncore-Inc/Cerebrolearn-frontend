@@ -1,18 +1,16 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { coursesApi } from '../../utils/api-client';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   ArrowRight,
   Star,
   Users,
   Clock,
   BookOpen,
-  TrendingUp,
-  Award,
   Play,
-  Filter
+  Filter,
 } from 'lucide-react';
 import {
   Select,
@@ -28,253 +26,200 @@ interface SubcategoryPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
-const subcategoryData: Record<string, Record<string, {
+interface DisplayCourse {
+  id: string;
   title: string;
-  description: string;
-  courses: Array<{
-    id: string;
-    title: string;
-    instructor: string;
-    level: string;
-    rating: number;
-    students: string;
-    duration: string;
-    lessons: number;
-    price: number;
-    image: string;
-    tags: string[];
-  }>;
-}>> = {
-  science: {
-    physics: {
-      title: 'Physics',
-      description: 'Explore the fundamental laws of nature, from classical mechanics to quantum physics',
-      courses: [
-        {
-          id: 'general-physics',
-          title: 'General Physics',
-          instructor: 'Dr. Sarah Mitchell',
-          level: 'Beginner',
-          rating: 4.8,
-          students: '8.2K',
-          duration: '12 weeks',
-          lessons: 48,
-          price: 49.99,
-          image: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb',
-          tags: ['Mechanics', 'Thermodynamics', 'Waves']
-        },
-        {
-          id: 'theoretical-physics',
-          title: 'Theoretical Physics',
-          instructor: 'Prof. James Chen',
-          level: 'Advanced',
-          rating: 4.9,
-          students: '5.4K',
-          duration: '16 weeks',
-          lessons: 64,
-          price: 79.99,
-          image: 'https://images.unsplash.com/photo-1636690513351-0af1763f6237',
-          tags: ['Quantum Mechanics', 'Relativity', 'Field Theory']
-        },
-        {
-          id: 'quantum-physics',
-          title: 'Quantum Physics',
-          instructor: 'Dr. Emily Roberts',
-          level: 'Advanced',
-          rating: 4.9,
-          students: '6.8K',
-          duration: '14 weeks',
-          lessons: 56,
-          price: 69.99,
-          image: 'https://images.unsplash.com/photo-1635070041409-e63e783ce3b0',
-          tags: ['Quantum Theory', 'Wave Functions', 'Entanglement']
-        },
-        {
-          id: 'classical-mechanics',
-          title: 'Classical Mechanics',
-          instructor: 'Dr. Michael Brown',
-          level: 'Intermediate',
-          rating: 4.7,
-          students: '7.5K',
-          duration: '10 weeks',
-          lessons: 40,
-          price: 44.99,
-          image: 'https://images.unsplash.com/photo-1509228627152-72ae9ae6848d',
-          tags: ['Newtonian Physics', 'Dynamics', 'Energy']
-        },
-        {
-          id: 'electromagnetism',
-          title: 'Electromagnetism',
-          instructor: 'Prof. Linda Parker',
-          level: 'Intermediate',
-          rating: 4.8,
-          students: '6.9K',
-          duration: '12 weeks',
-          lessons: 48,
-          price: 54.99,
-          image: 'https://images.unsplash.com/photo-1518770660439-4636190af475',
-          tags: ['Electric Fields', 'Magnetic Fields', 'Maxwell\'s Equations']
-        },
-        {
-          id: 'astrophysics',
-          title: 'Astrophysics',
-          instructor: 'Dr. Richard Taylor',
-          level: 'Advanced',
-          rating: 4.9,
-          students: '5.2K',
-          duration: '15 weeks',
-          lessons: 60,
-          price: 74.99,
-          image: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7464',
-          tags: ['Stellar Physics', 'Cosmology', 'Black Holes']
-        }
-      ]
-    },
-    chemistry: {
-      title: 'Chemistry',
-      description: 'Master chemical principles from basic reactions to advanced organic chemistry',
-      courses: [
-        {
-          id: 'general-chemistry',
-          title: 'General Chemistry',
-          instructor: 'Dr. Amanda White',
-          level: 'Beginner',
-          rating: 4.7,
-          students: '9.5K',
-          duration: '12 weeks',
-          lessons: 48,
-          price: 49.99,
-          image: 'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6',
-          tags: ['Atoms', 'Molecules', 'Reactions']
-        },
-        {
-          id: 'organic-chemistry',
-          title: 'Organic Chemistry',
-          instructor: 'Prof. David Lee',
-          level: 'Intermediate',
-          rating: 4.8,
-          students: '7.2K',
-          duration: '14 weeks',
-          lessons: 56,
-          price: 59.99,
-          image: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d',
-          tags: ['Carbon Compounds', 'Synthesis', 'Mechanisms']
-        }
-      ]
-    },
-    biology: {
-      title: 'Biology',
-      description: 'Study life from cellular biology to ecosystems and evolution',
-      courses: [
-        {
-          id: 'general-biology',
-          title: 'General Biology',
-          instructor: 'Dr. Maria Garcia',
-          level: 'Beginner',
-          rating: 4.9,
-          students: '12.3K',
-          duration: '12 weeks',
-          lessons: 48,
-          price: 49.99,
-          image: 'https://images.unsplash.com/photo-1530213786676-41ad9f7736f6',
-          tags: ['Cells', 'Genetics', 'Evolution']
-        },
-        {
-          id: 'molecular-biology',
-          title: 'Molecular Biology',
-          instructor: 'Prof. John Anderson',
-          level: 'Advanced',
-          rating: 4.8,
-          students: '6.8K',
-          duration: '14 weeks',
-          lessons: 56,
-          price: 64.99,
-          image: 'https://images.unsplash.com/photo-1579154204601-01588f351e67',
-          tags: ['DNA', 'RNA', 'Proteins']
-        }
-      ]
-    }
-  }
+  instructor: string;
+  level: string;
+  rating: number;
+  students: number;
+  duration: string;
+  lessons: number;
+  price: number;
+  image: string;
+  tags: string[];
+}
+
+const normalizeKey = (value: string = '') =>
+  value.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, ' ').trim();
+
+const toTitleCase = (value: string) =>
+  value.replace(/[-_]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+
+const formatLevel = (level?: string) => {
+  if (!level) return 'Beginner';
+  return level.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
+const getLessonCount = (course: any) => {
+  if (typeof course.total_lessons === 'number') return course.total_lessons;
+  const sections = Array.isArray(course.sections) ? course.sections : [];
+  return sections.reduce(
+    (total: number, section: any) => total + (section.lessons?.length || 0),
+    0,
+  );
+};
+
+const getDurationText = (course: any) => {
+  if (course.total_duration_text && course.total_duration_text !== '0m') {
+    return course.total_duration_text;
+  }
+  if (course.duration && course.duration !== '0m') {
+    return course.duration;
+  }
+  if (course.estimated_hours) {
+    return `${course.estimated_hours}h`;
+  }
+  return 'Self-paced';
+};
+
+const getImageUrl = (course: any) => {
+  const attachment = course.thumbnail ?? course.cover_image;
+  if (!attachment) return '';
+  if (typeof attachment === 'string') {
+    return /^https?:\/\//i.test(attachment) ? attachment : '';
+  }
+  return attachment.url ?? '';
+};
+
+const mapCourse = (course: any): DisplayCourse => ({
+  id: course.id,
+  title: course.title ?? 'Untitled Course',
+  instructor: course.creator?.full_name ?? 'Instructor',
+  level: formatLevel(course.level),
+  rating: Number(course.rating ?? 0),
+  students: Number(course.total_enrollments ?? course.enrollments ?? 0),
+  duration: getDurationText(course),
+  lessons: getLessonCount(course),
+  price: Number(course.price ?? 0),
+  image: getImageUrl(course),
+  tags: Array.isArray(course.tags) ? course.tags.filter(Boolean) : [],
+});
+
 export function SubcategoryPage({ category, subcategory, onNavigate }: SubcategoryPageProps) {
+  const [courses, setCourses] = useState<DisplayCourse[]>([]);
   const [sortBy, setSortBy] = useState('popular');
   const [filterLevel, setFilterLevel] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const data = subcategoryData[category.toLowerCase()]?.[subcategory.toLowerCase()];
+  useEffect(() => {
+    let isMounted = true;
 
-  if (!data) {
-    return (
-      <div className="container py-20 text-center">
-        <h1 className="text-3xl font-bold text-foreground mb-4">Subcategory Not Found</h1>
-        <Button onClick={() => onNavigate('category', { category })}>Back to Category</Button>
-      </div>
+    const loadCourses = async () => {
+      setLoading(true);
+      setError('');
+
+      try {
+        const allCourses: any[] = [];
+        let page = 1;
+        let totalPages = 1;
+
+        do {
+          const data = await coursesApi.getAll(page, 100);
+          allCourses.push(...(data.items || []));
+          totalPages = data.pages || 1;
+          page += 1;
+        } while (page <= totalPages);
+
+        const matchedCourses = allCourses
+          .filter(
+            (course) =>
+              normalizeKey(course.category) === normalizeKey(category) &&
+              normalizeKey(course.subcategory || '') === normalizeKey(subcategory),
+          )
+          .map(mapCourse);
+
+        if (!isMounted) return;
+        setCourses(matchedCourses);
+      } catch (err) {
+        console.error('Error loading subcategory courses:', err);
+        if (!isMounted) return;
+        setCourses([]);
+        setError(err instanceof Error ? err.message : 'Failed to load courses');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void loadCourses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [category, subcategory]);
+
+  const sortedCourses = useMemo(() => {
+    const filtered = courses.filter(
+      (course) => filterLevel === 'all' || normalizeKey(course.level) === filterLevel,
     );
-  }
 
-  const filteredCourses = data.courses.filter(course => 
-    filterLevel === 'all' || course.level.toLowerCase() === filterLevel
-  );
+    return [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'rating':
+          return b.rating - a.rating;
+        case 'students':
+          return b.students - a.students;
+        case 'price-low':
+          return a.price - b.price;
+        case 'price-high':
+          return b.price - a.price;
+        case 'popular':
+        default:
+          return b.students - a.students;
+      }
+    });
+  }, [courses, filterLevel, sortBy]);
 
-  const sortedCourses = [...filteredCourses].sort((a, b) => {
-    switch (sortBy) {
-      case 'rating':
-        return b.rating - a.rating;
-      case 'students':
-        return parseFloat(b.students) - parseFloat(a.students);
-      case 'price-low':
-        return a.price - b.price;
-      case 'price-high':
-        return b.price - a.price;
-      default:
-        return 0;
-    }
-  });
+  const averageRating =
+    courses.length > 0
+      ? Math.round((courses.reduce((sum, course) => sum + course.rating, 0) / courses.length) * 10) / 10
+      : 0;
+
+  const totalLessons = courses.reduce((sum, course) => sum + course.lessons, 0);
+  const title = toTitleCase(subcategory);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-accent/30 to-background">
-      {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border/50">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-success/5"></div>
-        <div className="container relative py-12 max-w-7xl">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-secondary/5 to-success/5" />
+        <div className="container relative max-w-7xl py-12">
           <Button
             variant="ghost"
             onClick={() => onNavigate('category', { category })}
-            className="mb-6 group"
+            className="group mb-6"
           >
-            <ArrowRight className="w-4 h-4 mr-2 rotate-180 group-hover:-translate-x-1 transition-transform" />
+            <ArrowRight className="mr-2 h-4 w-4 rotate-180 transition-transform group-hover:-translate-x-1" />
             Back to {category}
           </Button>
 
           <div className="max-w-4xl">
-            <Badge className="bg-primary text-white border-0 mb-4">
-              <BookOpen className="w-3 h-3 mr-1" />
-              {category} / {data.title}
+            <Badge className="mb-4 border-0 bg-primary text-white">
+              <BookOpen className="mr-1 h-3 w-3" />
+              {category} / {title}
             </Badge>
-            
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4">
-              <span className="gradient-text">{data.title}</span> Courses
+
+            <h1 className="mb-4 text-3xl font-bold md:text-4xl lg:text-5xl">
+              <span className="gradient-text">{title}</span> Courses
             </h1>
-            
-            <p className="text-lg text-muted-foreground leading-relaxed mb-6">
-              {data.description}
+
+            <p className="mb-6 text-lg leading-relaxed text-muted-foreground">
+              {loading
+                ? 'Loading courses...'
+                : `${courses.length} course${courses.length !== 1 ? 's' : ''} available in this subcategory.`}
             </p>
 
             <div className="flex items-center gap-8">
               <div>
-                <div className="text-2xl font-bold text-foreground">{data.courses.length}</div>
+                <div className="text-2xl font-bold text-foreground">{courses.length}</div>
                 <div className="text-sm text-muted-foreground">Courses</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground">
-                  {Math.round(data.courses.reduce((acc, c) => acc + c.rating, 0) / data.courses.length * 10) / 10}
-                </div>
+                <div className="text-2xl font-bold text-foreground">{averageRating}</div>
                 <div className="text-sm text-muted-foreground">Avg Rating</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-foreground">
-                  {data.courses.reduce((acc, c) => acc + c.lessons, 0)}
-                </div>
+                <div className="text-2xl font-bold text-foreground">{totalLessons}</div>
                 <div className="text-sm text-muted-foreground">Total Lessons</div>
               </div>
             </div>
@@ -282,15 +227,13 @@ export function SubcategoryPage({ category, subcategory, onNavigate }: Subcatego
         </div>
       </section>
 
-      {/* Filters & Courses */}
-      <section className="container py-12 max-w-7xl">
-        {/* Filter Bar */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 p-4 glass rounded-2xl">
+      <section className="container max-w-7xl py-12">
+        <div className="glass mb-8 flex flex-col items-start justify-between gap-4 rounded-2xl p-4 md:flex-row md:items-center">
           <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5 text-muted-foreground" />
+            <Filter className="h-5 w-5 text-muted-foreground" />
             <span className="font-medium">Showing {sortedCourses.length} courses</span>
           </div>
-          
+
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">Level:</span>
@@ -325,88 +268,111 @@ export function SubcategoryPage({ category, subcategory, onNavigate }: Subcatego
           </div>
         </div>
 
-        {/* Courses Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {sortedCourses.map((course) => (
-            <Card
-              key={course.id}
-              className="group cursor-pointer hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 overflow-hidden border-2 border-transparent hover:border-primary"
-              onClick={() => onNavigate('course-detail', { 
-                category, 
-                subcategory, 
-                courseId: course.id 
-              })}
-            >
-              <div className="relative h-48 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10"></div>
-                <img
-                  src={course.image}
-                  alt={course.title}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                />
-                
-                <div className="absolute top-3 left-3 right-3 z-20 flex justify-between items-start">
-                  <Badge 
-                    className={`${
-                      course.level === 'Beginner' ? 'bg-green-500' :
-                      course.level === 'Intermediate' ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    } text-white border-0`}
-                  >
-                    {course.level}
-                  </Badge>
-                  <div className="text-white font-bold text-lg glass px-3 py-1 rounded-full">
-                    ${course.price}
-                  </div>
-                </div>
+        {error ? (
+          <Card className="p-12 text-center">
+            <div className="text-muted-foreground">{error}</div>
+          </Card>
+        ) : loading ? (
+          <Card className="p-12 text-center">
+            <div className="text-muted-foreground">Loading courses...</div>
+          </Card>
+        ) : sortedCourses.length === 0 ? (
+          <Card className="p-12 text-center">
+            <div className="text-muted-foreground">No courses found for this subcategory yet.</div>
+          </Card>
+        ) : (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            {sortedCourses.map((course) => (
+              <Card
+                key={course.id}
+                className="group cursor-pointer overflow-hidden border-2 border-transparent transition-all duration-500 hover:-translate-y-2 hover:border-primary hover:shadow-2xl"
+                onClick={() =>
+                  onNavigate('course-detail', {
+                    category,
+                    subcategory,
+                    courseId: course.id,
+                  })
+                }
+              >
+                <div className="relative h-48 overflow-hidden">
+                  <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                  {course.image ? (
+                    <img
+                      src={course.image}
+                      alt={course.title}
+                      className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/25 to-secondary/20">
+                      <BookOpen className="h-16 w-16 text-primary/40" />
+                    </div>
+                  )}
 
-                <div className="absolute bottom-3 left-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <Button size="sm" className="w-full bg-white text-primary hover:bg-white/90">
-                    <Play className="w-4 h-4 mr-2" />
-                    View Course
-                  </Button>
-                </div>
-              </div>
-
-              <CardContent className="p-4 space-y-3">
-                <div>
-                  <h3 className="text-xl font-bold text-foreground mb-1 line-clamp-1 group-hover:text-primary transition-colors">
-                    {course.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">{course.instructor}</p>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  {course.tags.slice(0, 2).map((tag, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">
-                      {tag}
+                  <div className="absolute left-3 right-3 top-3 z-20 flex items-start justify-between">
+                    <Badge
+                      className={`${
+                        course.level === 'Beginner'
+                          ? 'bg-green-500'
+                          : course.level === 'Intermediate'
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                      } border-0 text-white`}
+                    >
+                      {course.level}
                     </Badge>
-                  ))}
+                    <div className="glass rounded-full px-3 py-1 text-lg font-bold text-white">
+                      ${course.price}
+                    </div>
+                  </div>
+
+                  <div className="absolute bottom-3 left-3 right-3 z-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <Button size="sm" className="w-full bg-white text-primary hover:bg-white/90">
+                      <Play className="mr-2 h-4 w-4" />
+                      View Course
+                    </Button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border text-sm">
-                  <div className="flex items-center gap-1.5">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{course.rating}</span>
-                    <span className="text-muted-foreground">({course.students})</span>
+                <CardContent className="space-y-3 p-4">
+                  <div>
+                    <h3 className="mb-1 line-clamp-1 text-xl font-bold text-foreground transition-colors group-hover:text-primary">
+                      {course.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">{course.instructor}</p>
                   </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <BookOpen className="w-4 h-4" />
-                    <span>{course.lessons} lessons</span>
+
+                  <div className="flex flex-wrap gap-1.5">
+                    {course.tags.slice(0, 2).map((tag, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Clock className="w-4 h-4" />
-                    <span>{course.duration}</span>
+
+                  <div className="grid grid-cols-2 gap-2 border-t border-border pt-3 text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                      <span className="font-medium">{course.rating}</span>
+                      <span className="text-muted-foreground">({course.students})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <BookOpen className="h-4 w-4" />
+                      <span>{course.lessons} lessons</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Clock className="h-4 w-4" />
+                      <span>{course.duration}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span>{course.students}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Users className="w-4 h-4" />
-                    <span>{course.students}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

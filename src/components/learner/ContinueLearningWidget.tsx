@@ -3,8 +3,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
 import { Badge } from '../ui/badge';
-import { Play, Clock, BookOpen, ChevronRight, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Play, Clock, BookOpen, ChevronRight, TrendingUp } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { coursesApi, enrollmentsApi } from '../../utils/api-client';
 
 interface ContinueLearningWidgetProps {
   onNavigate: (page: string, data?: any) => void;
@@ -13,6 +14,8 @@ interface ContinueLearningWidgetProps {
 interface LastActivity {
   courseId: string;
   courseTitle: string;
+  courseCategory?: string;
+  courseSubcategory?: string;
   lessonId: string;
   lessonTitle: string;
   progress: number;
@@ -21,61 +24,146 @@ interface LastActivity {
   totalLessons: number;
   completedLessons: number;
   estimatedTimeLeft: string;
+  lessonData: any | null;
+  courseData: any;
 }
 
 export function ContinueLearningWidget({ onNavigate }: ContinueLearningWidgetProps) {
   const { user } = useAuth();
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null);
+  const [hasEnrollments, setHasEnrollments] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadLastActivity();
+    void loadLastActivity();
   }, [user]);
 
-  const loadLastActivity = () => {
+  const getCourseImageUrl = (course: any) => {
+    const attachment = course?.cover_image ?? course?.thumbnail;
+    if (!attachment) return undefined;
+    if (typeof attachment === 'string') {
+      return /^https?:\/\//i.test(attachment) ? attachment : undefined;
+    }
+    return attachment.url ?? undefined;
+  };
+
+  const getCourseLessons = (course: any) =>
+    course?.lessons ||
+    course?.sections?.flatMap((section: any) => section.lessons || []) ||
+    [];
+
+  const buildLastActivity = (
+    course: any,
+    lesson: any,
+    progress: number,
+    lastAccessedAt: string,
+  ): LastActivity => {
+    const totalLessons = Number(course?.total_lessons ?? getCourseLessons(course).length ?? 0);
+    const boundedProgress = Math.max(0, Math.min(100, Number(progress ?? 0)));
+
+    return {
+      courseId: course.id,
+      courseTitle: course.title || 'Your Course',
+      courseCategory: course.category,
+      courseSubcategory: course.subcategory,
+      lessonId: lesson?.id || 'lesson-1',
+      lessonTitle: lesson?.title || 'Introduction',
+      progress: boundedProgress,
+      thumbnail: getCourseImageUrl(course),
+      lastAccessed: new Date(lastAccessedAt),
+      totalLessons,
+      completedLessons:
+        totalLessons > 0 ? Math.round((boundedProgress / 100) * totalLessons) : 0,
+      estimatedTimeLeft: course?.total_duration_text || course?.duration || '0m',
+      lessonData: lesson || null,
+      courseData: course,
+    };
+  };
+
+  const loadLastActivity = async () => {
     try {
-      // Get from localStorage - use the same key as CourseDetailPage
-      const activityKey = `learning_activity_${user?.id || 'guest'}`;
-      const stored = localStorage.getItem(activityKey);
-      
-      if (stored) {
-        const activity = JSON.parse(stored);
-        activity.lastAccessed = new Date(activity.lastAccessed);
-        
-        // Convert to LastActivity format if needed
-        setLastActivity({
-          courseId: activity.courseId,
-          courseTitle: activity.courseTitle,
-          lessonId: activity.lessonId,
-          lessonTitle: activity.lessonTitle,
-          progress: activity.progress || 0,
-          lastAccessed: new Date(activity.lastAccessed),
-          totalLessons: 10,
-          completedLessons: 0,
-          estimatedTimeLeft: '5h 30m'
-        });
+      if (!user) {
+        setHasEnrollments(false);
+        setLastActivity(null);
+        return;
+      }
+
+      const enrollments = await enrollmentsApi.getMy();
+
+      setHasEnrollments(enrollments.length > 0);
+
+      if (enrollments.length === 0) {
+        setLastActivity(null);
+        return;
+      }
+
+      const activities = await Promise.all(
+        enrollments.map(async (enrollment: any) => {
+          const courseId = enrollment.course?.id ?? enrollment.course_id;
+          if (!courseId) return null;
+
+          try {
+            const activity = await coursesApi.getActivity(courseId);
+            return { enrollment, activity };
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      const latestActivity = activities
+        .filter(Boolean)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.activity.last_accessed_at).getTime() -
+            new Date(a.activity.last_accessed_at).getTime(),
+        )[0] as any;
+
+      if (latestActivity) {
+        const summaryCourse = latestActivity.enrollment.course || {};
+        const courseDetail = await coursesApi
+          .getById(summaryCourse.id)
+          .catch(() => summaryCourse);
+        const lesson = getCourseLessons(courseDetail).find(
+          (item: any) => String(item.id) === String(latestActivity.activity.lesson_id),
+        );
+
+        setLastActivity(
+          buildLastActivity(
+            courseDetail,
+            lesson,
+            latestActivity.activity.progress,
+            latestActivity.activity.last_accessed_at,
+          ),
+        );
+        return;
+      }
+
+      const firstEnrollment = enrollments[0];
+      const summaryCourse = firstEnrollment.course || {};
+      const courseDetail = summaryCourse?.id
+        ? await coursesApi.getById(summaryCourse.id).catch(() => summaryCourse)
+        : summaryCourse;
+      const firstLesson = getCourseLessons(courseDetail)[0] || null;
+
+      if (summaryCourse?.id) {
+        setLastActivity(
+          buildLastActivity(
+            courseDetail,
+            firstLesson,
+            firstEnrollment.progress ?? 0,
+            firstEnrollment.last_accessed ??
+              firstEnrollment.enrolled_at ??
+              firstEnrollment.created_at ??
+              new Date().toISOString(),
+          ),
+        );
       } else {
-        // If no activity, check enrollments and suggest first incomplete course
-        const enrollmentsKey = `enrollments_${user?.id || 'guest'}`;
-        const enrollments = JSON.parse(localStorage.getItem(enrollmentsKey) || '[]');
-        
-        if (enrollments.length > 0) {
-          const firstEnrollment = enrollments[0];
-          setLastActivity({
-            courseId: firstEnrollment.course_id,
-            courseTitle: firstEnrollment.course_title || 'Your Course',
-            lessonId: 'lesson-1',
-            lessonTitle: 'Introduction',
-            progress: 0,
-            lastAccessed: new Date(),
-            totalLessons: 10,
-            completedLessons: 0,
-            estimatedTimeLeft: '5h 30m'
-          });
-        }
+        setLastActivity(null);
       }
     } catch (error) {
       console.error('Error loading last activity:', error);
+      setLastActivity(null);
     } finally {
       setLoading(false);
     }
@@ -95,28 +183,18 @@ export function ContinueLearningWidget({ onNavigate }: ContinueLearningWidgetPro
       });
       localStorage.setItem(historyKey, JSON.stringify(history.slice(0, 20)));
 
-      // Create lesson data for the player
-      const lessonData = {
-        id: lastActivity.lessonId,
-        title: lastActivity.lessonTitle,
-        type: 'video',
-        duration: '15 min',
-        content: {
-          title: lastActivity.lessonTitle,
-          duration: '15 min',
-          description: `${lastActivity.lessonTitle} from ${lastActivity.courseTitle}`,
-          videoUrl: '', // Will be handled by the player
-        }
-      };
-      
-      // Navigate to lesson with proper data structure
-      onNavigate('lesson', {
-        lesson: lessonData,
-        course: {
-          id: lastActivity.courseId,
-          title: lastActivity.courseTitle,
-          instructor: 'Instructor'
-        }
+      if (lastActivity.lessonData) {
+        onNavigate('lesson', {
+          lesson: lastActivity.lessonData,
+          course: lastActivity.courseData,
+        });
+        return;
+      }
+
+      onNavigate('course-detail', {
+        category: lastActivity.courseCategory || 'general',
+        subcategory: lastActivity.courseSubcategory || 'general',
+        courseId: lastActivity.courseId,
       });
     }
   };
@@ -125,8 +203,8 @@ export function ContinueLearningWidget({ onNavigate }: ContinueLearningWidgetPro
     if (lastActivity) {
       // Navigate to course detail page to start from the beginning
       onNavigate('course-detail', { 
-        category: 'science', // Default category
-        subcategory: 'physics', // Default subcategory
+        category: lastActivity.courseCategory || 'general',
+        subcategory: lastActivity.courseSubcategory || 'general',
         courseId: lastActivity.courseId 
       });
     }
@@ -152,10 +230,12 @@ export function ContinueLearningWidget({ onNavigate }: ContinueLearningWidgetPro
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
             <BookOpen className="w-5 h-5 text-primary" />
-            Start Your Learning Journey
+            {hasEnrollments ? 'Keep Learning' : 'Start Your Learning Journey'}
           </CardTitle>
           <CardDescription>
-            Browse the course catalog and enroll in your first course
+            {hasEnrollments
+              ? 'Browse your learning path or explore the course catalog'
+              : 'Browse the course catalog and enroll in your first course'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -172,7 +252,7 @@ export function ContinueLearningWidget({ onNavigate }: ContinueLearningWidgetPro
     );
   }
 
-  const progressPercent = (lastActivity.completedLessons / lastActivity.totalLessons) * 100;
+  const progressPercent = Math.max(0, Math.min(100, Number(lastActivity.progress ?? 0)));
 
   return (
     <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background relative overflow-hidden">

@@ -148,6 +148,7 @@ export function MyCoursesPage({
         return {
           ...c,
           reviews: c.reviews ?? c.total_reviews ?? 0,
+          enrollments: Number(c.enrollments ?? c.total_enrollments ?? 0),
           is_public: c.is_public ?? c.public ?? false,
           duration: c.total_duration_text ?? '0h',
           lessons: c.total_lessons ?? 0,

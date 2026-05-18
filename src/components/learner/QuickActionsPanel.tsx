@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -20,6 +20,12 @@ import {
   BarChart3,
   FileText
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  learnerApi,
+  type LearningGoalRecord,
+  type ProgressDashboardRecord,
+} from '../../utils/api-client';
 
 interface QuickActionsPanelProps {
   onNavigate: (page: string, data?: any) => void;
@@ -38,6 +44,48 @@ interface QuickAction {
 }
 
 export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsPanelProps) {
+  const { user } = useAuth();
+  const [dashboard, setDashboard] = useState<ProgressDashboardRecord | null>(null);
+  const [goals, setGoals] = useState<LearningGoalRecord[]>([]);
+
+  useEffect(() => {
+    const loadQuickStats = async () => {
+      if (!user) {
+        setDashboard(null);
+        setGoals([]);
+        return;
+      }
+
+      try {
+        const [dashboardData, goalData] = await Promise.all([
+          learnerApi.getProgressDashboard(),
+          learnerApi.getGoals(),
+        ]);
+        setDashboard(dashboardData);
+        setGoals(goalData || []);
+      } catch (error) {
+        console.error('Error loading quick action stats:', error);
+      }
+    };
+
+    void loadQuickStats();
+  }, [user]);
+
+  const activeGoalsCount = useMemo(
+    () => goals.filter((goal) => !goal.completed).length,
+    [goals],
+  );
+
+  const quickStats = useMemo(
+    () => ({
+      dayStreak: Number(dashboard?.stats?.current_streak ?? 0),
+      lessonsDone: Number(dashboard?.stats?.lessons_completed ?? 0),
+      coursesActive: Number(dashboard?.stats?.in_progress_courses ?? 0),
+      avgProgress: Math.round(Number(dashboard?.stats?.average_progress ?? 0)),
+    }),
+    [dashboard],
+  );
+
   const actions: QuickAction[] = [
     {
       id: 'continue',
@@ -63,7 +111,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       icon: TrendingUp,
       action: 'my-learning-path',
       color: 'from-green-500 to-emerald-500',
-      badge: '3 in progress'
+      badge: `${quickStats.coursesActive} in progress`
     },
     {
       id: 'goals',
@@ -72,7 +120,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       icon: Target,
       action: 'learning-goals',
       color: 'from-orange-500 to-red-500',
-      badge: '2 active'
+      badge: `${activeGoalsCount} active`
     },
     {
       id: 'bookmarks',
@@ -84,14 +132,6 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       badge: '8'
     },
     {
-      id: 'achievements',
-      label: 'Achievements',
-      description: 'View your badges & certificates',
-      icon: Trophy,
-      action: 'achievements',
-      color: 'from-yellow-500 to-amber-500'
-    },
-    {
       id: 'progress',
       label: 'Progress Dashboard',
       description: 'Detailed learning analytics',
@@ -99,15 +139,6 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       action: 'progress-dashboard',
       color: 'from-blue-600 to-indigo-600',
       highlight: true
-    },
-    {
-      id: 'streak',
-      label: 'Learning Streak',
-      description: 'Daily streak & activity',
-      icon: Flame,
-      action: 'learning-streak',
-      color: 'from-orange-600 to-red-600',
-      badge: '7 days'
     },
     {
       id: 'schedule',
@@ -124,14 +155,6 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       icon: Award,
       action: 'leaderboard',
       color: 'from-rose-500 to-pink-500'
-    },
-    {
-      id: 'community',
-      label: 'Community',
-      description: 'Join study groups',
-      icon: Users,
-      action: 'community',
-      color: 'from-violet-500 to-purple-500'
     },
     {
       id: 'discussions',
@@ -225,7 +248,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
                   key={action.id}
                   variant={action.highlight ? 'default' : 'outline'}
                   className="h-auto p-3 flex flex-col items-start gap-1"
-                  onClick={() => handleAction(action.id)}
+                  onClick={() => handleAction(action.action)}
                 >
                   <div className="flex items-center gap-2 w-full">
                     <Icon className="w-4 h-4" />
@@ -262,7 +285,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
             return (
               <button
                 key={action.id}
-                onClick={() => handleAction(action.id)}
+                  onClick={() => handleAction(action.action)}
                 className={`group relative p-4 rounded-xl border-2 bg-gradient-to-br ${action.color} bg-opacity-10 hover:bg-opacity-20 transition-all hover:shadow-lg hover:scale-105 ${
                   action.highlight ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-primary/30'
                 }`}
@@ -302,19 +325,19 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
         <div className="mt-6 pt-6 border-t">
           <div className="grid grid-cols-4 gap-4 text-center">
             <div>
-              <div className="text-2xl font-bold text-primary">7</div>
+              <div className="text-2xl font-bold text-primary">{quickStats.dayStreak}</div>
               <div className="text-xs text-muted-foreground">Day Streak</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">12</div>
+              <div className="text-2xl font-bold text-green-600">{quickStats.lessonsDone}</div>
               <div className="text-xs text-muted-foreground">Lessons Done</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">3</div>
+              <div className="text-2xl font-bold text-blue-600">{quickStats.coursesActive}</div>
               <div className="text-xs text-muted-foreground">Courses Active</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-orange-600">85%</div>
+              <div className="text-2xl font-bold text-orange-600">{quickStats.avgProgress}%</div>
               <div className="text-xs text-muted-foreground">Avg Progress</div>
             </div>
           </div>

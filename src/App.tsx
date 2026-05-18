@@ -76,6 +76,7 @@ import { ProgressDashboard } from './components/learner/ProgressDashboard';
 import { LearningStreakTracker } from './components/learner/LearningStreakTracker';
 import { CourseNotesSystem } from './components/learner/CourseNotesSystem';
 import { CourseComparisonTool } from './components/courses/CourseComparisonTool';
+import { DiscussionForum } from './components/social/DiscussionForum';
 import { StudentSessionsDashboard } from './components/student/StudentSessionsDashboard';
 import { EnhancedTherapyDashboard } from './components/student/EnhancedTherapyDashboard';
 import { SessionPreparation } from './components/student/SessionPreparation';
@@ -763,6 +764,9 @@ function AppContent() {
       case 'goals':
         return <LearningGoalsDashboard onNavigate={handleNavigate} />;
 
+      case 'achievements':
+        return <ProgressDashboard onNavigate={handleNavigate} />;
+
       case 'progress-dashboard':
       case 'learning-progress':
         return <ProgressDashboard onNavigate={handleNavigate} />;
@@ -771,9 +775,20 @@ function AppContent() {
       case 'streak-tracker':
         return <LearningStreakTracker onNavigate={handleNavigate} />;
 
+      case 'schedule':
+        return <LearningStreakTracker onNavigate={handleNavigate} />;
+
       case 'course-notes':
       case 'notes':
         return <CourseNotesSystem onNavigate={handleNavigate} />;
+
+      case 'community':
+      case 'discussions':
+        return (
+          <div className='container py-8'>
+            <DiscussionForum isGeneralForum />
+          </div>
+        );
 
       case 'course-comparison':
       case 'compare-courses':

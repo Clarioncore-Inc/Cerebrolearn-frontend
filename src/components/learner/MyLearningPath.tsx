@@ -25,6 +25,8 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { coursesApi, enrollmentsApi, progressApi } from '../../utils/api-client';
+import { toast } from 'sonner@2.0.3';
 
 interface MyLearningPathProps {
   onNavigate: (page: string, data?: any) => void;
@@ -36,6 +38,7 @@ interface EnrolledCourse {
   description: string;
   thumbnail?: string;
   category: string;
+  subcategory?: string | null;
   level: string;
   totalLessons: number;
   completedLessons: number;
@@ -49,8 +52,86 @@ interface EnrolledCourse {
   nextLesson?: {
     id: string;
     title: string;
+    lesson: any;
   };
 }
+
+const formatLevel = (value?: string) => {
+  if (!value) return 'Beginner';
+  return value.replace(/[-_]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+const getCourseImageUrl = (course: any) => {
+  const attachment = course?.thumbnail ?? course?.cover_image;
+  if (!attachment) return '';
+  if (typeof attachment === 'string') {
+    return /^https?:\/\//i.test(attachment) ? attachment : '';
+  }
+  return attachment.url ?? '';
+};
+
+const getEstimatedTime = (course: any) => {
+  if (course?.total_duration_text) return String(course.total_duration_text);
+  if (Number(course?.total_duration_minutes) > 0) {
+    return `${Number(course.total_duration_minutes)}m`;
+  }
+  if (Number(course?.estimated_hours) > 0) {
+    return `${Number(course.estimated_hours)}h`;
+  }
+  return '0m';
+};
+
+const getEnrollmentCourseId = (enrollment: any) =>
+  String(enrollment?.course?.id ?? enrollment?.course_id ?? '');
+
+const getSortedLessons = (course: any) => {
+  const sections = Array.isArray(course?.sections) ? [...course.sections] : [];
+
+  return sections
+    .sort((a: any, b: any) => Number(a?.order ?? 0) - Number(b?.order ?? 0))
+    .flatMap((section: any, sectionIndex: number) => {
+      const lessons = Array.isArray(section?.lessons) ? [...section.lessons] : [];
+
+      return lessons
+        .sort((a: any, b: any) => Number(a?.position ?? 0) - Number(b?.position ?? 0))
+        .map((lesson: any, lessonIndex: number) => ({
+          ...lesson,
+          lessonIndex:
+            typeof lesson?.lessonIndex === 'number'
+              ? lesson.lessonIndex
+              : typeof lesson?.position === 'number'
+                ? lesson.position
+                : sectionIndex * 1000 + lessonIndex,
+        }));
+    });
+};
+
+const navigateToCourseDetail = (
+  onNavigate: (page: string, data?: any) => void,
+  course: EnrolledCourse,
+) => {
+  onNavigate('course-detail', {
+    category: course.category,
+    subcategory: course.subcategory || 'general',
+    courseId: course.id,
+  });
+};
+
+const navigateToLesson = (
+  onNavigate: (page: string, data?: any) => void,
+  course: EnrolledCourse,
+) => {
+  if (!course.nextLesson) return;
+
+  onNavigate('lesson', {
+    lesson: course.nextLesson.lesson,
+    course: {
+      id: course.id,
+      title: course.title,
+      instructor: course.instructor,
+    },
+  });
+};
 
 export function MyLearningPath({ onNavigate }: MyLearningPathProps) {
   const { user } = useAuth();
@@ -62,52 +143,155 @@ export function MyLearningPath({ onNavigate }: MyLearningPathProps) {
   const [sortBy, setSortBy] = useState<string>('recent');
 
   useEffect(() => {
-    loadEnrolledCourses();
+    void loadEnrolledCourses();
   }, [user]);
 
   useEffect(() => {
     filterAndSortCourses();
   }, [courses, searchQuery, statusFilter, sortBy]);
 
-  const loadEnrolledCourses = () => {
+  const loadEnrolledCourses = async () => {
+    if (!user) {
+      setCourses([]);
+      setFilteredCourses([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      // Get enrollments from localStorage
-      const enrollmentsKey = `enrollments_${user?.id || 'guest'}`;
-      const enrollments = JSON.parse(localStorage.getItem(enrollmentsKey) || '[]');
+      const enrollments = await enrollmentsApi.getMy();
 
-      // Mock course data (in real app, fetch from API)
-      const mockCourses: EnrolledCourse[] = enrollments.map((enrollment: any, index: number) => {
-        const completed = Math.floor(Math.random() * 10);
-        const total = 10;
-        const progress = (completed / total) * 100;
-        
-        return {
-          id: enrollment.course_id,
-          title: enrollment.course_title || `Course ${index + 1}`,
-          description: enrollment.description || 'Learn the fundamentals and advanced concepts',
-          category: enrollment.category || 'Science',
-          level: enrollment.level || 'Intermediate',
-          totalLessons: total,
-          completedLessons: completed,
-          enrolledDate: new Date(enrollment.enrolled_at || Date.now()),
-          lastAccessed: enrollment.last_accessed ? new Date(enrollment.last_accessed) : undefined,
-          estimatedTime: '12h 30m',
-          rating: 4.8,
-          instructor: 'Dr. Sarah Johnson',
-          progress: progress,
-          status: completed === 0 ? 'not-started' : completed === total ? 'completed' : 'in-progress',
-          nextLesson: completed < total ? {
-            id: `lesson-${completed + 1}`,
-            title: `Lesson ${completed + 1}: Next Topic`
-          } : undefined,
-          thumbnail: enrollment.thumbnail
-        };
-      });
+      const courseResults = await Promise.allSettled(
+        (enrollments || []).map(async (enrollment: any) => {
+          const courseId = getEnrollmentCourseId(enrollment);
+          if (!courseId) return null;
 
-      setCourses(mockCourses);
-      setFilteredCourses(mockCourses);
+          const enrollmentCourse = enrollment?.course ?? {};
+
+          const [courseDetail, courseActivity] = await Promise.all([
+            coursesApi.getById(courseId).catch(() => enrollmentCourse),
+            coursesApi.getActivity(courseId).catch(() => null),
+          ]);
+
+          const lessons = getSortedLessons(courseDetail);
+          const progressEntries = await Promise.all(
+            lessons.map(async (lesson: any) => {
+              try {
+                const progressRecord = await progressApi.get(String(lesson.id));
+                return [String(lesson.id), progressRecord] as const;
+              } catch {
+                return [String(lesson.id), null] as const;
+              }
+            }),
+          );
+
+          const progressByLessonId = new Map(progressEntries);
+          const totalLessons =
+            lessons.length ||
+            Number(courseDetail?.total_lessons ?? enrollmentCourse?.total_lessons ?? 0);
+
+          const totalPercent = lessons.reduce((sum, lesson) => {
+            const record = progressByLessonId.get(String(lesson.id));
+            return sum + Math.min(Number(record?.percent ?? 0), 100);
+          }, 0);
+
+          const completedLessons = lessons.filter((lesson) => {
+            const record = progressByLessonId.get(String(lesson.id));
+            return Boolean(record?.completed) || Number(record?.percent ?? 0) >= 100;
+          }).length;
+
+          const progress =
+            totalLessons > 0
+              ? Math.round(
+                  lessons.length > 0
+                    ? totalPercent / totalLessons
+                    : Number(courseActivity?.progress ?? enrollment?.progress ?? 0),
+                )
+              : 0;
+
+          const activityLesson = courseActivity?.lesson_id
+            ? lessons.find((lesson) => String(lesson.id) === String(courseActivity.lesson_id))
+            : undefined;
+          const activityLessonProgress = activityLesson
+            ? Number(
+                progressByLessonId.get(String(activityLesson.id))?.percent ??
+                  courseActivity?.progress ??
+                  0,
+              )
+            : 0;
+          const firstIncompleteLesson =
+            lessons.find(
+              (lesson) =>
+                Number(progressByLessonId.get(String(lesson.id))?.percent ?? 0) < 100,
+            ) ?? lessons[0];
+          const targetLesson =
+            activityLesson && activityLessonProgress < 100
+              ? activityLesson
+              : firstIncompleteLesson;
+
+          const status: EnrolledCourse['status'] =
+            totalLessons > 0 && completedLessons >= totalLessons
+              ? 'completed'
+              : progress > 0 || Boolean(courseActivity)
+                ? 'in-progress'
+                : 'not-started';
+
+          return {
+            id: courseId,
+            title: courseDetail?.title ?? enrollmentCourse?.title ?? 'Untitled Course',
+            description:
+              courseDetail?.description ??
+              enrollmentCourse?.description ??
+              'Continue your learning journey.',
+            thumbnail: getCourseImageUrl(courseDetail),
+            category: courseDetail?.category ?? enrollmentCourse?.category ?? 'General',
+            subcategory: courseDetail?.subcategory ?? enrollmentCourse?.subcategory ?? null,
+            level: formatLevel(courseDetail?.level ?? enrollmentCourse?.level),
+            totalLessons,
+            completedLessons,
+            enrolledDate: new Date(enrollment?.enrolled_at ?? enrollment?.created_at ?? Date.now()),
+            lastAccessed: courseActivity?.last_accessed_at
+              ? new Date(courseActivity.last_accessed_at)
+              : enrollment?.last_accessed
+                ? new Date(enrollment.last_accessed)
+                : undefined,
+            estimatedTime: getEstimatedTime(courseDetail),
+            rating: Number(courseDetail?.rating ?? enrollmentCourse?.rating ?? 0),
+            instructor:
+              courseDetail?.creator?.full_name ??
+              enrollmentCourse?.creator?.full_name ??
+              'Instructor',
+            progress,
+            status,
+            nextLesson:
+              targetLesson && status !== 'completed'
+                ? {
+                    id: String(targetLesson.id),
+                    title: targetLesson.title ?? 'Continue lesson',
+                    lesson: targetLesson,
+                  }
+                : undefined,
+          } satisfies EnrolledCourse;
+        }),
+      );
+
+      const loadedCourses = courseResults
+        .filter(
+          (result): result is PromiseFulfilledResult<EnrolledCourse | null> =>
+            result.status === 'fulfilled',
+        )
+        .map((result) => result.value)
+        .filter((course): course is EnrolledCourse => Boolean(course));
+
+      setCourses(loadedCourses);
+      setFilteredCourses(loadedCourses);
     } catch (error) {
       console.error('Error loading enrolled courses:', error);
+      toast.error('Failed to load your learning path');
+      setCourses([]);
+      setFilteredCourses([]);
     } finally {
       setLoading(false);
     }
@@ -380,11 +564,7 @@ function CourseCard({ course, onNavigate }: { course: EnrolledCourse; onNavigate
 
   return (
     <Card className="group hover:shadow-lg transition-all cursor-pointer overflow-hidden">
-      <div onClick={() => onNavigate('course-detail', { 
-        category: 'science', // Default category
-        subcategory: 'physics', // Default subcategory
-        courseId: course.id 
-      })}>
+      <div onClick={() => navigateToCourseDetail(onNavigate, course)}>
         {/* Thumbnail */}
         <div className="aspect-video bg-gradient-to-br from-primary/20 to-primary/5 relative overflow-hidden">
           {course.thumbnail ? (
@@ -459,10 +639,7 @@ function CourseCard({ course, onNavigate }: { course: EnrolledCourse; onNavigate
                 className="flex-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onNavigate('lesson', { 
-                    lessonId: course.nextLesson!.id,
-                    courseId: course.id 
-                  });
+                  navigateToLesson(onNavigate, course);
                 }}
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -474,11 +651,7 @@ function CourseCard({ course, onNavigate }: { course: EnrolledCourse; onNavigate
                 className="flex-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onNavigate('course-detail', { 
-                    category: 'science', // Default category
-                    subcategory: 'physics', // Default subcategory
-                    courseId: course.id 
-                  });
+                  navigateToCourseDetail(onNavigate, course);
                 }}
               >
                 <RotateCcw className="w-4 h-4 mr-2" />
@@ -489,11 +662,7 @@ function CourseCard({ course, onNavigate }: { course: EnrolledCourse; onNavigate
                 className="flex-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onNavigate('course-detail', { 
-                    category: 'science', // Default category
-                    subcategory: 'physics', // Default subcategory
-                    courseId: course.id 
-                  });
+                  navigateToCourseDetail(onNavigate, course);
                 }}
               >
                 <Play className="w-4 h-4 mr-2" />
@@ -505,11 +674,7 @@ function CourseCard({ course, onNavigate }: { course: EnrolledCourse; onNavigate
               size="icon"
               onClick={(e) => {
                 e.stopPropagation();
-                onNavigate('course-detail', { 
-                  category: 'science', // Default category
-                  subcategory: 'physics', // Default subcategory
-                  courseId: course.id 
-                });
+                navigateToCourseDetail(onNavigate, course);
               }}
             >
               <ChevronRight className="w-4 h-4" />
@@ -535,11 +700,7 @@ function CourseListItem({ course, onNavigate }: { course: EnrolledCourse; onNavi
   return (
     <Card 
       className="hover:shadow-md transition-all cursor-pointer"
-      onClick={() => onNavigate('course-detail', { 
-        category: 'science', // Default category
-        subcategory: 'physics', // Default subcategory
-        courseId: course.id 
-      })}
+      onClick={() => navigateToCourseDetail(onNavigate, course)}
     >
       <CardContent className="p-4">
         <div className="flex gap-4">
@@ -586,10 +747,7 @@ function CourseListItem({ course, onNavigate }: { course: EnrolledCourse; onNavi
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onNavigate('lesson', { 
-                        lessonId: course.nextLesson!.id,
-                        courseId: course.id 
-                      });
+                      navigateToLesson(onNavigate, course);
                     }}
                   >
                     <Play className="w-4 h-4 mr-1" />
@@ -601,11 +759,7 @@ function CourseListItem({ course, onNavigate }: { course: EnrolledCourse; onNavi
                     variant="outline"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onNavigate('course-detail', { 
-                        category: 'science', // Default category
-                        subcategory: 'physics', // Default subcategory
-                        courseId: course.id 
-                      });
+                      navigateToCourseDetail(onNavigate, course);
                     }}
                   >
                     View Course

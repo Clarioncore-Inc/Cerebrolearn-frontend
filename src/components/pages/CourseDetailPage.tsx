@@ -56,6 +56,47 @@ interface CourseDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
+const matchesEnrollmentCourse = (enrollment: any, targetCourseId: string) => {
+  const enrolledCourseId =
+    enrollment?.course_id ?? enrollment?.courseId ?? enrollment?.course?.id ?? null;
+  return String(enrolledCourseId) === String(targetCourseId);
+};
+
+const formatCourseDuration = (data: any) => {
+  if (data.total_duration_text) return data.total_duration_text;
+  if (Number(data.total_duration_minutes) > 0) {
+    return `${Number(data.total_duration_minutes)}m`;
+  }
+  if (Number(data.estimated_hours) > 0) {
+    return `${Number(data.estimated_hours)}h`;
+  }
+  return '0h';
+};
+
+const buildCourseIncludes = (data: any, totalLessons: number) => {
+  const sections: any[] = data.sections || [];
+  const interactiveCount = sections
+    .flatMap((section: any) => section.lessons || [])
+    .filter((lesson: any) =>
+      ['quiz', 'exercise', 'project', 'assignment', 'interactive'].includes(
+        String(lesson.type || '').toLowerCase(),
+      ),
+    ).length;
+
+  return [
+    formatCourseDuration(data) !== '0h'
+      ? `${formatCourseDuration(data)} total content`
+      : null,
+    totalLessons > 0 ? `${totalLessons} lesson${totalLessons === 1 ? '' : 's'}` : null,
+    interactiveCount > 0
+      ? `${interactiveCount} interactive activit${interactiveCount === 1 ? 'y' : 'ies'}`
+      : null,
+    data.enable_discussions ? 'Discussions enabled' : null,
+    data.enable_reviews ? 'Course reviews enabled' : null,
+    data.enable_certificates ? 'Certificate of completion' : null,
+  ].filter(Boolean) as string[];
+};
+
 // Helper to normalise an API course response into the shape this page renders
 function normaliseCourse(data: any, imageUrl = '') {
   const sections: any[] = data.sections || [];
@@ -63,6 +104,15 @@ function normaliseCourse(data: any, imageUrl = '') {
     (acc: number, s: any) => acc + (s.lessons?.length || 0),
     0,
   );
+  const buildDisplayLesson = (lesson: any) => ({
+    ...lesson,
+    type: lesson.kind || lesson.type || 'video',
+    duration:
+      lesson.duration ||
+      (Number(lesson.duration_minutes) > 0 ? `${lesson.duration_minutes} min` : ''),
+    locked: false,
+  });
+
   return {
     title: data.title || '',
     subtitle: data.sub_title || '',
@@ -78,7 +128,7 @@ function normaliseCourse(data: any, imageUrl = '') {
     rating: data.rating || 0,
     reviewCount: data.total_reviews || 0,
     students: data.total_enrollments || 0,
-    hours: data.estimated_hours ? `${data.estimated_hours}h` : '0h',
+    hours: formatCourseDuration(data),
     lessons: totalLessons,
     price: parseFloat(data.price) || 0,
     discount: data.discount ? parseFloat(data.discount) : null,
@@ -97,16 +147,12 @@ function normaliseCourse(data: any, imageUrl = '') {
       (data.course_goals?.length > 0 && data.course_goals) ||
       [],
     requirements: data.prerequisites || [],
+    includes: buildCourseIncludes(data, totalLessons),
     topics: sections.map((section: any) => ({
       title: section.title,
       lessons: section.lessons?.length || 0,
       duration: '',
-      items: (section.lessons || []).map((lesson: any) => ({
-        title: lesson.title,
-        type: lesson.type || 'video',
-        duration: lesson.duration || '',
-        locked: false,
-      })),
+      items: (section.lessons || []).map((lesson: any) => buildDisplayLesson(lesson)),
     })),
     reviews: [],
   };
@@ -166,6 +212,7 @@ const EMPTY_COURSE = {
   image: '',
   whatYouWillLearn: [],
   requirements: [],
+  includes: [] as string[],
   topics: [] as any[],
   reviews: [] as any[],
 };
@@ -184,6 +231,7 @@ export function CourseDetailPage({
     profile?.role === 'admin';
   const [enrolled, setEnrolled] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
   const [course, setCourse] = useState<any>(EMPTY_COURSE);
@@ -192,10 +240,15 @@ export function CourseDetailPage({
   useEffect(() => {
     const load = async () => {
       setLoading(true);
+      setCheckingEnrollment(!!user);
       try {
-        const data = await coursesApi.getById(courseId);
+        const [data, reviews] = await Promise.all([
+          coursesApi.getById(courseId),
+          coursesApi.getReviews(courseId).catch(() => []),
+        ]);
         const imageUrl = await resolveCourseImage(data.cover_image);
         setCourse(normaliseCourse(data, imageUrl));
+        setCourseReviews(reviews || []);
       } catch (error) {
         console.error('Error loading course:', error);
         toast.error('Failed to load course details');
@@ -208,12 +261,17 @@ export function CourseDetailPage({
         try {
           const enrollments = await enrollmentsApi.getMy();
           const isEnrolled = (enrollments as any[]).some(
-            (e: any) => e.course_id === courseId,
+            (e: any) => matchesEnrollmentCourse(e, courseId),
           );
           setEnrolled(isEnrolled);
         } catch {
           // ignore enrollment check errors
+        } finally {
+          setCheckingEnrollment(false);
         }
+      } else {
+        setEnrolled(false);
+        setCheckingEnrollment(false);
       }
     };
     load();
@@ -228,7 +286,12 @@ export function CourseDetailPage({
     setEnrolling(true);
     try {
       await enrollmentsApi.enroll(courseId);
-      setEnrolled(true);
+
+      const enrollments = await enrollmentsApi.getMy();
+      const isEnrolled = (enrollments as any[]).some(
+        (e: any) => matchesEnrollmentCourse(e, courseId),
+      );
+      setEnrolled(isEnrolled);
       toast.success('Successfully enrolled in course!');
     } catch (error) {
       console.error('Error enrolling:', error);
@@ -253,22 +316,8 @@ export function CourseDetailPage({
     const firstTopic = course.topics?.[0];
     if (firstTopic && firstTopic.items && firstTopic.items.length > 0) {
       const firstLesson = firstTopic.items[0];
-      const lessonData = {
-        id: `${courseId}-${firstTopic.title}-${firstLesson.title}`
-          .toLowerCase()
-          .replace(/\s+/g, '-'),
-        title: firstLesson.title,
-        type: firstLesson.type,
-        duration: firstLesson.duration,
-        content: {
-          title: firstLesson.title,
-          duration: firstLesson.duration,
-          description: `${firstLesson.title} from ${course.title}`,
-          videoUrl: '',
-        },
-      };
       onNavigate('lesson', {
-        lesson: lessonData,
+        lesson: firstLesson,
         course: {
           id: courseId,
           title: course.title,
@@ -439,7 +488,11 @@ export function CourseDetailPage({
                   </div>
 
                   {!isInstructor &&
-                    (enrolled ? (
+                    (checkingEnrollment ? (
+                      <Button size='lg' className='w-full bg-primary' disabled>
+                        Checking enrollment...
+                      </Button>
+                    ) : enrolled ? (
                       <>
                         <Button
                           size='lg'
@@ -465,8 +518,9 @@ export function CourseDetailPage({
                           size='lg'
                           className='w-full bg-primary'
                           onClick={handleEnroll}
+                          disabled={enrolling}
                         >
-                          Enroll Now
+                          {enrolling ? 'Enrolling...' : 'Enroll Now'}
                         </Button>
                         <Button size='lg' variant='outline' className='w-full'>
                           Add to Wishlist
@@ -479,30 +533,12 @@ export function CourseDetailPage({
                   <div className='space-y-3'>
                     <p className='font-medium'>This course includes:</p>
                     <ul className='space-y-2 text-sm'>
-                      <li className='flex items-center gap-2'>
-                        <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
-                        <span>{course.hours} on-demand video</span>
-                      </li>
-                      <li className='flex items-center gap-2'>
-                        <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
-                        <span>Downloadable resources</span>
-                      </li>
-                      <li className='flex items-center gap-2'>
-                        <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
-                        <span>Interactive quizzes and exercises</span>
-                      </li>
-                      <li className='flex items-center gap-2'>
-                        <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
-                        <span>Certificate of completion</span>
-                      </li>
-                      <li className='flex items-center gap-2'>
-                        <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
-                        <span>Full lifetime access</span>
-                      </li>
-                      <li className='flex items-center gap-2'>
-                        <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
-                        <span>Access on mobile and desktop</span>
-                      </li>
+                      {course.includes.map((item: string) => (
+                        <li key={item} className='flex items-center gap-2'>
+                          <CheckCircle2 className='w-4 h-4 text-green-500 flex-shrink-0' />
+                          <span>{item}</span>
+                        </li>
+                      ))}
                     </ul>
                   </div>
 
@@ -616,7 +652,7 @@ export function CourseDetailPage({
                     <div className='divide-y'>
                       {topic.items.map((item: any, itemIndex: number) => (
                         <div
-                          key={itemIndex}
+                          key={item.id || itemIndex}
                           className='p-4 flex items-center justify-between hover:bg-muted/30 transition-colors'
                         >
                           <div className='flex items-center gap-3'>
@@ -641,7 +677,20 @@ export function CourseDetailPage({
                           {item.locked ? (
                             <Lock className='w-4 h-4 text-muted-foreground' />
                           ) : (
-                            <Button variant='ghost' size='sm'>
+                            <Button
+                              variant='ghost'
+                              size='sm'
+                              onClick={() =>
+                                onNavigate('lesson', {
+                                  lesson: item,
+                                  course: {
+                                    id: courseId,
+                                    title: course.title,
+                                    instructor: course.instructor?.name || 'Instructor',
+                                  },
+                                })
+                              }
+                            >
                               <Play className='w-4 h-4' />
                             </Button>
                           )}

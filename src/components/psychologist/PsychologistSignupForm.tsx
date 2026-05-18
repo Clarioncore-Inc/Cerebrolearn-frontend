@@ -29,7 +29,6 @@ import {
   MapPin,
   Upload,
   CheckCircle2,
-  DollarSign,
   Brain,
   ShieldCheck,
 } from 'lucide-react';
@@ -46,7 +45,6 @@ interface PsychologistApplicationData {
   bio: string;
   aboutYou: string;
   location: string;
-  hourlyRate: string;
 }
 
 export function PsychologistSignupForm({
@@ -71,7 +69,6 @@ export function PsychologistSignupForm({
     bio: '',
     aboutYou: '',
     location: '',
-    hourlyRate: '',
   });
 
   const handleInputChange = (
@@ -91,7 +88,6 @@ export function PsychologistSignupForm({
         email: formData.email,
         full_name: formData.fullName,
         password: formData.password,
-        hourly_rate: parseFloat(formData.hourlyRate) || 0,
         bio: formData.bio,
         license_number: formData.licenseNumber,
         years_of_experience: formData.yearsOfExperience,
@@ -118,10 +114,10 @@ export function PsychologistSignupForm({
       icon: GraduationCap,
     },
     {
-      title: 'Flexible consultation setup',
+      title: 'Flexible profile setup',
       description:
-        'Set your rate, specialisation, and availability once your profile is ready.',
-      icon: DollarSign,
+        'Set your specialisation and availability once your profile is ready.',
+      icon: ShieldCheck,
     },
     {
       title: 'Secure, guided onboarding',
@@ -149,7 +145,7 @@ export function PsychologistSignupForm({
       icon: ShieldCheck,
       label: 'Step 2 · Credentials',
       heading: 'Your credentials matter.',
-      body: 'License number, specialization, and rate are used during our verification process and shown to clients browsing psychologists.',
+      body: 'License number and specialization are used during our verification process and shown to clients browsing psychologists.',
     },
     {
       icon: Brain,
@@ -191,7 +187,6 @@ export function PsychologistSignupForm({
       if (
         !formData.licenseNumber ||
         !formData.yearsOfExperience ||
-        !formData.hourlyRate ||
         !formData.specialization
       ) {
         setError('Please complete all professional information fields before continuing.');
@@ -546,24 +541,6 @@ export function PsychologistSignupForm({
                         <SelectItem value='16+'>16+ years</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className='space-y-2'>
-                    <Label htmlFor='hourlyRate'>Hourly Rate (USD) *</Label>
-                    <div className='relative'>
-                      <DollarSign className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-                      <Input
-                        id='hourlyRate'
-                        type='number'
-                        placeholder='75'
-                        min='0'
-                        step='0.01'
-                        value={formData.hourlyRate}
-                        onChange={(e) => handleInputChange('hourlyRate', e.target.value)}
-                        className='pl-9'
-                        required
-                      />
-                    </div>
                   </div>
 
                   <div className='space-y-2'>

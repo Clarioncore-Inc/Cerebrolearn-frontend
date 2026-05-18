@@ -79,7 +79,142 @@ export interface CourseHistoryRecord {
   timestamp?: string;
 }
 
-const BASE_URL = 'https://backened-core.onrender.com/api';
+export type DiscussionCategory = 'general_discussion' | 'question' | 'resource';
+
+export interface DiscussionUserRecord {
+  id?: string;
+  email?: string;
+  full_name?: string;
+  name?: string;
+  role?: string;
+}
+
+export interface DiscussionReplyRecord {
+  id: string;
+  post_id: string;
+  user_id: string;
+  user?: DiscussionUserRecord | null;
+  content: string;
+  parent_id?: string | null;
+  created_at: string;
+  updated_at: string;
+  replies?: DiscussionReplyRecord[];
+}
+
+export interface DiscussionPostRecord {
+  id: string;
+  user_id: string;
+  user?: DiscussionUserRecord | null;
+  title: string;
+  category: DiscussionCategory;
+  content: string;
+  like_count: number;
+  created_at: string;
+  updated_at: string;
+  replies?: DiscussionReplyRecord[];
+}
+
+export interface CourseActivity {
+  id: string;
+  user_id: string;
+  course_id: string;
+  lesson_id: string;
+  lesson_index?: number | null;
+  progress: number;
+  last_accessed_at: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type LearningGoalType = 'daily' | 'weekly' | 'monthly' | 'custom';
+export type LearningGoalUnit = 'lessons' | 'hours' | 'courses' | 'quizzes';
+
+export interface LearningGoalRecord {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string | null;
+  type?: LearningGoalType;
+  goal_type?: LearningGoalType;
+  target: number;
+  current: number;
+  unit: LearningGoalUnit;
+  deadline?: string | null;
+  completed: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudyStatsTodayRecord {
+  lessons: number;
+  hours: number;
+  quizzes: number;
+}
+
+export interface StudyStatsPeriodRecord extends StudyStatsTodayRecord {
+  courses: number;
+}
+
+export interface StudyStatsRecord {
+  today: StudyStatsTodayRecord;
+  this_week: StudyStatsPeriodRecord;
+  this_month: StudyStatsPeriodRecord;
+  streak: number;
+  total_study_time: number;
+}
+
+export interface LearningStreakRecord {
+  current: number;
+  longest: number;
+  last_active?: string | null;
+  total_days: number;
+  freezes_available: number;
+  calendar: Record<string, number>;
+}
+
+export interface ProgressDashboardStatsRecord {
+  total_courses: number;
+  completed_courses: number;
+  in_progress_courses: number;
+  total_hours_learned: number;
+  average_progress: number;
+  current_streak: number;
+  longest_streak: number;
+  total_points: number;
+  certificates_earned: number;
+  lessons_completed: number;
+}
+
+export interface ProgressDashboardEnrollmentRecord {
+  id: string;
+  course_id: string;
+  course_title: string;
+  progress: number;
+  completed: boolean;
+  enrolled_at?: string | null;
+  last_accessed?: string | null;
+}
+
+export interface WeeklyActivityRecord {
+  day: string;
+  date: string;
+  minutes: number;
+}
+
+export interface RecentActivityRecord {
+  type: string;
+  text: string;
+  occurred_at: string;
+}
+
+export interface ProgressDashboardRecord {
+  stats: ProgressDashboardStatsRecord;
+  enrollments: ProgressDashboardEnrollmentRecord[];
+  weekly_activity: WeeklyActivityRecord[];
+  recent_activity: RecentActivityRecord[];
+}
+
+const BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -245,10 +380,28 @@ export const coursesApi = {
       body: JSON.stringify(data),
     }),
 
-  getAll: () => request<{ items: Course[]; total: number; page: number; pages: number }>('/courses/'),
+  getAll: (page = 1, size = 100) =>
+    request<{ items: Course[]; total: number; page: number; pages: number }>(
+      `/courses/?page=${page}&size=${size}`,
+    ),
 
   getById: (courseId: string) =>
     request<Course & { lessons: Lesson[] }>(`/courses/${courseId}`),
+
+  getActivity: (courseId: string) =>
+    request<CourseActivity>(`/courses/activity?course_id=${courseId}`),
+
+  saveActivity: (data: {
+    course_id: string;
+    lesson_id: string;
+    lesson_index?: number;
+    progress: number;
+    last_accessed_at?: string;
+  }) =>
+    request<CourseActivity>('/courses/activity', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 
   getForEdit: (courseId: string) =>
     request<Course>(`/courses/${courseId}`),
@@ -465,7 +618,7 @@ export const progressApi = {
     }),
 
   get: (lessonId: string) =>
-    request<any>(`/progress/${lessonId}`),
+    request<any>(`/progress/lesson/${lessonId}`),
 };
 
 // ========================================
@@ -534,6 +687,140 @@ export const reviewsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  update: (id: string, data: { rating: number; comment: string }) =>
+    request<Review>(`/reviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/reviews/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getThreads: (id: string) =>
+    request<any[]>(`/reviews/${id}/threads`),
+
+  createThread: (id: string, data: { content: string; parent_id?: string }) =>
+    request<any>(`/reviews/${id}/threads`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  reactToThread: (id: string, data: { reaction: 'like' | 'dislike' }) =>
+    request<any>(`/reviews/threads/${id}/reaction`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};
+
+// ========================================
+// DISCUSSIONS API
+// ========================================
+
+export const discussionsApi = {
+  list: (category?: DiscussionCategory) =>
+    request<DiscussionPostRecord[]>(
+      category ? `/discussions/?category=${encodeURIComponent(category)}` : '/discussions/',
+    ),
+
+  get: (id: string) => request<DiscussionPostRecord>(`/discussions/${id}`),
+
+  create: (data: {
+    title: string;
+    category: DiscussionCategory;
+    content: string;
+  }) =>
+    request<DiscussionPostRecord>('/discussions/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  reply: (id: string, data: { content: string; parent_id?: string }) =>
+    request<DiscussionReplyRecord>(`/discussions/${id}/replies`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  like: (id: string) =>
+    request<DiscussionPostRecord>(`/discussions/${id}/like`, {
+      method: 'POST',
+    }),
+};
+
+// ========================================
+// LEARNER API
+// ========================================
+
+export const learnerApi = {
+  getGoals: () => request<LearningGoalRecord[]>('/learner/goals'),
+
+  createGoal: (data: {
+    title: string;
+    description?: string;
+    type: LearningGoalType;
+    target: number;
+    unit: LearningGoalUnit;
+    deadline?: string;
+  }) =>
+    request<LearningGoalRecord>('/learner/goals', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateGoal: (
+    id: string,
+    data: Partial<{
+      title: string;
+      description: string;
+      type: LearningGoalType;
+      target: number;
+      current: number;
+      unit: LearningGoalUnit;
+      deadline: string | null;
+      completed: boolean;
+    }>,
+  ) =>
+    request<LearningGoalRecord>(`/learner/goals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteGoal: (id: string) =>
+    request<void>(`/learner/goals/${id}`, {
+      method: 'DELETE',
+    }),
+
+  getStudyStats: () => request<StudyStatsRecord>('/learner/study-stats'),
+
+  getStreak: (params?: { year?: number; month?: number }) => {
+    const query = new URLSearchParams();
+    if (typeof params?.year === 'number') query.set('year', String(params.year));
+    if (typeof params?.month === 'number') query.set('month', String(params.month));
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<LearningStreakRecord>(`/learner/streak${suffix}`);
+  },
+
+  logStreakActivity: (data: {
+    minutes?: number;
+    lessons_completed?: number;
+    quizzes_completed?: number;
+    courses_completed?: number;
+    activity_date?: string;
+  }) =>
+    request<LearningStreakRecord>('/learner/streak/log-activity', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  useStreakFreeze: (data?: { activity_date?: string }) =>
+    request<LearningStreakRecord>('/learner/streak/use-freeze', {
+      method: 'POST',
+      body: JSON.stringify(data ?? {}),
+    }),
+
+  getProgressDashboard: () => request<ProgressDashboardRecord>('/learner/progress-dashboard'),
 };
 
 // ========================================
@@ -836,7 +1123,6 @@ export const psychologistApi = {
     email: string;
     full_name: string;
     password: string;
-    hourly_rate: number;
     bio: string;
     license_number: string;
     years_of_experience: string;
@@ -891,6 +1177,7 @@ export const api = {
   creator: creatorApi,
   social: socialApi,
   reviews: reviewsApi,
+  learner: learnerApi,
   gamification: gamificationApi,
   organizations: organizationsApi,
   payments: paymentsApi,

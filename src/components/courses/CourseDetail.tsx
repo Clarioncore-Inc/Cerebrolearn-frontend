@@ -43,6 +43,45 @@ interface CourseDetailProps {
   courseId?: string;
 }
 
+const matchesEnrollmentCourse = (enrollment: any, targetCourseId: string) => {
+  const enrolledCourseId =
+    enrollment?.course_id ?? enrollment?.courseId ?? enrollment?.course?.id ?? null;
+  return String(enrolledCourseId) === String(targetCourseId);
+};
+
+const formatCourseDuration = (course: any, lessons: any[]) => {
+  if (course?.total_duration_text) return course.total_duration_text;
+  if (Number(course?.total_duration_minutes) > 0) {
+    return `${Number(course.total_duration_minutes)}m`;
+  }
+  if (Number(course?.estimated_hours) > 0) {
+    return `${Number(course.estimated_hours)}h`;
+  }
+  const fallbackMinutes = lessons.length * 15;
+  return fallbackMinutes > 0 ? `${fallbackMinutes}m` : '0h';
+};
+
+const buildCourseIncludes = (course: any, lessons: any[]) => {
+  const interactiveCount = lessons.filter((lesson: any) =>
+    ['quiz', 'exercise', 'project', 'assignment', 'interactive'].includes(
+      String(lesson?.type || '').toLowerCase(),
+    ),
+  ).length;
+
+  return [
+    formatCourseDuration(course, lessons) !== '0h'
+      ? `${formatCourseDuration(course, lessons)} total content`
+      : null,
+    lessons.length > 0 ? `${lessons.length} lesson${lessons.length === 1 ? '' : 's'}` : null,
+    interactiveCount > 0
+      ? `${interactiveCount} interactive activit${interactiveCount === 1 ? 'y' : 'ies'}`
+      : null,
+    course?.enable_discussions ? 'Discussions enabled' : null,
+    course?.enable_reviews ? 'Course reviews enabled' : null,
+    course?.enable_certificates ? 'Certificate of completion' : null,
+  ].filter(Boolean) as string[];
+};
+
 export function CourseDetail({
   course,
   onNavigate,
@@ -51,33 +90,48 @@ export function CourseDetail({
   courseId,
 }: CourseDetailProps) {
   const { user } = useAuth();
+  const [courseDetails, setCourseDetails] = useState<any>(course);
   const [lessons, setLessons] = useState<any[]>([]);
   const [enrollment, setEnrollment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [checkingEnrollment, setCheckingEnrollment] = useState(true);
 
   useEffect(() => {
     loadCourseDetails();
-  }, [course.id]);
+  }, [course.id, user?.id]);
 
   const loadCourseDetails = async () => {
+    setLoading(true);
+    setCheckingEnrollment(!!user);
     try {
       const courseData = await coursesApi.getById(course.id);
-      setLessons(courseData.lessons || []);
+      setCourseDetails(courseData);
+      setLessons(
+        courseData.lessons ||
+          courseData.sections?.flatMap((section: any) => section.lessons || []) ||
+          [],
+      );
 
       if (user) {
         try {
           const enrollmentsData = await enrollmentsApi.getMy();
           const existingEnrollment = enrollmentsData.find(
-            (e: any) => e.course_id === course.id,
+            (e: any) => matchesEnrollmentCourse(e, course.id),
           );
           setEnrollment(existingEnrollment || null);
         } catch (error) {
           console.error('Error checking enrollment:', error);
+        } finally {
+          setCheckingEnrollment(false);
         }
+      } else {
+        setEnrollment(null);
+        setCheckingEnrollment(false);
       }
     } catch (error) {
       console.error('Error loading course details:', error);
+      setCheckingEnrollment(false);
     } finally {
       setLoading(false);
     }
@@ -91,8 +145,13 @@ export function CourseDetail({
 
     setEnrolling(true);
     try {
-      const result = await enrollmentsApi.enroll(course.id);
-      setEnrollment(result);
+      await enrollmentsApi.enroll(course.id);
+
+      const enrollmentsData = await enrollmentsApi.getMy();
+      const existingEnrollment = enrollmentsData.find(
+        (e: any) => matchesEnrollmentCourse(e, course.id),
+      );
+      setEnrollment(existingEnrollment || null);
     } catch (error) {
       console.error('Error enrolling:', error);
     } finally {
@@ -138,7 +197,7 @@ export function CourseDetail({
             </div>
             <div className='flex items-center gap-2'>
               <Clock className='h-5 w-5 text-muted-foreground' />
-              <span>{lessons.length * 15} minutes total</span>
+              <span>{formatCourseDuration(courseDetails, lessons)} total</span>
             </div>
           </div>
 
@@ -163,7 +222,11 @@ export function CourseDetail({
               <Play className='h-20 w-20 text-white/80' />
             </div>
             <CardContent className='p-6 space-y-4'>
-              {enrollment ? (
+              {checkingEnrollment ? (
+                <Button className='w-full' size='lg' disabled>
+                  Checking enrollment...
+                </Button>
+              ) : enrollment ? (
                 <>
                   <Button
                     className='w-full'
@@ -187,7 +250,7 @@ export function CourseDetail({
                     className='w-full'
                     size='lg'
                     onClick={handleEnroll}
-                    disabled={enrolling}
+                    disabled={enrolling || loading}
                   >
                     {enrolling ? 'Enrolling...' : 'Enroll Now'}
                   </Button>
@@ -206,26 +269,12 @@ export function CourseDetail({
               <div className='space-y-3'>
                 <h4>This course includes:</h4>
                 <ul className='space-y-2 text-sm'>
-                  <li className='flex items-center gap-2'>
-                    <CheckCircle2 className='h-4 w-4 text-green-500' />
-                    {lessons.length} interactive lessons
-                  </li>
-                  <li className='flex items-center gap-2'>
-                    <CheckCircle2 className='h-4 w-4 text-green-500' />
-                    Hands-on exercises
-                  </li>
-                  <li className='flex items-center gap-2'>
-                    <CheckCircle2 className='h-4 w-4 text-green-500' />
-                    Quizzes and assessments
-                  </li>
-                  <li className='flex items-center gap-2'>
-                    <CheckCircle2 className='h-4 w-4 text-green-500' />
-                    Certificate of completion
-                  </li>
-                  <li className='flex items-center gap-2'>
-                    <CheckCircle2 className='h-4 w-4 text-green-500' />
-                    Lifetime access
-                  </li>
+                  {buildCourseIncludes(courseDetails, lessons).map((item) => (
+                    <li key={item} className='flex items-center gap-2'>
+                      <CheckCircle2 className='h-4 w-4 text-green-500' />
+                      {item}
+                    </li>
+                  ))}
                 </ul>
               </div>
 

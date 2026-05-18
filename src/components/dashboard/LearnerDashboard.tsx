@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { enrollmentsApi, coursesApi } from '../../utils/api-client';
+import { enrollmentsApi } from '../../utils/api-client';
 import {
   Card,
   CardContent,
@@ -84,19 +84,30 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
     setShowQuickStart(!hasSeenQuickStart);
   }, []);
 
+  const getCourseImageUrl = (course: any, fallbackIndex: number) => {
+    const attachment = course?.thumbnail ?? course?.cover_image;
+
+    if (typeof attachment === 'string' && /^https?:\/\//i.test(attachment)) {
+      return attachment;
+    }
+
+    if (attachment && typeof attachment === 'object' && attachment.url) {
+      return attachment.url;
+    }
+
+    const courseImages = [imgImage, imgImage1, imgImage2];
+    return courseImages[fallbackIndex % courseImages.length];
+  };
+
   const loadDashboardData = async () => {
     try {
       const enrollmentsData = await enrollmentsApi.getMy();
       setEnrollments(enrollmentsData || []);
 
-      const enrolledCourseIds =
-        enrollmentsData?.map((e: any) => e.course_id) || [];
-      const enrolledCourses = await Promise.all(
-        enrolledCourseIds.map((id: string) =>
-          coursesApi.getById(id).catch(() => null),
-        ),
-      );
-      setCourses(enrolledCourses.filter(Boolean) as any[]);
+      const enrolledCourses = (enrollmentsData || [])
+        .map((enrollment: any) => enrollment.course)
+        .filter(Boolean);
+      setCourses(enrolledCourses as any[]);
     } catch (error) {
       console.log('Error loading dashboard data, using mock data:', error);
 
@@ -369,7 +380,7 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
           <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
             {courses.map((course, index) => {
               const enrollment = enrollments.find(
-                (e) => e.course_id === course.id,
+                (e) => (e.course?.id ?? e.course_id) === course.id,
               );
               const progress = enrollment?.progress || 0;
               const completedModules = Math.floor(
@@ -377,8 +388,7 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
               );
               const totalModules = course.lessons || 24;
 
-              const courseImages = [imgImage, imgImage1, imgImage2];
-              const courseImage = courseImages[index % 3];
+              const courseImage = getCourseImageUrl(course, index);
 
               return (
                 <div
