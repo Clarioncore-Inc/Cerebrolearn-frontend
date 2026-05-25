@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -57,6 +57,7 @@ import { enrollmentsApi, coursesApi, storageApi } from '../../utils/api-client';
 import { CourseLearnersTab } from './CourseLearnersTab';
 import { ReviewSystem } from '../courses/ReviewSystem';
 import { CollaborationPanel } from '../creator/CollaborationPanel';
+import { useCategories, type Category } from '../../hooks/useCategories';
 
 interface CourseManagementPageProps {
   course: any;
@@ -88,6 +89,7 @@ export function CourseManagementPage({
   onNavigate,
   onBack,
 }: CourseManagementPageProps) {
+  const { categories } = useCategories();
   const [course, setCourse] = useState<any>(initialCourse);
   const [activeTab, setActiveTab] = useState('overview');
   const [isSaving, setIsSaving] = useState(false);
@@ -167,6 +169,7 @@ export function CourseManagementPage({
       (course.requirements?.length > 0 ? course.requirements : null) ||
       [],
     category: course.category || 'Programming',
+    subcategory: course.subcategory || '',
     level: course.level || 'Beginner',
     language: course.language || 'English',
     price: course.price || '',
@@ -239,6 +242,7 @@ export function CourseManagementPage({
         title: courseData.title,
         description: courseData.description,
         category: courseData.category,
+        subcategory: courseData.subcategory || undefined,
         level: courseData.level.toLowerCase() as any,
         language: courseData.language,
         price: courseData.price ? parseFloat(courseData.price) : 0,
@@ -311,6 +315,7 @@ export function CourseManagementPage({
             (fc.requirements?.length > 0 ? fc.requirements : null) ||
             [],
           category: fc.category || 'Programming',
+          subcategory: fc.subcategory || '',
           level: fc.level || 'Beginner',
           language: fc.language || 'English',
           price: fc.price ? fc.price.toString() : '',
@@ -389,6 +394,46 @@ export function CourseManagementPage({
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCourse?.id]);
+
+  const availableCategories = useMemo<Category[]>(() => {
+    const currentCategory = courseData.category?.trim();
+    const currentSubcategory = courseData.subcategory?.trim();
+
+    if (!currentCategory) {
+      return categories;
+    }
+
+    const existingCategory = categories.find((item) => item.name === currentCategory);
+
+    if (!existingCategory) {
+      return [
+        {
+          name: currentCategory,
+          subcategories: currentSubcategory ? [currentSubcategory] : [],
+        },
+        ...categories,
+      ];
+    }
+
+    if (!currentSubcategory || existingCategory.subcategories.includes(currentSubcategory)) {
+      return categories;
+    }
+
+    return categories.map((item) =>
+      item.name === currentCategory
+        ? {
+            ...item,
+            subcategories: [...item.subcategories, currentSubcategory],
+          }
+        : item,
+    );
+  }, [categories, courseData.category, courseData.subcategory]);
+
+  const availableSubcategories = useMemo(() => {
+    return (
+      availableCategories.find((item) => item.name === courseData.category)?.subcategories ?? []
+    );
+  }, [availableCategories, courseData.category]);
 
   const toggleChapter = (chapterId: string) => {
     setChapters(
@@ -1185,6 +1230,7 @@ export function CourseManagementPage({
                   courseId={course.id}
                   reviews={courseReviews}
                   onReviewsUpdate={(updated) => setCourseReviews(updated)}
+                  allowReviewSubmission={false}
                 />
               </CardContent>
             </Card>
@@ -1205,16 +1251,59 @@ export function CourseManagementPage({
                     <label className='text-sm font-medium mb-2 block'>
                       Category
                     </label>
-                    <Input
+                    <Select
                       value={courseData.category}
-                      onChange={(e) =>
+                      onValueChange={(value) =>
                         setCourseData({
                           ...courseData,
-                          category: e.target.value,
+                          category: value,
+                          subcategory: '',
                         })
                       }
-                      placeholder='e.g. Computer Science'
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder='Select a category' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCategories.map((category) => (
+                          <SelectItem key={category.name} value={category.name}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className='text-sm font-medium mb-2 block'>
+                      Subcategory
+                    </label>
+                    <Select
+                      value={courseData.subcategory}
+                      onValueChange={(value) =>
+                        setCourseData({
+                          ...courseData,
+                          subcategory: value,
+                        })
+                      }
+                      disabled={!courseData.category || availableSubcategories.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            courseData.category
+                              ? 'Select a subcategory'
+                              : 'Select a category first'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableSubcategories.map((subcategory) => (
+                          <SelectItem key={subcategory} value={subcategory}>
+                            {subcategory}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   {/* <div>
                     <label className="text-sm font-medium mb-2 block">Level</label>

@@ -359,6 +359,10 @@ export function CourseCreationWizard({
           toast.error('Please select a category');
           return false;
         }
+        if (!courseData.subcategory) {
+          toast.error('Please select a subcategory');
+          return false;
+        }
         if (!courseData.level) {
           toast.error('Please select a level');
           return false;
@@ -876,7 +880,7 @@ export function CourseCreationWizard({
                 </div>
                 <div>
                   <Label className='block text-sm font-medium text-gray-700 mb-2'>
-                    Subcategory
+                    Subcategory *
                   </Label>
                   <Select
                     value={courseData.subcategory}

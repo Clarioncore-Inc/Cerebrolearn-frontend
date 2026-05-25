@@ -55,9 +55,15 @@ interface ReviewSystemProps {
   courseId: string;
   reviews: Review[];
   onReviewsUpdate?: (reviews: Review[]) => void;
+  allowReviewSubmission?: boolean;
 }
 
-export function ReviewSystem({ courseId, reviews: initialReviews, onReviewsUpdate }: ReviewSystemProps) {
+export function ReviewSystem({
+  courseId,
+  reviews: initialReviews,
+  onReviewsUpdate,
+  allowReviewSubmission = true,
+}: ReviewSystemProps) {
   const { user, profile } = useAuth();
 
   const mapThread = (thread: any): ReviewThread => ({
@@ -180,6 +186,10 @@ export function ReviewSystem({ courseId, reviews: initialReviews, onReviewsUpdat
   };
 
   const handleCreateReview = async () => {
+    if (!allowReviewSubmission) {
+      toast.error('Review submission is not available here');
+      return;
+    }
     if (!user) {
       toast.error('Please log in to leave a review');
       return;
@@ -437,46 +447,52 @@ export function ReviewSystem({ courseId, reviews: initialReviews, onReviewsUpdat
 
   return (
     <div className='space-y-6'>
-      <div className='border rounded-lg p-6 bg-white space-y-4'>
-        <div>
-          <h3 className='font-semibold'>Write a review</h3>
-          <p className='text-sm text-muted-foreground mt-1'>Share your experience with this course.</p>
-        </div>
+      {allowReviewSubmission && (
+        <div className='border rounded-lg p-6 bg-white space-y-4'>
+          <div>
+            <h3 className='font-semibold'>Write a review</h3>
+            <p className='text-sm text-muted-foreground mt-1'>Share your experience with this course.</p>
+          </div>
 
-        <div className='flex items-center gap-2'>
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              type='button'
-              className='transition-transform hover:scale-110'
-              onClick={() => setNewRating(star)}
-              aria-label={`Rate ${star} star${star === 1 ? '' : 's'}`}
-            >
-              <Star className={`w-6 h-6 ${star <= newRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
-            </button>
-          ))}
-        </div>
+          <div className='flex items-center gap-2'>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <button
+                key={star}
+                type='button'
+                className='transition-transform hover:scale-110'
+                onClick={() => setNewRating(star)}
+                aria-label={`Rate ${star} star${star === 1 ? '' : 's'}`}
+              >
+                <Star className={`w-6 h-6 ${star <= newRating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'}`} />
+              </button>
+            ))}
+          </div>
 
-        <textarea
-          value={newComment}
-          onChange={(e) => setNewComment(e.target.value)}
-          placeholder='Write your review...'
-          className='w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary'
-          rows={4}
-        />
+          <textarea
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder='Write your review...'
+            className='w-full p-3 border border-slate-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary'
+            rows={4}
+          />
 
-        <div className='flex justify-end'>
-          <Button onClick={handleCreateReview} disabled={submittingReview || !user}>
-            {submittingReview ? 'Posting...' : 'Post Review'}
-          </Button>
+          <div className='flex justify-end'>
+            <Button onClick={handleCreateReview} disabled={submittingReview || !user}>
+              {submittingReview ? 'Posting...' : 'Post Review'}
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {reviews.length === 0 ? (
         <div className='text-center py-12'>
           <MessageCircle className='h-16 w-16 mx-auto text-muted-foreground/50 mb-4' />
           <p className='text-lg font-medium text-muted-foreground'>No reviews yet</p>
-          <p className='text-sm text-muted-foreground mt-1'>Be the first to review this course!</p>
+          <p className='text-sm text-muted-foreground mt-1'>
+            {allowReviewSubmission
+              ? 'Be the first to review this course!'
+              : 'Reviews from learners will appear here.'}
+          </p>
         </div>
       ) : (
         reviews.map((review) => {
