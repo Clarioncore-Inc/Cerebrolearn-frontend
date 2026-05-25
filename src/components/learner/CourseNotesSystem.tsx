@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { enrollmentsApi, notesApi } from '../../utils/api-client';
+import type { Note as NoteRecord } from '../../types/database';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -46,8 +48,8 @@ interface Note {
   id: string;
   title: string;
   content: string;
-  courseId: string;
-  courseName: string;
+  courseId?: string;
+  courseName?: string;
   lessonId?: string;
   lessonName?: string;
   tags: string[];
@@ -59,22 +61,26 @@ interface Note {
 interface CourseNotesSystemProps {
   onNavigate?: (page: string, data?: any) => void;
   currentCourseId?: string;
+  currentCourseTitle?: string;
   currentLessonId?: string;
+  autoOpenCreate?: boolean;
 }
 
 export function CourseNotesSystem({ 
   onNavigate,
   currentCourseId,
+  currentCourseTitle,
+  autoOpenCreate = false,
   currentLessonId 
 }: CourseNotesSystemProps) {
   const { user } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCourse, setSelectedCourse] = useState<string>('all');
-  const [selectedTag, setSelectedTag] = useState<string>('all');
-  const [isCreating, setIsCreating] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<string>(currentCourseId || 'all');
+  const [isCreating, setIsCreating] = useState(autoOpenCreate);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(new Set());
 
   // New note form state
   const [newNote, setNewNote] = useState({
@@ -83,6 +89,21 @@ export function CourseNotesSystem({
     tags: [] as string[],
     color: 'blue'
   });
+
+  const courseOptions = Array.from(
+    new Map(
+      notes
+        .filter((note) => note.courseId)
+        .map((note) => [note.courseId!, note.courseName || 'Untitled Course']),
+    ).entries(),
+  ).map(([id, name]) => ({ id, name }));
+
+  const hasGeneralNotes = notes.some((note) => !note.courseId);
+
+  const selectedCourseName =
+    currentCourseId && selectedCourse === currentCourseId
+      ? currentCourseTitle
+      : courseOptions.find((course) => course.id === selectedCourse)?.name;
 
   const noteColors = [
     { value: 'blue', label: 'Blue', class: 'bg-blue-50 border-blue-200 dark:bg-blue-950 dark:border-blue-800' },
@@ -94,34 +115,77 @@ export function CourseNotesSystem({
   ];
 
   useEffect(() => {
-    if (user) {
-      loadNotes();
-    }
+    const loadNotes = async () => {
+      if (!user) {
+        setNotes([]);
+        setFilteredNotes([]);
+        return;
+      }
+
+      try {
+        const loadedNotes = await notesApi.list();
+        setNotes((loadedNotes || []).map(mapApiNote));
+      } catch (error) {
+        console.error('Error loading notes:', error);
+        toast.error('Failed to load notes');
+        setNotes([]);
+      }
+    };
+
+    void loadNotes();
+  }, [user]);
+
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (!user) {
+        setEnrolledCourseIds(new Set());
+        return;
+      }
+
+      try {
+        const enrollments = await enrollmentsApi.getMy();
+        setEnrolledCourseIds(
+          new Set(
+            (enrollments || [])
+              .map(
+                (enrollment: any) =>
+                  enrollment?.course_id ?? enrollment?.courseId ?? enrollment?.course?.id,
+              )
+              .filter(Boolean)
+              .map((id: string) => String(id)),
+          ),
+        );
+      } catch (error) {
+        console.error('Error loading enrollments:', error);
+        setEnrolledCourseIds(new Set());
+      }
+    };
+
+    void loadEnrollments();
   }, [user]);
 
   useEffect(() => {
     filterNotes();
-  }, [notes, searchQuery, selectedCourse, selectedTag]);
+  }, [notes, searchQuery, selectedCourse]);
 
-  const loadNotes = () => {
-    if (!user) return;
-
-    const notesKey = `course_notes_${user.id}`;
-    const stored = localStorage.getItem(notesKey);
-    
-    if (stored) {
-      const loadedNotes = JSON.parse(stored);
-      setNotes(loadedNotes);
+  useEffect(() => {
+    if (currentCourseId) {
+      setSelectedCourse(currentCourseId);
     }
-  };
+  }, [currentCourseId]);
 
-  const saveNotes = (updatedNotes: Note[]) => {
-    if (!user) return;
+  const targetCourseId =
+    selectedCourse !== 'all' && selectedCourse !== 'general'
+      ? selectedCourse
+      : currentCourseId || null;
 
-    const notesKey = `course_notes_${user.id}`;
-    localStorage.setItem(notesKey, JSON.stringify(updatedNotes));
-    setNotes(updatedNotes);
-  };
+  const canCreateCourseNote = !targetCourseId || enrolledCourseIds.has(String(targetCourseId));
+
+  useEffect(() => {
+    if (autoOpenCreate && canCreateCourseNote) {
+      setIsCreating(true);
+    }
+  }, [autoOpenCreate, canCreateCourseNote]);
 
   const filterNotes = () => {
     let filtered = [...notes];
@@ -134,12 +198,10 @@ export function CourseNotesSystem({
       );
     }
 
-    if (selectedCourse !== 'all') {
+    if (selectedCourse === 'general') {
+      filtered = filtered.filter(note => !note.courseId);
+    } else if (selectedCourse !== 'all') {
       filtered = filtered.filter(note => note.courseId === selectedCourse);
-    }
-
-    if (selectedTag !== 'all') {
-      filtered = filtered.filter(note => note.tags.includes(selectedTag));
     }
 
     // Sort: pinned first, then by timestamp
@@ -152,78 +214,90 @@ export function CourseNotesSystem({
     setFilteredNotes(filtered);
   };
 
-  const createNote = () => {
+  const createNote = async () => {
     if (!user || !newNote.title.trim()) {
       toast.error('Please add a title for your note');
       return;
     }
 
-    const note: Note = {
-      id: Date.now().toString(),
-      title: newNote.title,
-      content: newNote.content,
-      courseId: currentCourseId || 'general',
-      courseName: currentCourseId || 'General Notes',
-      lessonId: currentLessonId,
-      lessonName: currentLessonId ? `Lesson ${currentLessonId}` : undefined,
-      tags: newNote.tags,
-      timestamp: new Date().toISOString(),
-      isPinned: false,
-      color: newNote.color
-    };
+    if (targetCourseId && !canCreateCourseNote) {
+      toast.error('You need to enroll in this course before adding course notes');
+      return;
+    }
 
-    const updatedNotes = [note, ...notes];
-    saveNotes(updatedNotes);
+    try {
+      const createdNote = await notesApi.create({
+        title: newNote.title,
+        content: newNote.content,
+        course_id: targetCourseId,
+        lesson_id: currentLessonId || null,
+        tags: newNote.tags,
+        color: newNote.color,
+      });
 
-    // Reset form
-    setNewNote({ title: '', content: '', tags: [], color: 'blue' });
-    setIsCreating(false);
-    
-    toast.success('Note created successfully!');
+      setNotes((current) => [mapApiNote(createdNote), ...current]);
+      setNewNote({ title: '', content: '', tags: [], color: 'blue' });
+      setIsCreating(false);
+      toast.success('Note created successfully!');
+    } catch (error) {
+      console.error('Error creating note:', error);
+      toast.error('Failed to create note');
+    }
   };
 
-  const updateNote = () => {
+  const updateNote = async () => {
     if (!editingNote) return;
 
-    const updatedNotes = notes.map(note =>
-      note.id === editingNote.id ? editingNote : note
-    );
-    saveNotes(updatedNotes);
-    setEditingNote(null);
-    toast.success('Note updated successfully!');
+    try {
+      const updatedNote = await notesApi.update(editingNote.id, {
+        title: editingNote.title,
+        content: editingNote.content,
+        course_id: editingNote.courseId || null,
+        lesson_id: editingNote.lessonId || null,
+        tags: editingNote.tags,
+        color: editingNote.color,
+        is_pinned: editingNote.isPinned,
+      });
+
+      setNotes((current) =>
+        current.map((note) =>
+          note.id === editingNote.id ? mapApiNote(updatedNote) : note,
+        ),
+      );
+      setEditingNote(null);
+      toast.success('Note updated successfully!');
+    } catch (error) {
+      console.error('Error updating note:', error);
+      toast.error('Failed to update note');
+    }
   };
 
-  const deleteNote = (noteId: string) => {
-    const updatedNotes = notes.filter(note => note.id !== noteId);
-    saveNotes(updatedNotes);
-    toast.success('Note deleted');
+  const deleteNote = async (noteId: string) => {
+    try {
+      await notesApi.delete(noteId);
+      setNotes((current) => current.filter((note) => note.id !== noteId));
+      toast.success('Note deleted');
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      toast.error('Failed to delete note');
+    }
   };
 
-  const togglePin = (noteId: string) => {
-    const updatedNotes = notes.map(note =>
-      note.id === noteId ? { ...note, isPinned: !note.isPinned } : note
-    );
-    saveNotes(updatedNotes);
-  };
+  const togglePin = async (noteId: string) => {
+    const targetNote = notes.find((note) => note.id === noteId);
+    if (!targetNote) return;
 
-  const addTag = (noteId: string, tag: string) => {
-    if (!tag.trim()) return;
-
-    const updatedNotes = notes.map(note =>
-      note.id === noteId && !note.tags.includes(tag)
-        ? { ...note, tags: [...note.tags, tag] }
-        : note
-    );
-    saveNotes(updatedNotes);
-  };
-
-  const removeTag = (noteId: string, tagToRemove: string) => {
-    const updatedNotes = notes.map(note =>
-      note.id === noteId
-        ? { ...note, tags: note.tags.filter(tag => tag !== tagToRemove) }
-        : note
-    );
-    saveNotes(updatedNotes);
+    try {
+      const updatedNote = await notesApi.setPinned(noteId, !targetNote.isPinned);
+      setNotes((current) =>
+        current.map((note) =>
+          note.id === noteId ? mapApiNote(updatedNote) : note,
+        ),
+      );
+    } catch (error) {
+      console.error('Error toggling note pin:', error);
+      toast.error('Failed to update note pin');
+    }
   };
 
   const exportNotes = () => {
@@ -237,18 +311,14 @@ export function CourseNotesSystem({
     toast.success('Notes exported successfully!');
   };
 
-  // Get unique courses and tags
-  const uniqueCourses = Array.from(new Set(notes.map(note => note.courseId)));
-  const uniqueTags = Array.from(new Set(notes.flatMap(note => note.tags)));
-
   const getColorClass = (color: string) => {
     return noteColors.find(c => c.value === color)?.class || noteColors[0].class;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="container py-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-3xl font-bold flex items-center gap-3">
             <StickyNote className="h-8 w-8 text-primary" />
@@ -257,6 +327,11 @@ export function CourseNotesSystem({
           <p className="text-muted-foreground mt-1">
             Take notes during lessons and organize your learning
           </p>
+          {currentCourseTitle && (
+            <Badge variant="secondary" className="mt-3">
+              Writing notes for {currentCourseTitle}
+            </Badge>
+          )}
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={exportNotes} disabled={filteredNotes.length === 0}>
@@ -265,7 +340,14 @@ export function CourseNotesSystem({
           </Button>
           <Dialog open={isCreating} onOpenChange={setIsCreating}>
             <DialogTrigger asChild>
-              <Button>
+              <Button
+                disabled={!canCreateCourseNote}
+                title={
+                  !canCreateCourseNote
+                    ? 'Enroll in this course to add course notes'
+                    : 'Create a new note'
+                }
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 New Note
               </Button>
@@ -275,8 +357,14 @@ export function CourseNotesSystem({
                 <DialogTitle>Create New Note</DialogTitle>
                 <DialogDescription>
                   Add a new note to help you remember important concepts
+                  {selectedCourseName ? ` in ${selectedCourseName}` : ''}
                 </DialogDescription>
               </DialogHeader>
+              {!canCreateCourseNote && selectedCourseName ? (
+                <p className="text-sm text-muted-foreground">
+                  Enroll in {selectedCourseName} before creating course notes.
+                </p>
+              ) : null}
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Title</label>
@@ -314,7 +402,7 @@ export function CourseNotesSystem({
                   <Button variant="outline" onClick={() => setIsCreating(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={createNote}>
+                  <Button onClick={createNote} disabled={!canCreateCourseNote}>
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Create Note
                   </Button>
@@ -326,7 +414,7 @@ export function CourseNotesSystem({
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -358,18 +446,7 @@ export function CourseNotesSystem({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{uniqueCourses.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Tags
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{uniqueTags.length}</div>
+            <div className="text-3xl font-bold">{courseOptions.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -377,7 +454,7 @@ export function CourseNotesSystem({
       {/* Filters */}
       <Card className="border-2">
         <CardContent className="p-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -393,26 +470,15 @@ export function CourseNotesSystem({
                 <SelectValue placeholder="Filter by course" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Courses</SelectItem>
-                {uniqueCourses.map(courseId => (
-                  <SelectItem key={courseId} value={courseId}>
-                    {notes.find(n => n.courseId === courseId)?.courseName || courseId}
+                <SelectItem value="all">All Notes</SelectItem>
+                {courseOptions.map((course) => (
+                  <SelectItem key={course.id} value={course.id}>
+                    {course.name}
                   </SelectItem>
                 ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedTag} onValueChange={setSelectedTag}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filter by tag" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tags</SelectItem>
-                {uniqueTags.map(tag => (
-                  <SelectItem key={tag} value={tag}>
-                    {tag}
-                  </SelectItem>
-                ))}
+                {hasGeneralNotes && (
+                  <SelectItem value="general">General Notes</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -493,7 +559,7 @@ export function CourseNotesSystem({
           <StickyNote className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold mb-2">No notes yet</h3>
           <p className="text-muted-foreground mb-4">
-            {searchQuery || selectedCourse !== 'all' || selectedTag !== 'all'
+            {searchQuery || selectedCourse !== 'all'
               ? 'No notes match your filters'
               : 'Start taking notes to remember important concepts'}
           </p>
@@ -562,4 +628,20 @@ export function CourseNotesSystem({
       )}
     </div>
   );
+}
+
+function mapApiNote(note: NoteRecord): Note {
+  return {
+    id: note.id,
+    title: note.title,
+    content: note.content,
+    courseId: note.course_id || undefined,
+    courseName: note.course_title || undefined,
+    lessonId: note.lesson_id || undefined,
+    lessonName: note.lesson_title || undefined,
+    tags: note.tags || [],
+    timestamp: note.updated_at || note.created_at,
+    isPinned: note.is_pinned,
+    color: note.color || 'blue',
+  };
 }

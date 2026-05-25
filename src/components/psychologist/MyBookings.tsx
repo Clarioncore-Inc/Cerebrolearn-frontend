@@ -61,7 +61,7 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
         setBookingsLoading(true);
         setBookingsError(null);
 
-        const data = await psychologistApi.getBookings();
+        const data = await psychologistApi.getBookings(user.id);
         const list = Array.isArray(data)
           ? data
           : data.bookings ?? data.items ?? data.results ?? [];

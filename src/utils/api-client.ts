@@ -3,6 +3,8 @@ import type {
   User,
   Course,
   Lesson,
+  Bookmark,
+  Note,
   Enrollment,
   CourseAnalytics,
   CreatorEarnings,
@@ -214,7 +216,7 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'https://backened-core.onrender.com/api';
+const BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -657,10 +659,22 @@ export const socialApi = {
   unlike: (lessonId: string) =>
     request<{ success: boolean; likes: number }>(`/lessons/${lessonId}/like`, { method: 'DELETE' }),
 
-  bookmark: (lessonId: string) =>
-    request<{ success: boolean }>(`/lessons/${lessonId}/bookmark`, { method: 'POST' }),
+  bookmarkLesson: (lessonId: string) =>
+    request<Bookmark>(`/lessons/${lessonId}/bookmark`, { method: 'POST' }),
 
-  getBookmarks: () => request<any[]>('/bookmarks/'),
+  unbookmarkLesson: (lessonId: string) =>
+    request<void>(`/lessons/${lessonId}/bookmark`, { method: 'DELETE' }),
+
+  bookmarkCourse: (courseId: string) =>
+    request<Bookmark>(`/courses/${courseId}/bookmark`, { method: 'POST' }),
+
+  unbookmarkCourse: (courseId: string) =>
+    request<void>(`/courses/${courseId}/bookmark`, { method: 'DELETE' }),
+
+  bookmark: (lessonId: string) =>
+    request<Bookmark>(`/lessons/${lessonId}/bookmark`, { method: 'POST' }),
+
+  getBookmarks: () => request<Bookmark[]>('/bookmarks/'),
 
   // share is NOT implemented in the FastAPI backend
   share: (_lessonId: string, _platform: string) =>
@@ -674,6 +688,72 @@ export const socialApi = {
     request<Comment>('/comments/', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+};
+
+// ========================================
+// NOTES API
+// ========================================
+
+export const notesApi = {
+  list: (params?: { courseId?: string; lessonId?: string; pinned?: boolean }) => {
+    const searchParams = new URLSearchParams();
+
+    if (params?.courseId) {
+      searchParams.set('course_id', params.courseId);
+    }
+    if (params?.lessonId) {
+      searchParams.set('lesson_id', params.lessonId);
+    }
+    if (typeof params?.pinned === 'boolean') {
+      searchParams.set('pinned', String(params.pinned));
+    }
+
+    const query = searchParams.toString();
+    return request<Note[]>(query ? `/notes/?${query}` : '/notes/');
+  },
+
+  get: (id: string) => request<Note>(`/notes/${id}`),
+
+  create: (data: {
+    title: string;
+    content?: string;
+    course_id?: string | null;
+    lesson_id?: string | null;
+    tags?: string[];
+    color?: string;
+  }) =>
+    request<Note>('/notes/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (
+    id: string,
+    data: {
+      title?: string;
+      content?: string;
+      course_id?: string | null;
+      lesson_id?: string | null;
+      tags?: string[];
+      color?: string;
+      is_pinned?: boolean;
+    },
+  ) =>
+    request<Note>(`/notes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  setPinned: (id: string, isPinned: boolean) =>
+    request<Note>(`/notes/${id}/pin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_pinned: isPinned }),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/notes/${id}`, {
+      method: 'DELETE',
     }),
 };
 
@@ -1053,9 +1133,9 @@ export const psychologistApi = {
       body: JSON.stringify(data),
     }),
 
-  getBookings: () =>
+  getBookings: (userId: string) =>
     request<any[] | { items?: any[]; results?: any[]; bookings?: any[] }>(
-      '/psychologist/bookings',
+      `/psychologist/bookings?user_id=${encodeURIComponent(userId)}`,
     ),
 
   createBooking: (data: {

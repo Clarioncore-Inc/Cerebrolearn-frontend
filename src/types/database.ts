@@ -274,10 +274,39 @@ export interface Like {
   created_at: string;
 }
 
+export type BookmarkObjectType = 'lesson' | 'course';
+
+export interface BookmarkCourseObject {
+  id: string;
+  title: string;
+  category: string;
+  subcategory?: string | null;
+}
+
 export interface Bookmark {
+  id: string;
   user_id: string;
-  lesson_id: string;
+  object_id: string;
+  object_type: BookmarkObjectType;
+  lesson?: Lesson | null;
+  course?: BookmarkCourseObject | null;
   created_at: string;
+}
+
+export interface Note {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  course_id?: string | null;
+  course_title?: string | null;
+  lesson_id?: string | null;
+  lesson_title?: string | null;
+  tags?: string[] | null;
+  color: string;
+  is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Share {

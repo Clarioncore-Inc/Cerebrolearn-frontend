@@ -35,6 +35,9 @@ import {
 import { Alert, AlertDescription } from '../ui/alert';
 import { toast } from 'sonner@2.0.3';
 
+// Allows letters (including accented), spaces, hyphens, apostrophes, and periods (e.g. "Dr.")
+const FULL_NAME_REGEX = /^[\p{L}\s'\-.]+$/u;
+
 interface PsychologistApplicationData {
   fullName: string;
   email: string;
@@ -194,6 +197,11 @@ export function PsychologistSignupForm({
         setError('Please complete all personal information fields before continuing.');
         return false;
       }
+
+      if (!FULL_NAME_REGEX.test(formData.fullName.trim())) {
+  setError('Full name must contain only letters, spaces, hyphens, apostrophes, or periods.');
+  return false;
+}
 
       if (formData.password.length < 8) {
         setError('Password must be at least 8 characters long.');
@@ -458,7 +466,10 @@ export function PsychologistSignupForm({
                         type='text'
                         placeholder='Dr. Jane Smith'
                         value={formData.fullName}
-                        onChange={(e) => handleInputChange('fullName', e.target.value)}
+                 onChange={(e) => {
+  const sanitized = e.target.value.replace(/[0-9]/g, '');
+  handleInputChange('fullName', sanitized);
+}}
                         className='pl-9'
                         required
                       />

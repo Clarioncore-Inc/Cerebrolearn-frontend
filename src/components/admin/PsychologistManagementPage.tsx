@@ -21,7 +21,10 @@ import {
   GraduationCap,
   FileText,
   Award,
-  Calendar
+  Calendar,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
@@ -36,6 +39,9 @@ import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from '../ui/alert';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const toTitleCase = (str: string) =>
+  str.replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 
 interface Application {
   id: string;
@@ -58,18 +64,18 @@ interface Application {
   reviewNotes: string;
 }
 
-export function PsychologistManagementPage() {
+export function PsychologistManagementPage({ onNavigate }: { onNavigate: (page: string, data?: any) => void }) {
   const [applications, setApplications] = useState<Application[]>([]);
   const [filteredApplications, setFilteredApplications] = useState<Application[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
-  const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
   const [selectedReviewApplication, setSelectedReviewApplication] = useState<Application | null>(null);
   const [selectedReviewAction, setSelectedReviewAction] = useState<'approve' | 'reject' | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [reviewNotes, setReviewNotes] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [accountStatusSubmitting, setAccountStatusSubmitting] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteError, setInviteError] = useState('');
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
@@ -87,7 +93,7 @@ export function PsychologistManagementPage() {
 
   useEffect(() => {
     filterApplications();
-  }, [applications, searchQuery, selectedStatus]);
+  }, [applications, searchQuery, selectedStatus, sortOrder]);
 
   const loadApplications = async () => {
     setLoading(true);
@@ -98,7 +104,7 @@ export function PsychologistManagementPage() {
       const apps: Application[] = list.map((item: any) => ({
         id: item.id ?? item._id ?? '',
         userId: item.user?.id ?? item.userId ?? '',
-        fullName: item.user?.full_name ?? item.full_name ?? item.fullName ?? '',
+        fullName: toTitleCase(item.user?.full_name ?? item.full_name ?? item.fullName ?? ''),
         email: item.user?.email ?? item.email ?? '',
         hourlyRate: item.hourly_rate ?? item.hourlyRate ?? '0.0',
         licenseNumber: item.license_number ?? item.licenseNumber ?? '',
@@ -156,7 +162,13 @@ export function PsychologistManagementPage() {
       );
     }
 
-    setFilteredApplications(filtered);
+    setFilteredApplications(
+      filtered.slice().sort((a, b) => {
+        const dateA = new Date(a.submittedAt).getTime();
+        const dateB = new Date(b.submittedAt).getTime();
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+      }),
+    );
   };
 
   const handleReview = (application: Application, action: 'approve' | 'reject') => {
@@ -190,37 +202,6 @@ export function PsychologistManagementPage() {
     }
   };
 
-  const handleAccountStatusChange = async (application: Application, suspended: boolean) => {
-    if (!application.userId) {
-      toast.error('Unable to update account status for this psychologist');
-      return;
-    }
-
-    try {
-      setAccountStatusSubmitting(true);
-      await api.admin.updateUserStatus(application.userId, suspended);
-
-      const nextAccountStatus: Application['accountStatus'] = suspended ? 'suspended' : 'active';
-
-      setApplications((prev) =>
-        prev.map((app) =>
-          app.id === application.id ? { ...app, accountStatus: nextAccountStatus } : app,
-        ),
-      );
-
-      setSelectedApplication((prev) =>
-        prev?.id === application.id ? { ...prev, accountStatus: nextAccountStatus } : prev,
-      );
-
-      toast.success(`Account ${suspended ? 'suspended' : 'activated'} successfully`);
-    } catch (error: any) {
-      console.error('Error updating psychologist account status:', error);
-      toast.error(error?.message ?? 'Failed to update account status');
-    } finally {
-      setAccountStatusSubmitting(false);
-    }
-  };
-
   const validateInviteEmail = (email: string) => {
     const trimmedEmail = email.trim();
 
@@ -250,6 +231,7 @@ export function PsychologistManagementPage() {
       await api.psychologist.invite({ email: inviteEmail.trim() });
       toast.success('Psychologist invitation sent successfully');
       setInviteEmail('');
+      setInviteDialogOpen(false);
     } catch (error: any) {
       toast.error(error?.message ?? 'Failed to send psychologist invitation');
     } finally {
@@ -287,23 +269,32 @@ export function PsychologistManagementPage() {
 
   return (
     <div className="container space-y-6 py-6">
-      <div>
-        <h1 className="mb-2">Psychologist Management</h1>
-        <p className="text-muted-foreground">
-          Review and manage psychologist applications
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="mb-2">Psychologist Management</h1>
+          <p className="text-muted-foreground">
+            Review and manage psychologist applications
+          </p>
+        </div>
+        <Button onClick={() => setInviteDialogOpen(true)}>
+          <Mail className="mr-2 h-4 w-4" />
+          Invite Psychologist
+        </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Invite Psychologist</CardTitle>
-          <CardDescription>Send a psychologist invitation by email</CardDescription>
-        </CardHeader>
-        <CardContent>
+      <Dialog open={inviteDialogOpen} onOpenChange={(open: boolean) => {
+        setInviteDialogOpen(open);
+        if (!open) { setInviteEmail(''); setInviteError(''); }
+      }}>
+        <DialogContent className="xs:max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Invite Psychologist</DialogTitle>
+            <DialogDescription>Send a psychologist invitation by email</DialogDescription>
+          </DialogHeader>
           <form onSubmit={handleInvitePsychologist} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="invite-email">Email</Label>
-              <div className="relative max-w-xl">
+              <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="invite-email"
@@ -316,7 +307,6 @@ export function PsychologistManagementPage() {
                       setInviteError(validateInviteEmail(nextValue));
                     }
                   }}
-                  onBlur={() => setInviteError(validateInviteEmail(inviteEmail))}
                   className="pl-9"
                   required
                   aria-invalid={!!inviteError}
@@ -326,13 +316,17 @@ export function PsychologistManagementPage() {
                 <p className="text-sm text-destructive">{inviteError}</p>
               ) : null}
             </div>
-
-            <Button type="submit" disabled={inviteSubmitting}>
-              {inviteSubmitting ? 'Sending...' : 'Send Invitation'}
-            </Button>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={inviteSubmitting}>
+                {inviteSubmitting ? 'Sending...' : 'Send Invitation'}
+              </Button>
+            </DialogFooter>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -403,6 +397,15 @@ export function PsychologistManagementPage() {
                   className="pl-9"
                 />
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSortOrder(o => o === 'desc' ? 'asc' : 'desc')}
+                className="flex items-center gap-2 whitespace-nowrap"
+              >
+                {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                Date: {sortOrder === 'desc' ? 'Newest first' : 'Oldest first'}
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -495,25 +498,15 @@ export function PsychologistManagementPage() {
 
                         {/* Right - Actions */}
                         <div className="flex flex-col gap-2 lg:w-40">
-                          <Dialog>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setSelectedApplication(application)}
-                              className="w-full"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View Details
-                            </Button>
-                            {selectedApplication?.id === application.id && (
-                              <ApplicationDetailsDialog
-                                application={selectedApplication}
-                                onStatusChange={handleAccountStatusChange}
-                                statusSubmitting={accountStatusSubmitting}
-                                onClose={() => setSelectedApplication(null)}
-                              />
-                            )}
-                          </Dialog>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onNavigate('admin-psychologist-detail', { application })}
+                            className="w-full"
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View Details
+                          </Button>
 
                           {application.status === 'pending' && (
                             <>
@@ -617,168 +610,4 @@ export function PsychologistManagementPage() {
     </div>
   );
 }
-
-// Application Details Dialog Component
-function ApplicationDetailsDialog({
-  application,
-  onClose,
-  onStatusChange,
-  statusSubmitting,
-}: {
-  application: Application;
-  onClose: () => void;
-  onStatusChange: (application: Application, suspended: boolean) => Promise<void>;
-  statusSubmitting: boolean;
-}) {
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{application.fullName}</DialogTitle>
-          <DialogDescription>Complete application details</DialogDescription>
-        </DialogHeader>
         
-        <div className="space-y-6 py-4">
-          {/* Status */}
-          <div>
-            <Label className="text-base font-semibold mb-2 block">Status</Label>
-            <div className="flex items-center gap-2">
-              {application.status === 'pending' && (
-                <Badge variant="outline" className="bg-yellow-100 text-yellow-700">Pending Review</Badge>
-              )}
-              {application.status === 'approved' && (
-                <Badge variant="outline" className="bg-green-100 text-green-700">Approved</Badge>
-              )}
-              {application.status === 'rejected' && (
-                <Badge variant="outline" className="bg-red-100 text-red-700">Rejected</Badge>
-              )}
-              <Badge
-                variant="outline"
-                className={
-                  application.accountStatus === 'active'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-red-100 text-red-700'
-                }
-              >
-                Account {application.accountStatus === 'active' ? 'Active' : 'Suspended'}
-              </Badge>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Contact Information</Label>
-            <div className="grid grid-cols-2 gap-3 text-sm bg-muted/50 rounded-lg p-4">
-              <div>
-                <span className="text-muted-foreground">Email:</span>
-                <p className="font-medium">{application.email}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Location:</span>
-                <p className="font-medium">{application.location}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Professional Information */}
-          <div className="space-y-3">
-            <Label className="text-base font-semibold">Professional Information</Label>
-            <div className="grid grid-cols-2 gap-3 text-sm bg-muted/50 rounded-lg p-4">
-              <div>
-                <span className="text-muted-foreground">License Number:</span>
-                <p className="font-medium">{application.licenseNumber}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Specialization:</span>
-                <p className="font-medium">{application.specialization}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Hourly Rate:</span>
-                <p className="font-medium">${application.hourlyRate}</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Experience:</span>
-                <p className="font-medium">{application.yearsOfExperience} years</p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Submitted:</span>
-                <p className="font-medium">{new Date(application.submittedAt).toLocaleDateString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">Professional Bio</Label>
-            <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
-              {application.bio}
-            </div>
-          </div>
-
-          {/* Qualifications */}
-          <div className="space-y-2">
-            <Label className="text-base font-semibold">Education & Qualifications</Label>
-            <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
-              {application.qualifications}
-            </div>
-          </div>
-
-          {/* Certifications */}
-          {application.certifications && (
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">Certifications</Label>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm whitespace-pre-wrap">
-                {application.certifications}
-              </div>
-            </div>
-          )}
-
-          {/* Review Information */}
-          {application.reviewedAt && (
-            <div className="space-y-2">
-              <Label className="text-base font-semibold">Review Information</Label>
-              <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
-                <div>
-                  <span className="text-muted-foreground">Reviewed by:</span>
-                  <p className="font-medium">{application.reviewedBy}</p>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Reviewed on:</span>
-                  <p className="font-medium">{new Date(application.reviewedAt).toLocaleDateString()}</p>
-                </div>
-                {application.reviewNotes && (
-                  <div>
-                    <span className="text-muted-foreground">Notes:</span>
-                    <p className="font-medium mt-1">{application.reviewNotes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <DialogFooter>
-	          {application.accountStatus === 'active' ? (
-	            <Button
-	              variant="destructive"
-	              onClick={() => onStatusChange(application, true)}
-	              disabled={statusSubmitting}
-	            >
-	              <Ban className="h-4 w-4 mr-2" />
-	              {statusSubmitting ? 'Suspending...' : 'Suspend Account'}
-	            </Button>
-	          ) : (
-	            <Button
-	              onClick={() => onStatusChange(application, false)}
-	              disabled={statusSubmitting}
-	            >
-	              <UserCheck className="h-4 w-4 mr-2" />
-	              {statusSubmitting ? 'Activating...' : 'Activate Account'}
-	            </Button>
-	          )}
-          <Button onClick={onClose}>Close</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}

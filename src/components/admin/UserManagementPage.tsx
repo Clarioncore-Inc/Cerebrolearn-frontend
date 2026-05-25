@@ -309,7 +309,6 @@ export function UserManagementPage() {
                 <SelectItem value="instructor">Instructors</SelectItem>
                 <SelectItem value="creator">Course Creators</SelectItem>
                 <SelectItem value="psychologist">Psychologists</SelectItem>
-                <SelectItem value="psychologist_pending">Pending Psychologists</SelectItem>
                 <SelectItem value="org_admin">Org Admins</SelectItem>
                 <SelectItem value="admin">Platform Admins</SelectItem>
               </SelectContent>

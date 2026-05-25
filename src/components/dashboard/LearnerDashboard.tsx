@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { enrollmentsApi } from '../../utils/api-client';
+import { enrollmentsApi, learnerApi, type StudyStatsRecord } from '../../utils/api-client';
 import {
   Card,
   CardContent,
@@ -42,41 +42,63 @@ interface LearnerDashboardProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
+const EMPTY_STUDY_STATS: StudyStatsRecord = {
+  today: { lessons: 0, hours: 0, quizzes: 0 },
+  this_week: { lessons: 0, hours: 0, quizzes: 0, courses: 0 },
+  this_month: { lessons: 0, hours: 0, quizzes: 0, courses: 0 },
+  streak: 0,
+  total_study_time: 0,
+};
+
+const getChallengeProgress = (current: number, target: number) => {
+  if (target <= 0) return 0;
+  return Math.min(100, Math.round((current / target) * 100));
+};
+
+const getCourseModuleCount = (course: any) => {
+  if (typeof course?.total_lessons === 'number' && Number.isFinite(course.total_lessons)) {
+    return course.total_lessons;
+  }
+
+  if (typeof course?.lessons === 'number' && Number.isFinite(course.lessons)) {
+    return course.lessons;
+  }
+
+  if (Array.isArray(course?.lessons)) {
+    return course.lessons.length;
+  }
+
+  if (Array.isArray(course?.sections)) {
+    return course.sections.reduce(
+      (sum: number, section: any) => sum + (Array.isArray(section?.lessons) ? section.lessons.length : 0),
+      0,
+    );
+  }
+
+  return 0;
+};
+
+const isEnrollmentCompleted = (enrollment: any) => {
+  if (!enrollment) return false;
+
+  if (typeof enrollment.completed === 'boolean') {
+    return enrollment.completed;
+  }
+
+  if (typeof enrollment.status === 'string') {
+    return enrollment.status.toLowerCase() === 'completed';
+  }
+
+  return Number(enrollment.progress ?? 0) >= 100;
+};
+
 export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
   const { profile } = useAuth();
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showQuickStart, setShowQuickStart] = useState(true);
-  const [dailyChallenges] = useState([
-    {
-      id: 1,
-      title: 'Complete a Lesson',
-      description: 'Finish at least one lesson today',
-      reward: 50,
-      progress: 0,
-      icon: BookOpen,
-      color: 'from-indigo-500 to-purple-500',
-    },
-    {
-      id: 2,
-      title: 'Score 100% on a Quiz',
-      description: 'Get a perfect score on any quiz',
-      reward: 100,
-      progress: 0,
-      icon: Target,
-      color: 'from-cyan-500 to-blue-500',
-    },
-    {
-      id: 3,
-      title: 'Study for 30 Minutes',
-      description: 'Spend at least 30 minutes learning',
-      reward: 75,
-      progress: 40,
-      icon: Clock,
-      color: 'from-emerald-500 to-teal-500',
-    },
-  ]);
+  const [studyStats, setStudyStats] = useState<StudyStatsRecord>(EMPTY_STUDY_STATS);
 
   useEffect(() => {
     loadDashboardData();
@@ -101,13 +123,30 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
 
   const loadDashboardData = async () => {
     try {
-      const enrollmentsData = await enrollmentsApi.getMy();
-      setEnrollments(enrollmentsData || []);
+      const [enrollmentsResult, studyStatsResult] = await Promise.allSettled([
+        enrollmentsApi.getMy(),
+        learnerApi.getStudyStats(),
+      ]);
 
-      const enrolledCourses = (enrollmentsData || [])
-        .map((enrollment: any) => enrollment.course)
-        .filter(Boolean);
-      setCourses(enrolledCourses as any[]);
+      if (studyStatsResult.status === 'fulfilled') {
+        setStudyStats(studyStatsResult.value || EMPTY_STUDY_STATS);
+      } else {
+        console.error('Error loading study stats:', studyStatsResult.reason);
+        setStudyStats(EMPTY_STUDY_STATS);
+      }
+
+      if (enrollmentsResult.status === 'fulfilled') {
+        const enrollmentsData = enrollmentsResult.value || [];
+        setEnrollments(enrollmentsData);
+
+        const enrolledCourses = enrollmentsData
+          .map((enrollment: any) => enrollment.course)
+          .filter(Boolean);
+        setCourses(enrolledCourses as any[]);
+        return;
+      }
+
+      throw enrollmentsResult.reason;
     } catch (error) {
       console.log('Error loading dashboard data, using mock data:', error);
 
@@ -172,6 +211,38 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
     }
   };
 
+  const dailyChallenges = [
+    {
+      id: 'lesson',
+      title: 'Complete a Lesson',
+      description: 'Finish at least one lesson today',
+      reward: 50,
+      progress: getChallengeProgress(Number(studyStats.today?.lessons ?? 0), 1),
+      icon: BookOpen,
+      color: 'from-indigo-500 to-purple-500',
+    },
+    {
+      id: 'quiz',
+      title: 'Complete a Quiz',
+      description: 'Finish at least one quiz today',
+      reward: 100,
+      progress: getChallengeProgress(Number(studyStats.today?.quizzes ?? 0), 1),
+      icon: Target,
+      color: 'from-cyan-500 to-blue-500',
+    },
+    {
+      id: 'study-time',
+      title: 'Study for 30 Minutes',
+      description: 'Spend at least 30 minutes learning today',
+      reward: 75,
+      progress: getChallengeProgress(Number(studyStats.today?.hours ?? 0), 0.5),
+      icon: Clock,
+      color: 'from-emerald-500 to-teal-500',
+    },
+  ];
+
+  const completedCoursesCount = enrollments.filter((enrollment) => isEnrollmentCompleted(enrollment)).length;
+
   const stats = [
     {
       title: 'Active Courses',
@@ -196,10 +267,10 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
     },
     {
       title: 'Achievements',
-      value: profile?.badges?.length || 0,
+      value: completedCoursesCount,
       icon: Award,
       gradient: 'from-cyan-500 to-blue-500',
-      detail: 'Badges earned',
+      detail: 'Courses completed',
     },
   ];
 
@@ -382,11 +453,11 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
               const enrollment = enrollments.find(
                 (e) => (e.course?.id ?? e.course_id) === course.id,
               );
-              const progress = enrollment?.progress || 0;
-              const completedModules = Math.floor(
-                (course.lessons || 24) * (progress / 100),
-              );
-              const totalModules = course.lessons || 24;
+              const progress = enrollment?.completed
+                ? 100
+                : Math.max(0, Math.min(100, Number(enrollment?.progress ?? 0)));
+              const totalModules = getCourseModuleCount(course);
+              const completedModules = Math.floor(totalModules * (progress / 100));
 
               const courseImage = getCourseImageUrl(course, index);
 
@@ -415,40 +486,6 @@ export function LearnerDashboard({ onNavigate }: LearnerDashboardProps) {
                         </p>
                       </div>
                       <div className='content-stretch flex gap-[12px] items-center justify-end relative shrink-0'>
-                        <div className='relative shrink-0 size-[20px]'>
-                          <svg
-                            className='block size-full'
-                            fill='none'
-                            preserveAspectRatio='none'
-                            viewBox='0 0 20 20'
-                          >
-                            <g>
-                              <g>
-                                <path
-                                  d={svgPaths.p39a1e780}
-                                  stroke='#475467'
-                                  strokeLinecap='round'
-                                  strokeLinejoin='round'
-                                  strokeWidth='1.5'
-                                />
-                                <path
-                                  d={svgPaths.p11974af0}
-                                  stroke='#475467'
-                                  strokeLinecap='round'
-                                  strokeLinejoin='round'
-                                  strokeWidth='1.5'
-                                />
-                                <path
-                                  d={svgPaths.p133c1580}
-                                  stroke='#475467'
-                                  strokeLinecap='round'
-                                  strokeLinejoin='round'
-                                  strokeWidth='1.5'
-                                />
-                              </g>
-                            </g>
-                          </svg>
-                        </div>
                       </div>
                     </div>
 

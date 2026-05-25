@@ -278,7 +278,7 @@ export function RecentCoursesPanel({ onNavigate, maxItems = 5 }: RecentCoursesPa
                 {/* Last accessed */}
                 <div className="mt-2 text-xs text-muted-foreground flex items-center justify-between">
                   <span>Accessed {formatTimeAgo(course.lastAccessed)}</span>
-                  {course.completedLessons === course.totalLessons && (
+                  {course.totalLessons > 0 && course.completedLessons === course.totalLessons && (
                     <Badge variant="default" className="bg-green-500/10 text-green-600 border-green-500/20">
                       <Award className="w-3 h-3 mr-1" />
                       Completed

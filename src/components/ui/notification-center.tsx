@@ -31,28 +31,6 @@ export function NotificationCenter() {
         ...n,
         timestamp: new Date(n.timestamp)
       })));
-    } else {
-      // Initialize with sample notifications
-      const sampleNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'info',
-          title: 'Welcome to Admin Portal',
-          message: 'Explore the new enterprise tools in the sidebar',
-          timestamp: new Date(),
-          read: false
-        },
-        {
-          id: '2',
-          type: 'success',
-          title: 'System Update',
-          message: 'Platform analytics dashboard is now available',
-          timestamp: new Date(Date.now() - 3600000),
-          read: false
-        }
-      ];
-      setNotifications(sampleNotifications);
-      localStorage.setItem('notifications', JSON.stringify(sampleNotifications));
     }
   }, []);
 

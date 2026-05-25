@@ -23,6 +23,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import {
   learnerApi,
+  notesApi,
+  socialApi,
   type LearningGoalRecord,
   type ProgressDashboardRecord,
 } from '../../utils/api-client';
@@ -47,22 +49,30 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
   const { user } = useAuth();
   const [dashboard, setDashboard] = useState<ProgressDashboardRecord | null>(null);
   const [goals, setGoals] = useState<LearningGoalRecord[]>([]);
+  const [bookmarksCount, setBookmarksCount] = useState(0);
+  const [notesCount, setNotesCount] = useState(0);
 
   useEffect(() => {
     const loadQuickStats = async () => {
       if (!user) {
         setDashboard(null);
         setGoals([]);
+        setBookmarksCount(0);
+        setNotesCount(0);
         return;
       }
 
       try {
-        const [dashboardData, goalData] = await Promise.all([
+        const [dashboardData, goalData, bookmarks, notes] = await Promise.all([
           learnerApi.getProgressDashboard(),
           learnerApi.getGoals(),
+          socialApi.getBookmarks(),
+          notesApi.list(),
         ]);
         setDashboard(dashboardData);
         setGoals(goalData || []);
+        setBookmarksCount(Array.isArray(bookmarks) ? bookmarks.length : 0);
+        setNotesCount(Array.isArray(notes) ? notes.length : 0);
       } catch (error) {
         console.error('Error loading quick action stats:', error);
       }
@@ -85,6 +95,14 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
     }),
     [dashboard],
   );
+
+  const getCountBadge = (count: number, suffix?: string) => {
+    if (count <= 0) {
+      return undefined;
+    }
+
+    return suffix ? `${count} ${suffix}` : count;
+  };
 
   const actions: QuickAction[] = [
     {
@@ -111,7 +129,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       icon: TrendingUp,
       action: 'my-learning-path',
       color: 'from-green-500 to-emerald-500',
-      badge: `${quickStats.coursesActive} in progress`
+      badge: getCountBadge(quickStats.coursesActive, 'in progress')
     },
     {
       id: 'goals',
@@ -120,7 +138,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       icon: Target,
       action: 'learning-goals',
       color: 'from-orange-500 to-red-500',
-      badge: `${activeGoalsCount} active`
+      badge: getCountBadge(activeGoalsCount, 'active')
     },
     {
       id: 'bookmarks',
@@ -129,7 +147,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       icon: Bookmark,
       action: 'bookmarks',
       color: 'from-indigo-500 to-blue-500',
-      badge: '8'
+      badge: getCountBadge(bookmarksCount)
     },
     {
       id: 'progress',
@@ -170,7 +188,8 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       description: 'Review your notes',
       icon: FileText,
       action: 'notes',
-      color: 'from-gray-500 to-gray-700'
+      color: 'from-gray-500 to-gray-700',
+      badge: getCountBadge(notesCount)
     }
   ];
 
@@ -247,7 +266,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
                 <Button
                   key={action.id}
                   variant={action.highlight ? 'default' : 'outline'}
-                  className="h-auto p-3 flex flex-col items-start gap-1"
+                  className="h-auto p-3 flex flex-col items-start gap-1 cursor-pointer"
                   onClick={() => handleAction(action.action)}
                 >
                   <div className="flex items-center gap-2 w-full">
@@ -286,7 +305,7 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
               <button
                 key={action.id}
                   onClick={() => handleAction(action.action)}
-                className={`group relative p-4 rounded-xl border-2 bg-gradient-to-br ${action.color} bg-opacity-10 hover:bg-opacity-20 transition-all hover:shadow-lg hover:scale-105 ${
+                className={`group relative p-4 cursor-pointer rounded-xl border-2 bg-gradient-to-br ${action.color} bg-opacity-10 hover:bg-opacity-20 transition-all hover:shadow-lg hover:scale-105 ${
                   action.highlight ? 'border-primary ring-2 ring-primary/20' : 'border-transparent hover:border-primary/30'
                 }`}
               >

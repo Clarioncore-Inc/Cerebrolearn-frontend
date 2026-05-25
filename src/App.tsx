@@ -15,7 +15,6 @@ import { CourseCreatorDashboard } from './components/dashboard/CourseCreatorDash
 import { AdminDashboard } from './components/dashboard/AdminDashboard';
 import { AdminPortal } from './components/admin/AdminPortal';
 import { CourseCatalog } from './components/courses/CourseCatalog';
-import { CourseDetail } from './components/courses/CourseDetail';
 import { CategoryPage } from './components/pages/CategoryPage';
 import { SubcategoryPage } from './components/pages/SubcategoryPage';
 import { CourseDetailPage } from './components/pages/CourseDetailPage';
@@ -55,6 +54,7 @@ import { SignupChoice } from './components/auth/SignupChoice';
 import { PsychologistSignupForm } from './components/psychologist/PsychologistSignupForm';
 import { PsychologistDashboard } from './components/psychologist/PsychologistDashboard';
 import { PsychologistManagementPage } from './components/admin/PsychologistManagementPage';
+import { PsychologistDetailPage } from './components/admin/PsychologistDetailPage';
 import { PsychologistBrowse } from './components/psychologist/PsychologistBrowse';
 import { PsychologistProfilePage } from './components/psychologist/PsychologistProfilePage';
 import { AppointmentBooking } from './components/psychologist/AppointmentBooking';
@@ -419,8 +419,13 @@ function AppContent() {
         );
 
       case 'course':
-        return pageData ? (
-          <CourseDetail course={pageData} onNavigate={handleNavigate} />
+        return pageData?.id || pageData?.courseId ? (
+          <CourseDetailPage
+            category={pageData.category || 'general'}
+            subcategory={pageData.subcategory || 'general'}
+            courseId={pageData.courseId || pageData.id}
+            onNavigate={handleNavigate}
+          />
         ) : (
           <CourseCatalog
             onNavigate={handleNavigate}
@@ -574,6 +579,16 @@ function AppContent() {
 
       case 'admin-psychologist-management':
         return <PsychologistManagementPage onNavigate={handleNavigate} />;
+
+      case 'admin-psychologist-detail':
+        return pageData?.application ? (
+          <PsychologistDetailPage
+            onNavigate={handleNavigate}
+            application={pageData.application}
+          />
+        ) : (
+          <PsychologistManagementPage onNavigate={handleNavigate} />
+        );
 
       case 'browse-psychologists':
         return <PsychologistBrowse onNavigate={handleNavigate} />;
@@ -785,7 +800,15 @@ function AppContent() {
 
       case 'course-notes':
       case 'notes':
-        return <CourseNotesSystem onNavigate={handleNavigate} />;
+        return (
+          <CourseNotesSystem
+            onNavigate={handleNavigate}
+            currentCourseId={pageData?.currentCourseId}
+            currentLessonId={pageData?.currentLessonId}
+            currentCourseTitle={pageData?.currentCourseTitle}
+            autoOpenCreate={Boolean(pageData?.openCreate)}
+          />
+        );
 
       case 'community':
       case 'discussions':

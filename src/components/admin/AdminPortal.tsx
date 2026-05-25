@@ -7,6 +7,7 @@ import { CategoryManagementPage } from './CategoryManagementPage';
 import { GlobalAnalyticsPage } from './GlobalAnalyticsPage';
 import { ApplicationsPage } from './ApplicationsPage';
 import { PsychologistManagementPage } from './PsychologistManagementPage';
+import { PsychologistDetailPage } from './PsychologistDetailPage';
 import { AdminFinancials } from './AdminFinancials';
 import { AdminBookingManagement } from './AdminBookingManagement';
 import { PsychologistAnalytics } from './PsychologistAnalytics';
@@ -71,6 +72,7 @@ const getInitialAdminPortalPage = () => {
 
 export function AdminPortal() {
   const [currentPage, setCurrentPage] = useState(getInitialAdminPortalPage);
+  const [pageData, setPageData] = useState<any>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('adminSidebarCollapsed');
     return saved ? JSON.parse(saved) : false;
@@ -100,6 +102,16 @@ export function AdminPortal() {
     setSidebarCollapsed(!sidebarCollapsed);
   };
 
+  const handleInternalNavigate = (page: string, data?: any) => {
+    setPageData(data ?? null);
+    // Map App-level route names to portal page keys
+    const pageMap: Record<string, string> = {
+      'admin-psychologist-management': 'psychologists',
+      'admin-psychologist-detail': 'psychologist-detail',
+    };
+    setCurrentPage(pageMap[page] ?? page);
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'dashboard':
@@ -123,9 +135,18 @@ export function AdminPortal() {
       case 'settings':
         return <PlatformSettingsPage />;
       case 'psychologists':
-        return <PsychologistManagementPage />;
+        return <PsychologistManagementPage onNavigate={handleInternalNavigate} />;
       case 'admin_psychologist_management':
-        return <PsychologistManagementPage />;
+        return <PsychologistManagementPage onNavigate={handleInternalNavigate} />;
+      case 'psychologist-detail':
+        return pageData?.application ? (
+          <PsychologistDetailPage
+            onNavigate={handleInternalNavigate}
+            application={pageData.application}
+          />
+        ) : (
+          <PsychologistManagementPage onNavigate={handleInternalNavigate} />
+        );
       case 'admin_booking_management':
         return <AdminBookingManagement />;
       case 'admin_financials':

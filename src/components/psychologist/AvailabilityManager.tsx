@@ -255,7 +255,7 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
     const daySchedule = schedule[day];
 
     return (
-      <Card>
+      <Card className={!daySchedule.enabled ? 'opacity-60' : ''}>
         <CardContent className="pt-6">
           <div className="flex items-start gap-4">
             <div className="flex items-center gap-3 min-w-[140px]">
@@ -263,47 +263,51 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
                 checked={daySchedule.enabled}
                 onCheckedChange={() => handleToggleDay(day)}
               />
-              <Label className="font-semibold text-base">{label}</Label>
+              <Label className="font-semibold text-base cursor-pointer" onClick={() => handleToggleDay(day)}>
+                {label}
+              </Label>
             </div>
 
-            {daySchedule.enabled ? (
-              <div className="flex-1 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">Start Time</Label>
-                    <Select
-                      value={daySchedule.startTime}
-                      onValueChange={(value) => handleUpdateTime(day, 'startTime', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIME_OPTIONS.map(time => (
-                          <SelectItem key={time} value={time}>{time}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm text-muted-foreground">End Time</Label>
-                    <Select
-                      value={daySchedule.endTime}
-                      onValueChange={(value) => handleUpdateTime(day, 'endTime', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIME_OPTIONS.map(time => (
-                          <SelectItem key={time} value={time} disabled={time <= daySchedule.startTime}>{time}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+            <div className="flex-1 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Start Time</Label>
+                  <Select
+                    value={daySchedule.startTime}
+                    onValueChange={(value) => handleUpdateTime(day, 'startTime', value)}
+                    disabled={!daySchedule.enabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_OPTIONS.map(time => (
+                        <SelectItem key={time} value={time}>{time}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">End Time</Label>
+                  <Select
+                    value={daySchedule.endTime}
+                    onValueChange={(value) => handleUpdateTime(day, 'endTime', value)}
+                    disabled={!daySchedule.enabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIME_OPTIONS.map(time => (
+                        <SelectItem key={time} value={time} disabled={time <= daySchedule.startTime}>{time}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {daySchedule.enabled && (
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
@@ -316,12 +320,8 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
                     {daySchedule.startTime} - {daySchedule.endTime}
                   </span>
                 </div>
-              </div>
-            ) : (
-              <div className="flex-1 flex items-center">
-                <Badge variant="secondary">Unavailable</Badge>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

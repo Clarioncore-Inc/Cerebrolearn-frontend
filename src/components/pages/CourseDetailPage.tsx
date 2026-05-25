@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { coursesApi, enrollmentsApi, storageApi } from '../../utils/api-client';
-import { Avatar, AvatarFallback } from '../ui/avatar';
+import { coursesApi, enrollmentsApi, progressApi, socialApi, storageApi } from '../../utils/api-client';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Progress } from '../ui/progress';
@@ -27,6 +27,7 @@ import { toast } from 'sonner@2.0.3';
 import {
   ArrowRight,
   BookOpen,
+  FileText,
   Play,
   Star,
   Users,
@@ -41,12 +42,15 @@ import {
   TrendingUp,
   BarChart,
   Lock,
+    BookMarked,
+    BookmarkPlus,
   Calendar,
   Copy,
   Facebook,
   Twitter,
   Linkedin,
   Mail,
+  MapPin,
 } from 'lucide-react';
 
 interface CourseDetailPageProps {
@@ -71,6 +75,146 @@ const formatCourseDuration = (data: any) => {
     return `${Number(data.estimated_hours)}h`;
   }
   return '0h';
+};
+
+const getInitials = (name?: string, fallback = 'I') => {
+  const initials =
+    name
+      ?.split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join('') || fallback;
+
+  return initials;
+};
+
+const formatCountLabel = (
+  count: number,
+  singular: string,
+  plural = `${singular}s`,
+) => `${count} ${count === 1 ? singular : plural}`;
+
+const formatRoleLabel = (value?: string | null, fallback = 'Instructor') => {
+  if (!value) return fallback;
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+};
+
+const getCourseLessons = (courseData: any) =>
+  (courseData?.sections || []).flatMap((section: any) => section?.lessons || []);
+
+const calculateCourseProgress = async (courseData: any, enrollment?: any) => {
+  const lessons = getCourseLessons(courseData);
+  const totalLessons =
+    lessons.length || Number(courseData?.total_lessons ?? enrollment?.course?.total_lessons ?? 0);
+
+  if (totalLessons <= 0) {
+    return enrollment?.completed
+      ? 100
+      : Math.max(0, Math.min(100, Number(enrollment?.progress ?? 0)));
+  }
+
+  const progressEntries = await Promise.all(
+    lessons.map(async (lesson: any) => {
+      try {
+        const progressRecord = await progressApi.get(String(lesson.id));
+        return progressRecord?.progress ?? progressRecord ?? null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  const totalPercent = progressEntries.reduce(
+    (sum, record) => sum + Math.min(Number(record?.percent ?? 0), 100),
+    0,
+  );
+
+  const computedProgress = Math.round(totalPercent / totalLessons);
+  if (computedProgress > 0) {
+    return computedProgress;
+  }
+
+  return enrollment?.completed
+    ? 100
+    : Math.max(0, Math.min(100, Number(enrollment?.progress ?? 0)));
+};
+
+const buildInstructorRecord = (
+  user: any,
+  options: { title?: string; isLead?: boolean; students?: number; rating?: number } = {},
+) => {
+  const name = user?.full_name || user?.name || 'Course Instructor';
+  return {
+    id: user?.id || user?.email || name,
+    name,
+    title: options.title || formatRoleLabel(user?.role, 'Instructor'),
+    avatar: getInitials(name),
+    avatarUrl: user?.avatar || '',
+    bio: user?.bio || '',
+    email: user?.email || '',
+    location: user?.location || user?.country || '',
+    rating: options.rating ?? 0,
+    students: options.students ?? 0,
+    courses: 1,
+    isLead: options.isLead ?? false,
+  };
+};
+
+const buildInstructors = (data: any) => {
+  const totalEnrollments = data.total_enrollments || 0;
+  const rating = data.rating || 0;
+  const seen = new Set<string>();
+  const instructors: any[] = [];
+
+  const pushInstructor = (record: any) => {
+    const key = String(record?.id || record?.email || record?.name || '');
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    instructors.push(record);
+  };
+
+  if (data.creator) {
+    pushInstructor(
+      buildInstructorRecord(data.creator, {
+        title: 'Lead Instructor',
+        isLead: true,
+        students: totalEnrollments,
+        rating,
+      }),
+    );
+  }
+
+  (data.collaborators || []).forEach((collaborator: any) => {
+    if (!collaborator?.user) return;
+    pushInstructor(
+      buildInstructorRecord(collaborator.user, {
+        title: formatRoleLabel(collaborator.role, 'Co Instructor'),
+      }),
+    );
+  });
+
+  if (instructors.length === 0) {
+    instructors.push({
+      id: data.id || 'course-instructor',
+      name: 'Course Instructor',
+      title: 'Instructor',
+      avatar: getInitials(data.title, 'I'),
+      avatarUrl: '',
+      bio: '',
+      email: '',
+      location: '',
+      rating,
+      students: totalEnrollments,
+      courses: 1,
+      isLead: true,
+    });
+  }
+
+  return instructors;
 };
 
 const buildCourseIncludes = (data: any, totalLessons: number) => {
@@ -100,6 +244,7 @@ const buildCourseIncludes = (data: any, totalLessons: number) => {
 // Helper to normalise an API course response into the shape this page renders
 function normaliseCourse(data: any, imageUrl = '') {
   const sections: any[] = data.sections || [];
+  const instructors = buildInstructors(data);
   const totalLessons = sections.reduce(
     (acc: number, s: any) => acc + (s.lessons?.length || 0),
     0,
@@ -133,15 +278,8 @@ function normaliseCourse(data: any, imageUrl = '') {
     price: parseFloat(data.price) || 0,
     discount: data.discount ? parseFloat(data.discount) : null,
     image: imageUrl,
-    instructor: {
-      name: 'Course Instructor',
-      title: '',
-      avatar: (data.title || 'I')[0].toUpperCase(),
-      bio: '',
-      rating: 0,
-      students: data.total_enrollments || 0,
-      courses: 1,
-    },
+    instructor: instructors[0],
+    instructors,
     whatYouWillLearn:
       (data.learning_objectives?.length > 0 && data.learning_objectives) ||
       (data.course_goals?.length > 0 && data.course_goals) ||
@@ -194,11 +332,16 @@ const EMPTY_COURSE = {
     name: '',
     title: '',
     avatar: 'I',
+    avatarUrl: '',
     bio: '',
+    email: '',
+    location: '',
     rating: 0,
     students: 0,
     courses: 0,
+    isLead: true,
   },
+  instructors: [] as any[],
   level: '',
   rating: 0,
   reviewCount: 0,
@@ -232,50 +375,111 @@ export function CourseDetailPage({
   const [enrolled, setEnrolled] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
   const [checkingEnrollment, setCheckingEnrollment] = useState(true);
+  const [courseProgress, setCourseProgress] = useState(0);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [courseReviews, setCourseReviews] = useState<any[]>([]);
   const [course, setCourse] = useState<any>(EMPTY_COURSE);
   const [loading, setLoading] = useState(true);
+  const [bookmarkedLessonIds, setBookmarkedLessonIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [bookmarkingLessonId, setBookmarkingLessonId] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       setCheckingEnrollment(!!user);
       try {
-        const [data, reviews] = await Promise.all([
+        const [data, reviews, enrollments] = await Promise.all([
           coursesApi.getById(courseId),
           coursesApi.getReviews(courseId).catch(() => []),
+          user ? enrollmentsApi.getMy().catch(() => []) : Promise.resolve([]),
         ]);
         const imageUrl = await resolveCourseImage(data.cover_image);
         setCourse(normaliseCourse(data, imageUrl));
         setCourseReviews(reviews || []);
+
+        const matchedEnrollment = (enrollments as any[]).find((e: any) =>
+          matchesEnrollmentCourse(e, courseId),
+        );
+        setEnrolled(Boolean(matchedEnrollment));
+        setCourseProgress(await calculateCourseProgress(data, matchedEnrollment));
       } catch (error) {
         console.error('Error loading course:', error);
         toast.error('Failed to load course details');
+        setCourseProgress(0);
       } finally {
         setLoading(false);
-      }
-
-      // Check enrollment
-      if (user) {
-        try {
-          const enrollments = await enrollmentsApi.getMy();
-          const isEnrolled = (enrollments as any[]).some(
-            (e: any) => matchesEnrollmentCourse(e, courseId),
-          );
-          setEnrolled(isEnrolled);
-        } catch {
-          // ignore enrollment check errors
-        } finally {
-          setCheckingEnrollment(false);
-        }
-      } else {
-        setEnrolled(false);
         setCheckingEnrollment(false);
       }
     };
     load();
   }, [courseId, user]);
+
+  useEffect(() => {
+    const loadBookmarks = async () => {
+      if (!user) {
+        setBookmarkedLessonIds(new Set());
+        return;
+      }
+
+      try {
+        const bookmarks = await socialApi.getBookmarks();
+        setBookmarkedLessonIds(
+          new Set(
+            bookmarks
+              .filter((bookmark) => bookmark.object_type === 'lesson')
+              .map((bookmark) => String(bookmark.object_id)),
+          ),
+        );
+      } catch (error) {
+        console.error('Error loading lesson bookmarks:', error);
+      }
+    };
+
+    loadBookmarks();
+  }, [user]);
+
+  const handleToggleLessonBookmark = async (lessonId: string) => {
+    if (!user) {
+      toast.error('Please sign in to bookmark lessons');
+      onNavigate('auth');
+      return;
+    }
+
+    const normalizedLessonId = String(lessonId);
+    const isBookmarked = bookmarkedLessonIds.has(normalizedLessonId);
+    setBookmarkingLessonId(normalizedLessonId);
+
+    try {
+      if (isBookmarked) {
+        await socialApi.unbookmarkLesson(normalizedLessonId);
+      } else {
+        await socialApi.bookmarkLesson(normalizedLessonId);
+      }
+
+      setBookmarkedLessonIds((current) => {
+        const next = new Set(current);
+        if (isBookmarked) {
+          next.delete(normalizedLessonId);
+        } else {
+          next.add(normalizedLessonId);
+        }
+        return next;
+      });
+
+      toast.success(
+        isBookmarked ? 'Lesson removed from bookmarks' : 'Lesson bookmarked',
+      );
+    } catch (error: any) {
+      console.error('Error updating lesson bookmark:', error);
+      toast.error(error?.message ?? 'Failed to update bookmark');
+    } finally {
+      setBookmarkingLessonId(null);
+    }
+  };
 
   const handleEnroll = async () => {
     if (!user) {
@@ -288,10 +492,11 @@ export function CourseDetailPage({
       await enrollmentsApi.enroll(courseId);
 
       const enrollments = await enrollmentsApi.getMy();
-      const isEnrolled = (enrollments as any[]).some(
+      const matchedEnrollment = (enrollments as any[]).find(
         (e: any) => matchesEnrollmentCourse(e, courseId),
       );
-      setEnrolled(isEnrolled);
+      setEnrolled(Boolean(matchedEnrollment));
+      setCourseProgress(await calculateCourseProgress(course, matchedEnrollment));
       toast.success('Successfully enrolled in course!');
     } catch (error) {
       console.error('Error enrolling:', error);
@@ -327,6 +532,25 @@ export function CourseDetailPage({
     } else {
       toast.error('No lessons available in this course yet');
     }
+  };
+
+  const handleOpenCourseNotes = () => {
+    if (!user) {
+      toast.error('Please sign in to write course notes');
+      onNavigate('auth');
+      return;
+    }
+
+    if (!isInstructor && !enrolled) {
+      toast.error('Enroll in this course before adding course notes');
+      return;
+    }
+
+    onNavigate('notes', {
+      currentCourseId: courseId,
+      currentCourseTitle: course.title,
+      openCreate: true,
+    });
   };
 
   const courseUrl = `https://cerebrolearn.com/course/${category}/${subcategory}/${courseId}`;
@@ -387,12 +611,12 @@ export function CourseDetailPage({
                   <Star className='w-5 h-5 fill-yellow-400 text-yellow-400' />
                   <span className='font-bold text-lg'>{course.rating}</span>
                   <span className='text-muted-foreground'>
-                    ({course.reviewCount.toLocaleString()} reviews)
+                    ({formatCountLabel(course.reviewCount, 'review')})
                   </span>
                 </div>
                 <div className='flex items-center gap-2 text-muted-foreground'>
                   <Users className='w-5 h-5' />
-                  <span>{course.students} students</span>
+                  <span>{formatCountLabel(course.students, 'student')}</span>
                 </div>
                 <div className='flex items-center gap-2 text-muted-foreground'>
                   <Clock className='w-5 h-5' />
@@ -400,7 +624,7 @@ export function CourseDetailPage({
                 </div>
                 <div className='flex items-center gap-2 text-muted-foreground'>
                   <BookOpen className='w-5 h-5' />
-                  <span>{course.lessons} lessons</span>
+                  <span>{formatCountLabel(course.lessons, 'lesson')}</span>
                 </div>
               </div>
 
@@ -432,11 +656,15 @@ export function CourseDetailPage({
                         </div>
                         <div className='flex items-center gap-1'>
                           <Users className='w-4 h-4' />
-                          <span>{course.instructor.students} students</span>
+                          <span>
+                            {formatCountLabel(course.instructor.students, 'student')}
+                          </span>
                         </div>
                         <div className='flex items-center gap-1'>
                           <BookOpen className='w-4 h-4' />
-                          <span>{course.instructor.courses} courses</span>
+                          <span>
+                            {formatCountLabel(course.instructor.courses, 'course')}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -506,9 +734,9 @@ export function CourseDetailPage({
                           <CardContent className='p-4'>
                             <div className='flex justify-between text-sm mb-2'>
                               <span>Your Progress</span>
-                              <span className='font-medium'>0%</span>
+                              <span className='font-medium'>{courseProgress}%</span>
                             </div>
-                            <Progress value={0} className='h-2' />
+                            <Progress value={courseProgress} className='h-2' />
                           </CardContent>
                         </Card>
                       </>
@@ -527,6 +755,24 @@ export function CourseDetailPage({
                         </Button>
                       </>
                     ))}
+
+                  <Separator />
+
+                  <Button
+                    variant='outline'
+                    size='lg'
+                    className='w-full'
+                    onClick={handleOpenCourseNotes}
+                    disabled={checkingEnrollment || (!isInstructor && !enrolled)}
+                    title={
+                      !isInstructor && !enrolled
+                        ? 'Enroll in this course to add course notes'
+                        : 'Open course notes'
+                    }
+                  >
+                    <FileText className='w-4 h-4 mr-2' />
+                    {!isInstructor && !enrolled ? 'Enroll to Take Notes' : 'Course Notes'}
+                  </Button>
 
                   <Separator />
 
@@ -578,7 +824,7 @@ export function CourseDetailPage({
             <TabsTrigger value='overview'>Overview</TabsTrigger>
             <TabsTrigger value='topics'>Topics</TabsTrigger>
             <TabsTrigger value='reviews'>Reviews</TabsTrigger>
-            <TabsTrigger value='instructor'>Instructor</TabsTrigger>
+            <TabsTrigger value='instructor'>Instructors</TabsTrigger>
           </TabsList>
 
           <TabsContent value='overview' className='mt-8 space-y-8'>
@@ -631,7 +877,7 @@ export function CourseDetailPage({
               <CardHeader>
                 <CardTitle>Course Curriculum</CardTitle>
                 <CardDescription>
-                  {course.lessons} lessons • {course.hours} total length
+                  {formatCountLabel(course.lessons, 'lesson')} • {course.hours} total length
                 </CardDescription>
               </CardHeader>
               <CardContent className='space-y-4'>
@@ -644,13 +890,17 @@ export function CourseDetailPage({
                       <div>
                         <h4 className='font-medium'>{topic.title}</h4>
                         <p className='text-sm text-muted-foreground mt-1'>
-                          {topic.lessons} lessons • {topic.duration}
+                          {formatCountLabel(topic.lessons, 'lesson')} • {topic.duration}
                         </p>
                       </div>
                       <Badge variant='secondary'>{topicIndex + 1}</Badge>
                     </div>
                     <div className='divide-y'>
                       {topic.items.map((item: any, itemIndex: number) => (
+                        (() => {
+                          const lessonId = String(item.id || itemIndex);
+                          const isBookmarked = bookmarkedLessonIds.has(lessonId);
+                          return (
                         <div
                           key={item.id || itemIndex}
                           className='p-4 flex items-center justify-between hover:bg-muted/30 transition-colors'
@@ -674,27 +924,53 @@ export function CourseDetailPage({
                               </div>
                             </div>
                           </div>
-                          {item.locked ? (
-                            <Lock className='w-4 h-4 text-muted-foreground' />
-                          ) : (
+                          <div className='flex items-center gap-2'>
                             <Button
                               variant='ghost'
                               size='sm'
-                              onClick={() =>
-                                onNavigate('lesson', {
-                                  lesson: item,
-                                  course: {
-                                    id: courseId,
-                                    title: course.title,
-                                    instructor: course.instructor?.name || 'Instructor',
-                                  },
-                                })
+                              title={
+                                isBookmarked
+                                  ? 'Remove lesson bookmark'
+                                  : 'Bookmark this lesson'
                               }
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleToggleLessonBookmark(lessonId);
+                              }}
+                              disabled={bookmarkingLessonId === lessonId}
                             >
-                              <Play className='w-4 h-4' />
+                              {isBookmarked ? (
+                                <BookMarked className='w-4 h-4 text-primary' />
+                              ) : (
+                                <BookmarkPlus className='w-4 h-4' />
+                              )}
                             </Button>
-                          )}
+
+                            {item.locked ? (
+                              <Lock className='w-4 h-4 text-muted-foreground' />
+                            ) : (
+                              <Button
+                                variant='ghost'
+                                size='sm'
+                                title='Open this lesson'
+                                onClick={() =>
+                                  onNavigate('lesson', {
+                                    lesson: item,
+                                    course: {
+                                      id: courseId,
+                                      title: course.title,
+                                      instructor: course.instructor?.name || 'Instructor',
+                                    },
+                                  })
+                                }
+                              >
+                                <Play className='w-4 h-4' />
+                              </Button>
+                            )}
+                          </div>
                         </div>
+                          );
+                        })()
                       ))}
                     </div>
                   </div>
@@ -719,72 +995,79 @@ export function CourseDetailPage({
           </TabsContent>
 
           <TabsContent value='instructor' className='mt-8'>
-            <Card>
-              <CardContent className='p-8'>
-                <div className='flex flex-col md:flex-row gap-8'>
-                  <Avatar className='w-32 h-32'>
-                    <AvatarFallback className='text-3xl bg-primary text-white'>
-                      {course.instructor.avatar}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className='flex-1 space-y-6'>
-                    <div>
-                      <h3 className='text-2xl font-bold mb-2'>
-                        {course.instructor.name}
-                      </h3>
-                      <p className='text-lg text-muted-foreground mb-4'>
-                        {course.instructor.title}
-                      </p>
-                      <p className='text-muted-foreground leading-relaxed'>
-                        {course.instructor.bio}
-                      </p>
-                    </div>
+            <div className='space-y-6'>
+              {(course.instructors?.length ? course.instructors : [course.instructor]).map(
+                (instructor: any) => (
+                  <Card key={instructor.id || instructor.name}>
+                    <CardContent className='p-8'>
+                      <div className='flex flex-col md:flex-row gap-8'>
+                        <Avatar className='w-24 h-24 md:w-32 md:h-32'>
+                          {instructor.avatarUrl ? (
+                            <AvatarImage src={instructor.avatarUrl} alt={instructor.name} />
+                          ) : null}
+                          <AvatarFallback className='text-3xl bg-primary text-white'>
+                            {instructor.avatar}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className='flex-1 space-y-5'>
+                          <div>
+                            <div className='flex flex-wrap items-center gap-3 mb-2'>
+                              <h3 className='text-2xl font-bold'>{instructor.name}</h3>
+                              <Badge variant={instructor.isLead ? 'default' : 'secondary'}>
+                                {instructor.title}
+                              </Badge>
+                            </div>
+                            <p className='text-muted-foreground leading-relaxed'>
+                              {instructor.bio || 'No instructor bio available yet.'}
+                            </p>
+                          </div>
 
-                    <div className='grid grid-cols-3 gap-6'>
-                      <div>
-                        <div className='flex items-center gap-2 mb-1'>
-                          <Star className='w-5 h-5 fill-yellow-400 text-yellow-400' />
-                          <span className='text-2xl font-bold'>
-                            {course.instructor.rating}
-                          </span>
-                        </div>
-                        <p className='text-sm text-muted-foreground'>
-                          Instructor Rating
-                        </p>
-                      </div>
-                      <div>
-                        <div className='flex items-center gap-2 mb-1'>
-                          <Users className='w-5 h-5 text-primary' />
-                          <span className='text-2xl font-bold'>
-                            {course.instructor.students}
-                          </span>
-                        </div>
-                        <p className='text-sm text-muted-foreground'>
-                          Students
-                        </p>
-                      </div>
-                      <div>
-                        <div className='flex items-center gap-2 mb-1'>
-                          <BookOpen className='w-5 h-5 text-primary' />
-                          <span className='text-2xl font-bold'>
-                            {course.instructor.courses}
-                          </span>
-                        </div>
-                        <p className='text-sm text-muted-foreground'>Courses</p>
-                      </div>
-                    </div>
+                          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+                            {instructor.email ? (
+                              <div className='rounded-lg border p-4'>
+                                <div className='flex items-center gap-2 mb-1 text-sm font-medium'>
+                                  <Mail className='w-4 h-4 text-primary' />
+                                  Email
+                                </div>
+                                <p className='text-sm text-muted-foreground break-all'>
+                                  {instructor.email}
+                                </p>
+                              </div>
+                            ) : null}
 
-                    <Button
-                      className='mt-4'
-                      onClick={() => onNavigate('catalog')}
-                    >
-                      View All Courses
-                      <ArrowRight className='w-4 h-4 ml-2' />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                            {instructor.location ? (
+                              <div className='rounded-lg border p-4'>
+                                <div className='flex items-center gap-2 mb-1 text-sm font-medium'>
+                                  <MapPin className='w-4 h-4 text-primary' />
+                                  Location
+                                </div>
+                                <p className='text-sm text-muted-foreground'>
+                                  {instructor.location}
+                                </p>
+                              </div>
+                            ) : null}
+
+                            {instructor.isLead ? (
+                              <div className='rounded-lg border p-4'>
+                                <div className='flex items-center gap-2 mb-1 text-sm font-medium'>
+                                  <Users className='w-4 h-4 text-primary' />
+                                  {instructor.students === 1
+                                    ? 'Enrolled Student'
+                                    : 'Enrolled Students'}
+                                </div>
+                                <p className='text-sm text-muted-foreground'>
+                                  {formatCountLabel(instructor.students, 'student')}
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ),
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </section>

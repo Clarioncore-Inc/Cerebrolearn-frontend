@@ -1,24 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { lessonsApi, socialApi } from '../../utils/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { 
   Bookmark, 
-  BookmarkPlus,
-  BookmarkCheck,
   Search,
   Trash2,
   ChevronRight,
   BookOpen,
   Clock,
-  Tag,
-  Filter,
-  Star
+  GraduationCap,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import type { Bookmark as BookmarkRecord } from '../../types/database';
 
 interface BookmarkManagerProps {
   onNavigate: (page: string, data?: any) => void;
@@ -27,154 +25,126 @@ interface BookmarkManagerProps {
   compact?: boolean;
 }
 
-interface BookmarkItem {
-  id: string;
-  lessonId: string;
-  lessonTitle: string;
-  courseId: string;
-  courseTitle: string;
-  timestamp: Date;
-  note?: string;
-  tags: string[];
-  category?: string;
-}
-
 export function BookmarkManager({ 
   onNavigate, 
-  currentLessonId, 
-  currentCourseId,
   compact = false 
 }: BookmarkManagerProps) {
   const { user } = useAuth();
-  const [bookmarks, setBookmarks] = useState<BookmarkItem[]>([]);
-  const [filteredBookmarks, setFilteredBookmarks] = useState<BookmarkItem[]>([]);
+  const [bookmarks, setBookmarks] = useState<BookmarkRecord[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTag, setSelectedTag] = useState<string>('all');
-  const [isCurrentBookmarked, setIsCurrentBookmarked] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [busyBookmarkId, setBusyBookmarkId] = useState<string | null>(null);
 
   useEffect(() => {
+    const loadBookmarks = async () => {
+      if (!user) {
+        setBookmarks([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const data = await socialApi.getBookmarks();
+        setBookmarks(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Error loading bookmarks:', error);
+        toast.error('Failed to load bookmarks');
+        setBookmarks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     loadBookmarks();
   }, [user]);
 
-  useEffect(() => {
-    checkCurrentBookmark();
-  }, [currentLessonId, bookmarks]);
+  const filteredBookmarks = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-  useEffect(() => {
-    filterBookmarks();
-  }, [searchQuery, selectedTag, bookmarks]);
+    return [...bookmarks]
+      .filter((bookmark) => {
+        if (!query) return true;
 
-  const loadBookmarks = () => {
-    try {
-      const bookmarksKey = `bookmarks_${user?.id || 'guest'}`;
-      const stored = localStorage.getItem(bookmarksKey);
-      
-      if (stored) {
-        const parsedBookmarks = JSON.parse(stored).map((b: any) => ({
-          ...b,
-          timestamp: new Date(b.timestamp)
-        }));
-        setBookmarks(parsedBookmarks);
-        setFilteredBookmarks(parsedBookmarks);
-      }
-    } catch (error) {
-      console.error('Error loading bookmarks:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const checkCurrentBookmark = () => {
-    if (currentLessonId) {
-      const exists = bookmarks.some(b => b.lessonId === currentLessonId);
-      setIsCurrentBookmarked(exists);
-    }
-  };
-
-  const filterBookmarks = () => {
-    let filtered = [...bookmarks];
-
-    // Apply search filter
-    if (searchQuery) {
-      filtered = filtered.filter(b =>
-        b.lessonTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.courseTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.note?.toLowerCase().includes(searchQuery.toLowerCase())
+        const title = getBookmarkTitle(bookmark).toLowerCase();
+        const subtitle = getBookmarkSubtitle(bookmark).toLowerCase();
+        return title.includes(query) || subtitle.includes(query);
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
+  }, [bookmarks, searchQuery]);
+
+  const lessonBookmarksCount = useMemo(
+    () => bookmarks.filter((bookmark) => bookmark.object_type === 'lesson').length,
+    [bookmarks],
+  );
+
+  const courseBookmarksCount = useMemo(
+    () => bookmarks.filter((bookmark) => bookmark.object_type === 'course').length,
+    [bookmarks],
+  );
+
+  const handleRemoveBookmark = async (bookmark: BookmarkRecord) => {
+    setBusyBookmarkId(bookmark.id);
+
+    try {
+      if (bookmark.object_type === 'lesson') {
+        await socialApi.unbookmarkLesson(bookmark.object_id);
+      } else {
+        await socialApi.unbookmarkCourse(bookmark.object_id);
+      }
+
+      setBookmarks((current) =>
+        current.filter((item) => item.id !== bookmark.id),
+      );
+      toast.success('Bookmark removed');
+    } catch (error: any) {
+      console.error('Error removing bookmark:', error);
+      toast.error(error?.message ?? 'Failed to remove bookmark');
+    } finally {
+      setBusyBookmarkId(null);
     }
-
-    // Apply tag filter
-    if (selectedTag !== 'all') {
-      filtered = filtered.filter(b => b.tags.includes(selectedTag));
-    }
-
-    // Sort by most recent
-    filtered.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-
-    setFilteredBookmarks(filtered);
   };
 
-  const addBookmark = (lessonId?: string, courseId?: string) => {
-    if (!lessonId || !courseId) {
-      toast.error('Cannot bookmark: Lesson information missing');
+  const handleOpenBookmark = async (bookmark: BookmarkRecord) => {
+    if (bookmark.object_type === 'course') {
+      onNavigate('course-detail', {
+        category: bookmark.course?.category || 'general',
+        subcategory: bookmark.course?.subcategory || 'general',
+        courseId: bookmark.object_id,
+      });
       return;
     }
 
-    const newBookmark: BookmarkItem = {
-      id: `bookmark-${Date.now()}`,
-      lessonId,
-      lessonTitle: `Lesson ${lessonId}`,
-      courseId,
-      courseTitle: `Course ${courseId}`,
-      timestamp: new Date(),
-      tags: ['important'],
-      note: ''
-    };
+    try {
+      const lesson = bookmark.lesson
+        ? normalizeLessonForNavigation(bookmark.lesson)
+        : normalizeLessonForNavigation(await lessonsApi.getById(bookmark.object_id));
 
-    const updatedBookmarks = [...bookmarks, newBookmark];
-    setBookmarks(updatedBookmarks);
-    
-    // Save to localStorage
-    const bookmarksKey = `bookmarks_${user?.id || 'guest'}`;
-    localStorage.setItem(bookmarksKey, JSON.stringify(updatedBookmarks));
-    
-    toast.success('Bookmark added', {
-      description: 'Lesson bookmarked for quick access'
-    });
-  };
-
-  const removeBookmark = (bookmarkId: string) => {
-    const updatedBookmarks = bookmarks.filter(b => b.id !== bookmarkId);
-    setBookmarks(updatedBookmarks);
-    
-    // Save to localStorage
-    const bookmarksKey = `bookmarks_${user?.id || 'guest'}`;
-    localStorage.setItem(bookmarksKey, JSON.stringify(updatedBookmarks));
-    
-    toast.success('Bookmark removed');
-  };
-
-  const toggleCurrentBookmark = () => {
-    if (!currentLessonId || !currentCourseId) return;
-
-    if (isCurrentBookmarked) {
-      const bookmark = bookmarks.find(b => b.lessonId === currentLessonId);
-      if (bookmark) {
-        removeBookmark(bookmark.id);
+      if (!bookmark.course) {
+        throw new Error('Course not found for bookmarked lesson');
       }
-    } else {
-      addBookmark(currentLessonId, currentCourseId);
+
+      const course = bookmark.course;
+
+      onNavigate('lesson', {
+        lesson,
+        course: {
+          id: course.id,
+          title: course.title,
+          instructor: 'Instructor',
+        },
+      });
+    } catch (error: any) {
+      console.error('Error opening bookmarked lesson:', error);
+      toast.error(error?.message ?? 'Failed to open bookmark');
     }
   };
 
-  const getAllTags = (): string[] => {
-    const tagSet = new Set<string>();
-    bookmarks.forEach(b => b.tags.forEach(t => tagSet.add(t)));
-    return Array.from(tagSet);
-  };
+  const visibleBookmarks = compact ? filteredBookmarks.slice(0, 5) : filteredBookmarks;
 
-  // Compact view (for lesson player sidebar)
   if (compact) {
     return (
       <Card>
@@ -184,25 +154,6 @@ export function BookmarkManager({
               <Bookmark className="w-4 h-4 text-primary" />
               Bookmarks
             </CardTitle>
-            {currentLessonId && (
-              <Button
-                variant={isCurrentBookmarked ? 'default' : 'outline'}
-                size="sm"
-                onClick={toggleCurrentBookmark}
-              >
-                {isCurrentBookmarked ? (
-                  <>
-                    <BookmarkCheck className="w-3 h-3 mr-1" />
-                    Saved
-                  </>
-                ) : (
-                  <>
-                    <BookmarkPlus className="w-3 h-3 mr-1" />
-                    Save
-                  </>
-                )}
-              </Button>
-            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -214,22 +165,19 @@ export function BookmarkManager({
           ) : (
             <ScrollArea className="h-[200px]">
               <div className="space-y-2">
-                {bookmarks.slice(0, 5).map(bookmark => (
+                {visibleBookmarks.map((bookmark) => (
                   <div
                     key={bookmark.id}
                     className="p-2 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
-                    onClick={() => onNavigate('lesson', { 
-                      lessonId: bookmark.lessonId,
-                      courseId: bookmark.courseId 
-                    })}
+                    onClick={() => void handleOpenBookmark(bookmark)}
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium line-clamp-1">
-                          {bookmark.lessonTitle}
+                          {getBookmarkTitle(bookmark)}
                         </p>
                         <p className="text-xs text-muted-foreground line-clamp-1">
-                          {bookmark.courseTitle}
+                          {getBookmarkSubtitle(bookmark)}
                         </p>
                       </div>
                       <ChevronRight className="w-3 h-3 text-muted-foreground flex-shrink-0" />
@@ -264,7 +212,7 @@ export function BookmarkManager({
           My Bookmarks
         </h1>
         <p className="text-muted-foreground mt-2">
-          Quick access to your saved lessons and important content
+          Quick access to your saved lessons and courses
         </p>
       </div>
 
@@ -281,63 +229,34 @@ export function BookmarkManager({
         
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Unique Courses</CardDescription>
+            <CardDescription>Lesson Bookmarks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
-              {new Set(bookmarks.map(b => b.courseId)).size}
-            </div>
+            <div className="text-3xl font-bold">{lessonBookmarksCount}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardDescription>Tags Used</CardDescription>
+            <CardDescription>Course Bookmarks</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{getAllTags().length}</div>
+            <div className="text-3xl font-bold">{courseBookmarksCount}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search and Filters */}
+      {/* Search */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search bookmarks..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-            </div>
-
-            {/* Tag Filter */}
-            <div className="flex gap-2 flex-wrap">
-              <Button
-                variant={selectedTag === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedTag('all')}
-              >
-                All Tags
-              </Button>
-              {getAllTags().map(tag => (
-                <Button
-                  key={tag}
-                  variant={selectedTag === tag ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedTag(tag)}
-                >
-                  <Tag className="w-3 h-3 mr-1" />
-                  {tag}
-                </Button>
-              ))}
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search bookmarks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
           </div>
         </CardHeader>
       </Card>
@@ -355,11 +274,11 @@ export function BookmarkManager({
             <Bookmark className="w-16 h-16 text-muted-foreground/50 mb-4" />
             <p className="text-lg font-medium mb-2">No bookmarks found</p>
             <p className="text-sm text-muted-foreground mb-4">
-              {searchQuery || selectedTag !== 'all' 
-                ? 'Try adjusting your filters' 
-                : 'Start bookmarking lessons for quick access'}
+              {searchQuery
+                ? 'Try a different search term'
+                : 'Start bookmarking lessons and courses for quick access'}
             </p>
-            {!searchQuery && selectedTag === 'all' && (
+            {!searchQuery && (
               <Button onClick={() => onNavigate('catalog')}>
                 <BookOpen className="w-4 h-4 mr-2" />
                 Browse Courses
@@ -369,33 +288,32 @@ export function BookmarkManager({
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredBookmarks.map(bookmark => (
+          {filteredBookmarks.map((bookmark) => (
             <Card
               key={bookmark.id}
               className="hover:shadow-md transition-all cursor-pointer group"
             >
               <CardContent className="p-4">
                 <div className="flex gap-4">
-                  {/* Icon */}
                   <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center flex-shrink-0">
-                    <BookOpen className="w-6 h-6 text-primary" />
+                    {bookmark.object_type === 'course' ? (
+                      <GraduationCap className="w-6 h-6 text-primary" />
+                    ) : (
+                      <BookOpen className="w-6 h-6 text-primary" />
+                    )}
                   </div>
 
-                  {/* Content */}
                   <div 
                     className="flex-1 min-w-0"
-                    onClick={() => onNavigate('lesson', { 
-                      lessonId: bookmark.lessonId,
-                      courseId: bookmark.courseId 
-                    })}
+                    onClick={() => void handleOpenBookmark(bookmark)}
                   >
                     <div className="flex items-start justify-between gap-4 mb-2">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-base line-clamp-1 group-hover:text-primary transition-colors">
-                          {bookmark.lessonTitle}
+                          {getBookmarkTitle(bookmark)}
                         </h3>
                         <p className="text-sm text-muted-foreground line-clamp-1">
-                          {bookmark.courseTitle}
+                          {getBookmarkSubtitle(bookmark)}
                         </p>
                       </div>
                       <Button
@@ -403,44 +321,36 @@ export function BookmarkManager({
                         size="icon"
                         onClick={(e) => {
                           e.stopPropagation();
-                          removeBookmark(bookmark.id);
+                          void handleRemoveBookmark(bookmark);
                         }}
+                        disabled={busyBookmarkId === bookmark.id}
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove bookmark"
                       >
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                        {busyBookmarkId === bookmark.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        )}
                       </Button>
                     </div>
 
-                    {bookmark.note && (
-                      <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
-                        {bookmark.note}
-                      </p>
-                    )}
-
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {bookmark.tags.map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs">
-                            <Tag className="w-3 h-3 mr-1" />
-                            {tag}
-                          </Badge>
-                        ))}
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {bookmark.object_type}
                       </div>
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
-                        {formatTimeAgo(bookmark.timestamp)}
+                        {formatTimeAgo(bookmark.created_at)}
                       </div>
                     </div>
                   </div>
 
-                  {/* Action */}
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => onNavigate('lesson', { 
-                      lessonId: bookmark.lessonId,
-                      courseId: bookmark.courseId 
-                    })}
+                    onClick={() => void handleOpenBookmark(bookmark)}
+                    title="Open bookmarked item"
                   >
                     <ChevronRight className="w-5 h-5" />
                   </Button>
@@ -454,7 +364,35 @@ export function BookmarkManager({
   );
 }
 
-function formatTimeAgo(date: Date): string {
+function getBookmarkTitle(bookmark: BookmarkRecord): string {
+  return bookmark.object_type === 'course'
+    ? bookmark.course?.title || 'Saved course'
+    : bookmark.lesson?.title || 'Saved lesson';
+}
+
+function getBookmarkSubtitle(bookmark: BookmarkRecord): string {
+  if (bookmark.object_type === 'course') {
+    return [bookmark.course?.category, bookmark.course?.subcategory]
+      .filter(Boolean)
+      .join(' • ');
+  }
+
+  return bookmark.course?.title || 'Course';
+}
+
+function normalizeLessonForNavigation(lesson: any) {
+  return {
+    ...lesson,
+    type: lesson.kind || lesson.type || 'text',
+    duration:
+      lesson.duration ||
+      (Number(lesson.duration_minutes) > 0 ? `${lesson.duration_minutes} min` : ''),
+    locked: false,
+  };
+}
+
+function formatTimeAgo(value: string): string {
+  const date = new Date(value);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);

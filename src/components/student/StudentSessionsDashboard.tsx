@@ -74,7 +74,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
         setBookingsLoading(true);
         setBookingsError(null);
 
-        const data = await psychologistApi.getBookings();
+        const data = await psychologistApi.getBookings(user.id);
         const list = Array.isArray(data)
           ? data
           : data.bookings ?? data.items ?? data.results ?? [];

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { coursesApi } from '../../utils/api-client';
+import { useAuth } from '../../contexts/AuthContext';
+import { coursesApi, enrollmentsApi, socialApi } from '../../utils/api-client';
 import {
   Card,
   CardContent,
@@ -43,6 +44,7 @@ import {
   DollarSign,
   Globe,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface CourseCatalogProps {
   onNavigate: (page: string, data?: any) => void;
@@ -53,20 +55,123 @@ export function CourseCatalog({
   onNavigate,
   userRole = 'student',
 }: CourseCatalogProps) {
+  const { user } = useAuth();
   const [courses, setCourses] = useState<any[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
+  const [bookmarkedCourseIds, setBookmarkedCourseIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   useEffect(() => {
     loadCourses();
   }, []);
 
   useEffect(() => {
+    const loadBookmarks = async () => {
+      if (!user) {
+        setBookmarkedCourseIds(new Set());
+        return;
+      }
+
+      try {
+        const bookmarks = await socialApi.getBookmarks();
+        setBookmarkedCourseIds(
+          new Set(
+            bookmarks
+              .filter((bookmark) => bookmark.object_type === 'course')
+              .map((bookmark) => String(bookmark.object_id)),
+          ),
+        );
+      } catch (error) {
+        console.error('Error loading bookmarks:', error);
+      }
+    };
+
+    loadBookmarks();
+  }, [user]);
+
+  useEffect(() => {
+    const loadEnrollments = async () => {
+      if (!user) {
+        setEnrolledCourseIds(new Set());
+        return;
+      }
+
+      try {
+        const enrollments = await enrollmentsApi.getMy();
+        setEnrolledCourseIds(
+          new Set(
+            (enrollments || [])
+              .map(
+                (enrollment: any) =>
+                  enrollment?.course_id ??
+                  enrollment?.courseId ??
+                  enrollment?.course?.id ??
+                  null,
+              )
+              .filter(Boolean)
+              .map((id: string) => String(id)),
+          ),
+        );
+      } catch (error) {
+        console.error('Error loading enrollments:', error);
+      }
+    };
+
+    void loadEnrollments();
+  }, [user]);
+
+  useEffect(() => {
     filterCourses();
   }, [searchQuery, categoryFilter, levelFilter, courses]);
+
+  const handleToggleCourseBookmark = async (
+    event: React.MouseEvent,
+    course: any,
+  ) => {
+    event.stopPropagation();
+
+    if (!user) {
+      toast.error('Please sign in to bookmark courses');
+      onNavigate('auth');
+      return;
+    }
+
+    const courseId = String(course.id);
+    const isBookmarked = bookmarkedCourseIds.has(courseId);
+
+    try {
+      if (isBookmarked) {
+        await socialApi.unbookmarkCourse(courseId);
+      } else {
+        await socialApi.bookmarkCourse(courseId);
+      }
+
+      setBookmarkedCourseIds((current) => {
+        const next = new Set(current);
+        if (isBookmarked) {
+          next.delete(courseId);
+        } else {
+          next.add(courseId);
+        }
+        return next;
+      });
+
+      toast.success(
+        isBookmarked ? 'Course removed from bookmarks' : 'Course bookmarked',
+      );
+    } catch (error: any) {
+      console.error('Error updating course bookmark:', error);
+      toast.error(error?.message ?? 'Failed to update bookmark');
+    }
+  };
 
   const formatCategoryLabel = (value: string = '') =>
     value
@@ -380,6 +485,10 @@ export function CourseCatalog({
         {filteredCourses.length > 0 ? (
           <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
             {filteredCourses.map((course) => (
+              (() => {
+                const isBookmarked = bookmarkedCourseIds.has(String(course.id));
+                const isEnrolled = enrolledCourseIds.has(String(course.id));
+                return (
               <Card
                 key={course.id}
                 className='group overflow-hidden hover-lift card-glow cursor-pointer transition-all duration-300'
@@ -398,6 +507,25 @@ export function CourseCatalog({
                   ) : (
                     <BookOpen className='h-20 w-20 text-white/90 relative z-10 group-hover:scale-110 transition-transform' />
                   )}
+
+                  <Button
+                    type='button'
+                    variant='secondary'
+                    size='icon'
+                    className='absolute right-4 top-4 z-30 h-9 w-9 bg-background/90 hover:bg-background'
+                    title={
+                      isBookmarked
+                        ? 'Remove course bookmark'
+                        : 'Bookmark this course'
+                    }
+                    onClick={(event) => handleToggleCourseBookmark(event, course)}
+                  >
+                    {isBookmarked ? (
+                      <BookMarked className='h-4 w-4 text-primary' />
+                    ) : (
+                      <BookmarkPlus className='h-4 w-4' />
+                    )}
+                  </Button>
 
                   {/* Overlay on hover */}
                   <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-end p-6'>
@@ -465,12 +593,14 @@ export function CourseCatalog({
                       </div>
                     </div>
                     <Button size='sm' variant='outline' className='group/btn'>
-                      Enroll
+                      {isEnrolled ? 'Continue' : 'View Course'}
                       <Play className='ml-1 h-3 w-3 group-hover/btn:translate-x-0.5 transition-transform' />
                     </Button>
                   </div>
                 </CardContent>
               </Card>
+                );
+              })()
             ))}
           </div>
         ) : (
