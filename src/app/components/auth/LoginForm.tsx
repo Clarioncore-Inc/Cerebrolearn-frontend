@@ -14,7 +14,21 @@ import {
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
 
-export function LoginForm({ onToggleMode }: { onToggleMode: () => void }) {
+interface LoginFormProps {
+  onToggleMode: () => void;
+  onSignedIn?: () => void | Promise<void>;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
+}
+
+export function LoginForm({
+  onToggleMode,
+  onSignedIn,
+  title = 'Welcome back',
+  description = 'Sign in to your account to continue learning',
+  submitLabel = 'Sign In',
+}: LoginFormProps) {
   const { signIn, signInWithGoogle, signInWithFacebook } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +64,9 @@ export function LoginForm({ onToggleMode }: { onToggleMode: () => void }) {
 
     try {
       await signIn(email, password);
+      if (onSignedIn) {
+        await onSignedIn();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sign in');
     } finally {
@@ -110,10 +127,8 @@ export function LoginForm({ onToggleMode }: { onToggleMode: () => void }) {
   return (
     <Card className='w-full max-w-md mx-auto'>
       <CardHeader>
-        <CardTitle>Welcome back</CardTitle>
-        <CardDescription>
-          Sign in to your account to continue learning
-        </CardDescription>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className='space-y-4'>
@@ -189,7 +204,7 @@ export function LoginForm({ onToggleMode }: { onToggleMode: () => void }) {
                 Signing in...
               </>
             ) : (
-              'Sign In'
+              submitLabel
             )}
           </Button>
         </form>

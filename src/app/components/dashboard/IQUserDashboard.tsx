@@ -31,6 +31,8 @@ import {
   Zap,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppSettings } from '../../hooks/useAppSettings';
+import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -63,12 +65,6 @@ interface ResumeState {
   currentQuestion: number;
   lastSavedAt?: string;
 }
-
-const officialIQTestPackage = {
-  id: 'official-iq-proctored-299',
-  title: 'Proctored Psychologist IQ Test',
-  description: 'Official psychologist-proctored IQ assessment with certified results.',
-};
 
 const glassCardClassName =
   'border-border/60 bg-background/75 backdrop-blur-xl shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] hover:scale-[1.02] transition-all duration-300';
@@ -179,6 +175,8 @@ const getTierName = (level: number) => {
 
 export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
   const { profile } = useAuth();
+  const { formattedIQTestPrice } = useAppSettings();
+  const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
 
   const allResults = useMemo(() => {
     const results = readJsonFromStorage<TestResult[]>('iq_test_results', []);
@@ -508,9 +506,10 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                 <Button
                   variant='outline'
                   className='w-full justify-between'
-                  onClick={() => onNavigate('payment', officialIQTestPackage)}
+                  onClick={startCheckout}
+                  disabled={isStartingCheckout}
                 >
-                  Explore official assessment
+                  {isStartingCheckout ? 'Redirecting to checkout…' : 'Explore official assessment'}
                   <CreditCard className='h-4 w-4' />
                 </Button>
               </div>
@@ -718,7 +717,9 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                     official documentation.
                   </CardDescription>
                 </div>
-                <Badge className='border-0 bg-primary text-primary-foreground'>$299 official path</Badge>
+                <Badge className='border-0 bg-primary text-primary-foreground'>
+                  {formattedIQTestPrice} official path
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className='space-y-6'>
@@ -768,9 +769,9 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                 </div>
               </div>
 
-              <Button size='lg' className='w-full sm:w-auto' onClick={() => onNavigate('payment', officialIQTestPackage)}>
+              <Button size='lg' className='w-full sm:w-auto' onClick={startCheckout} disabled={isStartingCheckout}>
                 <CreditCard className='mr-2 h-5 w-5' />
-                Book Official Assessment
+                {isStartingCheckout ? 'Redirecting to checkout…' : 'Book Official Assessment'}
               </Button>
             </CardContent>
           </Card>

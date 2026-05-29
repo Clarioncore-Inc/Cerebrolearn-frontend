@@ -1,5 +1,6 @@
 // CerebroLearn API Client
 import type {
+  AppSettings,
   User,
   Course,
   Lesson,
@@ -12,6 +13,7 @@ import type {
   Review,
   Comment,
   Organization,
+  Payment,
   PlatformSettings,
 } from '../types/database';
 
@@ -216,7 +218,7 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'https://backened-core.onrender.com/api';
+const BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -946,6 +948,29 @@ export const paymentsApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  createIQTestCheckoutSession: () =>
+    request<{ checkout_url: string; session_id: string }>('/payments/iq-test/checkout-session', {
+      method: 'POST',
+    }),
+
+  confirmIQTestCheckoutSession: (session_id: string) =>
+    request<Payment>('/payments/iq-test/confirm', {
+      method: 'POST',
+      body: JSON.stringify({ session_id }),
+    }),
+};
+
+export const appSettingsApi = {
+  getPublic: () => request<AppSettings>('/admin/app-settings/public'),
+
+  getAdmin: () => request<AppSettings>('/admin/app-settings'),
+
+  updateAdmin: (updates: Partial<AppSettings>) =>
+    request<AppSettings>('/admin/app-settings', {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    }),
 };
 
 // ========================================
@@ -1266,6 +1291,7 @@ export const psychologistApi = {
 // Export all APIs
 export const api = {
   auth: authApi,
+  appSettings: appSettingsApi,
   courses: coursesApi,
   lessons: lessonsApi,
   enrollments: enrollmentsApi,

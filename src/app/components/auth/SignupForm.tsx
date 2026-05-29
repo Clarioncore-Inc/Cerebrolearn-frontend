@@ -28,6 +28,13 @@ interface FieldErrors {
   confirmPassword?: string;
 }
 
+interface SignupSuccessPayload {
+  email: string;
+  password: string;
+  fullName: string;
+  role: string;
+}
+
 function getPasswordStrength(password: string): {
   score: number;
   label: string;
@@ -50,6 +57,7 @@ function validate(
   email: string,
   password: string,
   confirmPassword: string,
+  requirePasswordConfirmation = true,
 ): FieldErrors {
   const errors: FieldErrors = {};
 
@@ -78,10 +86,12 @@ function validate(
     errors.password = 'Password must contain at least one number.';
   }
 
-  if (!confirmPassword) {
-    errors.confirmPassword = 'Please confirm your password.';
-  } else if (password !== confirmPassword) {
-    errors.confirmPassword = 'Passwords do not match.';
+  if (requirePasswordConfirmation) {
+    if (!confirmPassword) {
+      errors.confirmPassword = 'Please confirm your password.';
+    } else if (password !== confirmPassword) {
+      errors.confirmPassword = 'Passwords do not match.';
+    }
   }
 
   return errors;
@@ -91,14 +101,26 @@ interface SignupFormProps {
   onToggleMode: () => void;
   hideRoleSelection?: boolean;
   fixedRole?: string;
+  simplified?: boolean;
+  title?: string;
+  description?: string;
+  submitLabel?: string;
   onSignedUp?: () => void;
+  onSignedUpWithCredentials?: (
+    payload: SignupSuccessPayload,
+  ) => void | Promise<void>;
 }
 
 export function SignupForm({
   onToggleMode,
   hideRoleSelection = false,
   fixedRole,
+  simplified = false,
+  title = 'Create your account',
+  description = 'Start your learning journey today',
+  submitLabel = 'Create Account',
   onSignedUp,
+  onSignedUpWithCredentials,
 }: SignupFormProps) {
   const { signUp } = useAuth();
   const [fullName, setFullName] = useState('');
@@ -114,10 +136,18 @@ export function SignupForm({
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const passwordStrength = password ? getPasswordStrength(password) : null;
+  const requirePasswordConfirmation = !simplified;
+  const showRoleSelection = !(hideRoleSelection || simplified);
 
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
-    const errors = validate(fullName, email, password, confirmPassword);
+    const errors = validate(
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      requirePasswordConfirmation,
+    );
     setFieldErrors(errors);
   };
 
@@ -125,21 +155,35 @@ export function SignupForm({
     e.preventDefault();
     setSubmitError('');
 
-    const errors = validate(fullName, email, password, confirmPassword);
+    const errors = validate(
+      fullName,
+      email,
+      password,
+      confirmPassword,
+      requirePasswordConfirmation,
+    );
     setFieldErrors(errors);
     setTouched({
       fullName: true,
       email: true,
       password: true,
-      confirmPassword: true,
+      ...(requirePasswordConfirmation ? { confirmPassword: true } : {}),
     });
 
     if (Object.keys(errors).length > 0) return;
 
     setLoading(true);
     try {
-      await signUp(email, password, fullName, fixedRole ?? role);
-      if (onSignedUp) {
+      const selectedRole = fixedRole ?? role;
+      await signUp(email, password, fullName, selectedRole);
+      if (onSignedUpWithCredentials) {
+        await onSignedUpWithCredentials({
+          email,
+          password,
+          fullName,
+          role: selectedRole,
+        });
+      } else if (onSignedUp) {
         onSignedUp();
       } else {
         onToggleMode();
@@ -154,8 +198,8 @@ export function SignupForm({
   return (
     <Card className='w-full max-w-md mx-auto'>
       <CardHeader>
-        <CardTitle>Create your account</CardTitle>
-        <CardDescription>Start your learning journey today</CardDescription>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className='space-y-4' noValidate>
@@ -253,41 +297,42 @@ export function SignupForm({
             )}
           </div>
 
-          {/* Confirm Password */}
-          <div className='space-y-1'>
-            <Label htmlFor='confirmPassword'>Confirm Password</Label>
-            <div className='relative'>
-              <Lock className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
-              <Input
-                id='confirmPassword'
-                type={showConfirmPassword ? 'text' : 'password'}
-                placeholder='••••••••'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                onBlur={() => handleBlur('confirmPassword')}
-                className={`pl-9 pr-9 ${touched.confirmPassword && fieldErrors.confirmPassword ? 'border-destructive focus-visible:ring-destructive/20' : ''}`}
-              />
-              <button
-                type='button'
-                onClick={() => setShowConfirmPassword((v) => !v)}
-                className='absolute right-3 top-3 text-muted-foreground hover:text-foreground'
-                tabIndex={-1}
-              >
-                {showConfirmPassword ? (
-                  <EyeOff className='h-4 w-4' />
-                ) : (
-                  <Eye className='h-4 w-4' />
-                )}
-              </button>
+          {requirePasswordConfirmation && (
+            <div className='space-y-1'>
+              <Label htmlFor='confirmPassword'>Confirm Password</Label>
+              <div className='relative'>
+                <Lock className='absolute left-3 top-3 h-4 w-4 text-muted-foreground' />
+                <Input
+                  id='confirmPassword'
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder='••••••••'
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onBlur={() => handleBlur('confirmPassword')}
+                  className={`pl-9 pr-9 ${touched.confirmPassword && fieldErrors.confirmPassword ? 'border-destructive focus-visible:ring-destructive/20' : ''}`}
+                />
+                <button
+                  type='button'
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className='absolute right-3 top-3 text-muted-foreground hover:text-foreground'
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className='h-4 w-4' />
+                  ) : (
+                    <Eye className='h-4 w-4' />
+                  )}
+                </button>
+              </div>
+              {touched.confirmPassword && fieldErrors.confirmPassword && (
+                <p className='text-xs text-destructive'>
+                  {fieldErrors.confirmPassword}
+                </p>
+              )}
             </div>
-            {touched.confirmPassword && fieldErrors.confirmPassword && (
-              <p className='text-xs text-destructive'>
-                {fieldErrors.confirmPassword}
-              </p>
-            )}
-          </div>
+          )}
 
-          {!hideRoleSelection && (
+          {showRoleSelection && (
             <div className='space-y-1'>
               <Label htmlFor='role'>I want to</Label>
               <Select value={role} onValueChange={setRole}>
@@ -312,7 +357,7 @@ export function SignupForm({
                 Creating account...
               </>
             ) : (
-              'Create Account'
+              submitLabel
             )}
           </Button>
         </form>

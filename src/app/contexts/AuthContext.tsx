@@ -35,6 +35,7 @@ interface AuthContextType {
     password: string,
     fullName: string,
     role?: string,
+    orgId?: string,
   ) => Promise<void>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -113,14 +114,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
     fullName: string,
     role = 'learner',
-    org_id = '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    orgId = '3fa85f64-5717-4562-b3fc-2c963f66afa6',
   ) => {
     await authApi.signup({
       email,
       password,
       full_name: fullName,
       role,
-      org_id,
+      org_id: orgId,
     });
   };
 

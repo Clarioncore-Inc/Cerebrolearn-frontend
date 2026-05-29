@@ -151,6 +151,17 @@ export interface Payment {
   updated_at?: string;
 }
 
+export interface AppSettings {
+  id: string;
+  app_name: string;
+  logo: string | null;
+  contacts: string | null;
+  email: string | null;
+  iq_test_price: number;
+  created_at: string;
+  updated_at?: string;
+}
+
 export interface Payout {
   id: string;
   creator_id: string;

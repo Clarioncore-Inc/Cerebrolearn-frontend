@@ -24,6 +24,8 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
+import { useAppSettings } from '../../hooks/useAppSettings';
+import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 
 interface IQTestOverviewPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -142,13 +144,8 @@ const psychologistBookingProcess = [
 
 export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
   const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
-
-  const officialIQTestPackage = {
-    id: 'official-iq-proctored-299',
-    title: 'Proctored Psychologist IQ Test',
-    description:
-      'Official psychologist-proctored IQ assessment with certified results.',
-  };
+  const { formattedIQTestPrice } = useAppSettings();
+  const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
 
   return (
     <div className="min-h-screen bg-background">
@@ -163,17 +160,17 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <div>
               <Badge className="mb-4 bg-white/20 hover:bg-white/30 text-primary-foreground border-0">
                 <Sparkles className="w-4 h-4 mr-1" />
-                Free Practice • Official Testing $299
+                Free Practice • Official Testing {formattedIQTestPrice}
               </Badge>
               <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
                 Discover Your True Cognitive Potential
               </h1>
               <p className="text-xl text-primary-foreground/90 mb-8 leading-relaxed">
-                Start with our free practice IQ test or book a certified psychologist for $299 to get an official 
+                Start with our free practice IQ test or book a certified psychologist for {formattedIQTestPrice} to get an official 
                 IQ assessment. Compare yourself with the greatest minds in history.
               </p>
               <p className="text-base md:text-lg font-semibold text-primary-foreground mb-8">
-                Proctored psychologist IQ test only $299 - get your official results
+                Proctored psychologist IQ test only {formattedIQTestPrice} - get your official results
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -190,10 +187,11 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   size="lg" 
                   variant="outline"
                   className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10 text-lg"
-                  onClick={() => onNavigate('payment', officialIQTestPackage)}
+                  onClick={startCheckout}
+                  disabled={isStartingCheckout}
                 >
                   <Users className="w-5 h-5 mr-2" />
-                  Proctored Psychologist IQ Test
+                  {isStartingCheckout ? 'Redirecting to checkout…' : 'Proctored Psychologist IQ Test'}
                 </Button>
               </div>
 
@@ -211,7 +209,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 </div>
                 <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
                   <Users className="w-6 h-6 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">$299</p>
+                  <p className="text-2xl font-bold">{formattedIQTestPrice}</p>
                   <p className="text-sm text-primary-foreground/80">Official Test</p>
                 </div>
               </div>
@@ -469,7 +467,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="w-5 h-5 text-primary" />
-                  What You Get For $299
+                  What You Get For {formattedIQTestPrice}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -493,7 +491,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold mb-2">How the Booking Process Works</h3>
               <p className="text-muted-foreground max-w-3xl mx-auto">
-                From booking to report delivery, the $299 proctored assessment is designed to be simple,
+                From booking to report delivery, the {formattedIQTestPrice} proctored assessment is designed to be simple,
                 secure, and fully guided.
               </p>
             </div>
@@ -602,10 +600,11 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               <Button
                 size="lg"
                 className="w-full md:w-auto"
-                onClick={() => onNavigate('payment', officialIQTestPackage)}
+                onClick={startCheckout}
+                disabled={isStartingCheckout}
               >
                 <Users className="w-5 h-5 mr-2" />
-                Book Proctored Psychologist IQ Test
+                {isStartingCheckout ? 'Redirecting to checkout…' : 'Book Proctored Psychologist IQ Test'}
               </Button>
             </CardContent>
           </Card>
@@ -691,14 +690,17 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   size="lg" 
                   variant="outline"
                   className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10 text-lg"
-                  onClick={() => onNavigate('payment', officialIQTestPackage)}
+                  onClick={startCheckout}
+                  disabled={isStartingCheckout}
                 >
                   <Users className="w-5 h-5 mr-2" />
-                  Proctored Psychologist IQ Test ($299)
+                  {isStartingCheckout
+                    ? 'Redirecting to checkout…'
+                    : `Proctored Psychologist IQ Test (${formattedIQTestPrice})`}
                 </Button>
               </div>
               <p className="mt-6 text-sm text-primary-foreground/70">
-                Free practice test • Official psychologist testing $299 • Instant results
+                Free practice test • Official psychologist testing {formattedIQTestPrice} • Instant results
               </p>
             </CardContent>
           </Card>

@@ -108,6 +108,8 @@ import { PaymentGateway } from './components/payments/PaymentGateway';
 import { PaymentConfirmation } from './components/payments/PaymentConfirmation';
 import { StudentPaymentHistory } from './components/payments/StudentPaymentHistory';
 import { PsychologistEarnings } from './components/psychologist/PsychologistEarnings';
+import { IQTestCheckoutSignup } from './components/iq-test/IQTestCheckoutSignup';
+import { IQTestCheckoutSuccess } from './components/iq-test/IQTestCheckoutSuccess';
 import { IQTestOverviewPage } from './components/iq-test/IQTestOverviewPage';
 
 // Initialize dummy data on app load
@@ -231,6 +233,8 @@ function AppContent() {
       currentPage !== 'auth' &&
       currentPage !== 'catalog' &&
       currentPage !== 'payment' &&
+      currentPage !== 'iq-test-signup' &&
+      currentPage !== 'iq-test-payment-success' &&
       currentPage !== 'iq-test-overview' &&
       currentPage !== 'iq-test-landing' &&
       currentPage !== 'iq-test-practice' &&
@@ -611,8 +615,14 @@ function AppContent() {
       case 'iq-test-practice':
         return <IQTestPracticeMode onNavigate={handleNavigate} />;
 
-             case 'iq-test-overview':
+      case 'iq-test-overview':
         return <IQTestOverviewPage onNavigate={handleNavigate} />;
+
+      case 'iq-test-signup':
+        return <IQTestCheckoutSignup onNavigate={handleNavigate} />;
+
+      case 'iq-test-payment-success':
+        return <IQTestCheckoutSuccess onNavigate={handleNavigate} />;
         
       // Psychologist routes
       case 'signup-choice':
