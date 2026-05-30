@@ -160,17 +160,16 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <div>
               <Badge className="mb-4 bg-white/20 hover:bg-white/30 text-primary-foreground border-0">
                 <Sparkles className="w-4 h-4 mr-1" />
-                Free Practice • Official Testing {formattedIQTestPrice}
+                Free Practice • Certified Session {formattedIQTestPrice}
               </Badge>
               <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
                 Discover Your True Cognitive Potential
               </h1>
               <p className="text-xl text-primary-foreground/90 mb-8 leading-relaxed">
-                Start with our free practice IQ test or book a certified psychologist for {formattedIQTestPrice} to get an official 
-                IQ assessment. Compare yourself with the greatest minds in history.
+                Start with our free practice IQ test or book a session with a certified psychologist for {formattedIQTestPrice} to receive guided interpretation, official documentation, and expert follow-up.
               </p>
               <p className="text-base md:text-lg font-semibold text-primary-foreground mb-8">
-                Proctored psychologist IQ test only {formattedIQTestPrice} - get your official results
+                Certified psychologist session from {formattedIQTestPrice} - book your official consultation
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -191,7 +190,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   disabled={isStartingCheckout}
                 >
                   <Users className="w-5 h-5 mr-2" />
-                  {isStartingCheckout ? 'Redirecting to checkout…' : 'Proctored Psychologist IQ Test'}
+                  {isStartingCheckout ? 'Preparing booking…' : 'Book Certified Psychologist Session'}
                 </Button>
               </div>
 
@@ -210,7 +209,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
                   <Users className="w-6 h-6 mx-auto mb-2" />
                   <p className="text-2xl font-bold">{formattedIQTestPrice}</p>
-                  <p className="text-sm text-primary-foreground/80">Official Test</p>
+                  <p className="text-sm text-primary-foreground/80">Certified Session</p>
                 </div>
               </div>
             </div>
@@ -434,8 +433,8 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             </Badge>
             <h2 className="text-4xl font-bold mb-4">Need Official, Human-Reviewed Results?</h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              The free test is great for exploration, but the proctored psychologist assessment is ideal when
-              you need formal interpretation, personalized guidance, and official documentation.
+              The free test is great for exploration, but a certified psychologist session is ideal when you need
+              formal interpretation, personalized guidance, and official documentation.
             </p>
           </div>
 
@@ -473,11 +472,11 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5" />
-                  <p className="text-muted-foreground">Live proctored testing session with a qualified psychologist</p>
+                  <p className="text-muted-foreground">Live one-on-one session with a qualified psychologist</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5" />
-                  <p className="text-muted-foreground">Official IQ score report with structured interpretation</p>
+                  <p className="text-muted-foreground">Certified written summary with structured interpretation</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5" />
@@ -491,8 +490,8 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold mb-2">How the Booking Process Works</h3>
               <p className="text-muted-foreground max-w-3xl mx-auto">
-                From booking to report delivery, the {formattedIQTestPrice} proctored assessment is designed to be simple,
-                secure, and fully guided.
+                From booking to follow-up delivery, the {formattedIQTestPrice} psychologist session is designed to be
+                simple, secure, and fully guided.
               </p>
             </div>
 
@@ -525,14 +524,14 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   Booking Logistics & Policies
                 </CardTitle>
                 <CardDescription>
-                  Key details to know before reserving your psychologist-led assessment.
+                  Key details to know before reserving your session with a certified psychologist.
                 </CardDescription>
               </CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
-                    Your assessment is conducted live via secure video call and lasts approximately 60 minutes.
+                    Your session is conducted live via secure video call and lasts approximately 60 minutes.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
@@ -550,7 +549,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 <div className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
-                    After the session, you receive a certified written report plus personalized follow-up guidance within 24-48 hours.
+                    After the session, you receive a certified written summary plus personalized follow-up guidance within 24-48 hours.
                   </p>
                 </div>
               </CardContent>
@@ -561,7 +560,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Star className="w-5 h-5 text-primary" />
-                Practice Test vs Official Assessment
+                Practice Test vs Certified Psychologist Session
               </CardTitle>
               <CardDescription>
                 Choose the path that matches your goal right now.
@@ -583,7 +582,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   </div>
                 </div>
                 <div>
-                  <p className="font-semibold mb-2">Proctored Psychologist Test</p>
+                  <p className="font-semibold mb-2">Certified Psychologist Session</p>
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Clinical-level validation</p>
@@ -604,7 +603,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 disabled={isStartingCheckout}
               >
                 <Users className="w-5 h-5 mr-2" />
-                {isStartingCheckout ? 'Redirecting to checkout…' : 'Book Proctored Psychologist IQ Test'}
+                {isStartingCheckout ? 'Preparing booking…' : 'Book Certified Psychologist Session'}
               </Button>
             </CardContent>
           </Card>
@@ -673,8 +672,8 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               <Brain className="w-20 h-20 mx-auto mb-6" />
               <h2 className="text-4xl font-bold mb-4">Ready to Discover Your IQ?</h2>
               <p className="text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
-                Start with our free practice test or book a certified psychologist for an official IQ assessment. 
-                Join over a million people who have tested their cognitive abilities.
+                Start with our free practice experience or book a certified psychologist session for guided insight,
+                official documentation, and expert follow-up.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button 
@@ -695,12 +694,12 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 >
                   <Users className="w-5 h-5 mr-2" />
                   {isStartingCheckout
-                    ? 'Redirecting to checkout…'
-                    : `Proctored Psychologist IQ Test (${formattedIQTestPrice})`}
+                    ? 'Preparing booking…'
+                    : `Book Certified Psychologist Session (${formattedIQTestPrice})`}
                 </Button>
               </div>
               <p className="mt-6 text-sm text-primary-foreground/70">
-                Free practice test • Official psychologist testing {formattedIQTestPrice} • Instant results
+                Free practice experience • Certified psychologist session {formattedIQTestPrice} • Guided follow-up
               </p>
             </CardContent>
           </Card>

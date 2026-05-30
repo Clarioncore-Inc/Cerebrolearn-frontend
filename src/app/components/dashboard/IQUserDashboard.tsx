@@ -713,12 +713,12 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                     Proctored Path
                   </CardTitle>
                   <CardDescription>
-                    Upgrade from automated feedback to a formal psychologist-signed assessment when you need
-                    official documentation.
+                    Upgrade from automated feedback to a live session with a certified psychologist when you need
+                    formal guidance and official documentation.
                   </CardDescription>
                 </div>
                 <Badge className='border-0 bg-primary text-primary-foreground'>
-                  {formattedIQTestPrice} official path
+                  {formattedIQTestPrice} certified session
                 </Badge>
               </div>
             </CardHeader>
@@ -763,15 +763,15 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                 <div className='rounded-2xl border border-primary/20 bg-primary/5 p-4'>
                   <p className='text-sm font-semibold'>What happens next</p>
                   <p className='mt-3 text-sm text-muted-foreground'>
-                    Book a live proctored session, complete the assessment over secure video call, and receive
-                    your official signed report within 24–48 hours.
+                    Book a live session, meet with a certified psychologist over secure video call, and receive
+                    your official follow-up summary within 24–48 hours.
                   </p>
                 </div>
               </div>
 
               <Button size='lg' className='w-full sm:w-auto' onClick={startCheckout} disabled={isStartingCheckout}>
                 <CreditCard className='mr-2 h-5 w-5' />
-                {isStartingCheckout ? 'Redirecting to checkout…' : 'Book Official Assessment'}
+                {isStartingCheckout ? 'Preparing booking…' : 'Book Certified Psychologist Session'}
               </Button>
             </CardContent>
           </Card>

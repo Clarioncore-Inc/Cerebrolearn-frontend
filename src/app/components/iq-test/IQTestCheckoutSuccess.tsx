@@ -18,13 +18,13 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState<'confirming' | 'success' | 'error'>('confirming');
-  const [message, setMessage] = useState('We are confirming your Stripe payment.');
+  const [message, setMessage] = useState('We are confirming your payment.');
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id') ?? location.state?.sessionId;
     if (!sessionId) {
       setStatus('error');
-      setMessage('Missing Stripe session information. Please return to the IQ test overview.');
+      setMessage('Missing payment information. Please return to the IQ test overview.');
       return;
     }
     if (!user || !sessionId) {
@@ -71,7 +71,7 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
           <CardHeader>
             <CardTitle>Sign in to finish your IQ test purchase</CardTitle>
             <CardDescription>
-              We need your account session to confirm the Stripe payment and open your dashboard.
+              We need your account session to confirm the payment and open your dashboard.
             </CardDescription>
           </CardHeader>
           <CardContent>

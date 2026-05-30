@@ -36,7 +36,7 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
     <div className='container max-w-6xl py-12'>
       <Button variant='ghost' className='mb-6' onClick={() => onNavigate('iq-test-overview')}>
         <ArrowLeft className='mr-2 h-4 w-4' />
-        Back to IQ test overview
+        Back to session overview
       </Button>
 
       <div className='grid gap-8 lg:grid-cols-[1.1fr_0.9fr]'>
@@ -44,10 +44,10 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
           <CardHeader>
             <CardTitle className='flex items-center gap-2 text-3xl'>
               <Shield className='h-7 w-7 text-primary' />
-              Secure signup for your official IQ assessment
+              Secure signup to book your psychologist session
             </CardTitle>
             <CardDescription>
-              Create a learner account, then continue directly to Stripe to complete your purchase.
+              Create your account to continue with your booking and reserve time with a certified psychologist.
             </CardDescription>
           </CardHeader>
           <CardContent className='space-y-4 text-sm text-muted-foreground'>
@@ -55,16 +55,15 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
               <p className='font-semibold text-foreground'>What happens next</p>
               <ul className='mt-3 space-y-2'>
                 <li>1. Create your account with just your name, email, and password.</li>
-                <li>2. Continue straight to Stripe-hosted checkout.</li>
-                <li>3. After payment, we will take you to your IQ dashboard.</li>
+                <li>2. Pay securely and confirm your booking details.</li>
+                <li>3. Meet with a certified psychologist and manage everything from your dashboard.</li>
               </ul>
             </div>
 
             <div className='rounded-2xl border border-border/60 bg-background/80 p-4'>
               <p className='font-semibold text-foreground'>Why this flow is simplified</p>
               <p className='mt-2'>
-                This purchase path is dedicated to the proctored psychologist IQ test, so role selection and
-                extra signup steps are skipped.
+                This path is dedicated to booking a one-on-one session with a certified psychologist.
               </p>
             </div>
           </CardContent>
@@ -74,8 +73,8 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
           <Card className='flex min-h-[320px] items-center justify-center'>
             <CardContent className='space-y-3 text-center'>
               <CreditCard className='mx-auto h-10 w-10 text-primary' />
-              <p className='text-xl font-semibold'>Redirecting to secure checkout…</p>
-              <p className='text-sm text-muted-foreground'>Please wait while we open Stripe.</p>
+              <p className='text-xl font-semibold'>Preparing your secure booking…</p>
+              <p className='text-sm text-muted-foreground'>Please wait while we take you to the next step.</p>
             </CardContent>
           </Card>
         ) : mode === 'signup' ? (
@@ -83,8 +82,8 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
             simplified
             fixedRole='learner'
             hideRoleSelection
-            title='Create your IQ test account'
-            description='Use a few details to unlock your official assessment checkout.'
+            title='Create your booking account'
+            description='Use a few details to continue with your certified psychologist session.'
             submitLabel='Create account and continue'
             onToggleMode={() => setMode('login')}
             onSignedUpWithCredentials={async ({ email, password }) => {
@@ -97,7 +96,7 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
             onToggleMode={() => setMode('signup')}
             onSignedIn={redirectToCheckout}
             title='Sign in to continue'
-            description='Use your existing account and continue straight to Stripe checkout.'
+            description='Use your existing account to continue with your psychologist session booking.'
             submitLabel='Sign in and continue'
           />
         )}

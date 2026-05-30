@@ -218,7 +218,7 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'http://127.0.0.1:8000/api';
+const BASE_URL = 'https://backened-core.onrender.com/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
