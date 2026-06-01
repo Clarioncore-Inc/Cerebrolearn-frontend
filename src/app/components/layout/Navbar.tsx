@@ -49,6 +49,9 @@ interface NavbarProps {
 export function Navbar({ onNavigate, currentPage }: NavbarProps) {
   const { user, profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const isIQOnlyUser =
+    Boolean(user) &&
+    profile?.role === 'iq_user';
 
   const handleSignOut = async () => {
     try {
@@ -64,7 +67,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
       <div className='flex h-20 items-center justify-between md:px-8 lg:px-12 px-[24px] py-[0px]'>
         <div className='flex items-center gap-12'>
           {/* Mobile Menu */}
-          {user && (
+          {user && !isIQOnlyUser && (
             <MobileMenu
               currentPage={currentPage}
               onNavigate={onNavigate}
@@ -84,7 +87,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             </span>
           </button>
 
-          {user && (
+          {user && !isIQOnlyUser && (
             <div className='hidden md:flex items-center gap-2'>
               <button
                 onClick={() => onNavigate('dashboard')}
@@ -234,7 +237,8 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
         <div className='flex items-center gap-6'>
           {/* Global Search for Admin/Instructor */}
-          {user &&
+          {!isIQOnlyUser &&
+            user &&
             profile &&
             (profile.role === 'admin' ||
               profile.role === 'org_admin' ||
@@ -245,7 +249,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             )}
 
           {/* Navigation History */}
-          {user && (
+          {user && !isIQOnlyUser && (
             <NavigationHistory
               currentPage={currentPage}
               onNavigate={onNavigate}
@@ -253,10 +257,11 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           )}
 
           {/* Notification Center */}
-          {user && profile && <NotificationCenter />}
+          {user && profile && !isIQOnlyUser && <NotificationCenter />}
 
           {/* Keyboard Shortcuts */}
-          {user &&
+          {!isIQOnlyUser &&
+            user &&
             profile &&
             (profile.role === 'admin' ||
               profile.role === 'org_admin' ||
@@ -277,12 +282,14 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
           {user && profile ? (
             <div className='flex items-center gap-3'>
-              <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border'>
+              {!isIQOnlyUser && (
+                <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border'>
                 <Trophy className='h-4 w-4 text-yellow-500' />
                 <span className='text-sm font-medium'>
                   {profile.xp || 0} XP
                 </span>
-              </div>
+                </div>
+              )}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

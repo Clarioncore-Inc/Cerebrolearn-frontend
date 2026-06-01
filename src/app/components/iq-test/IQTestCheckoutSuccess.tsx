@@ -40,7 +40,7 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
         if (!isActive) {
           return;
         }
-        localStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+        sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
         setStatus('success');
         setMessage('Payment confirmed. Redirecting to your IQ dashboard…');
         toast.success('Payment confirmed. Welcome to your IQ dashboard!');

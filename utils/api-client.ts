@@ -313,7 +313,7 @@ export const authApi = {
   }),
 
   login: (data: { email: string; password: string }) =>
-    request<{ access_token: string; token_type: string; user: User }>('/auth/login', {
+    request<{ access_token: string; token_type: string; user: User; is_first_login: boolean }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

@@ -17,6 +17,7 @@ import {
   ArrowRight,
   BarChart3,
   Brain,
+  Calendar,
   CheckCircle2,
   CreditCard,
   Flame,
@@ -174,9 +175,22 @@ const getTierName = (level: number) => {
 };
 
 export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
-  const { profile } = useAuth();
+  const { profile, isFirstLogin } = useAuth();
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
+  const sessionActions = [
+    {
+      label: 'Find Psychologists',
+      icon: Users,
+      onClick: () => onNavigate('browse-psychologists'),
+    },
+    {
+      label: 'My Sessions',
+      icon: Calendar,
+      onClick: () => onNavigate('student-sessions'),
+      variant: 'outline' as const,
+    },
+  ];
 
   const allResults = useMemo(() => {
     const results = readJsonFromStorage<TestResult[]>('iq_test_results', []);
@@ -208,6 +222,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
   const completedTests = allResults.length;
   const currentStreak = profile?.streak || 0;
   const userName = profile?.full_name?.split(' ')[0] || 'Explorer';
+  const greeting = isFirstLogin ? 'Welcome' : 'Welcome back';
 
   const latestIQScore = latestResult ? calculateIQScore(latestResult.score) : null;
   const previousIQScore = previousResult ? calculateIQScore(previousResult.score) : null;
@@ -410,61 +425,59 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
   return (
     <div className='min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(57,81,146,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.10),transparent_28%)]'>
       <div className='container max-w-7xl py-8 md:py-10 space-y-6'>
-        <div className='grid gap-6 lg:grid-cols-12'>
-          <Card className={`lg:col-span-8 overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-secondary/10 ${glassCardClassName}`}>
-            <CardContent className='p-6 md:p-8'>
-              <div className='flex flex-col gap-8'>
-                <div className='flex flex-col gap-5 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between'>
-                  <div className='space-y-4'>
-                    <Badge className='w-fit border-0 bg-primary/10 text-primary'>
-                      <Sparkles className='mr-2 h-4 w-4' />
-                      Cognitive Command Center
-                    </Badge>
-                    <div className='space-y-2'>
-                      <h1 className='text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-tight whitespace-nowrap'>
-                        Welcome back, {userName} 👋
-                      </h1>
-                      <p className='max-w-2xl text-base md:text-lg text-muted-foreground'>
-                        Track your latest IQ signals, measure growth over time, and decide when to step up to
-                        a psychologist-signed official assessment.
-                      </p>
-                    </div>
-                  </div>
+        <div className='flex flex-col gap-5 md:flex-row md:items-center md:justify-between'>
+          <div className='space-y-4'>
+            <Badge className='w-fit border-0 bg-primary/10 text-primary'>
+              <Sparkles className='mr-2 h-4 w-4' />
+              Cognitive Command Center
+            </Badge>
+            <div className='space-y-2'>
+              <h1 className='text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-tight whitespace-nowrap'>
+                {greeting}, {userName} 👋
+              </h1>
+              <p className='max-w-2xl text-base md:text-lg text-muted-foreground'>
+                Track your latest IQ signals, measure growth over time, and decide when to step up to
+                a psychologist-signed official assessment.
+              </p>
+            </div>
+          </div>
 
-                  <div className='flex shrink-0 flex-col gap-3 sm:flex-row'>
-                    <Button size='lg' className='shadow-lg' onClick={() => onNavigate('iq-test-landing')}>
-                      <Play className='mr-2 h-5 w-5' />
-                      Continue Practice
-                    </Button>
-                    <Button size='lg' variant='outline' onClick={() => onNavigate('genius-rankings')}>
-                      <Trophy className='mr-2 h-5 w-5' />
-                      View Rankings
-                    </Button>
-                  </div>
-                </div>
+          <div className='flex shrink-0 flex-col gap-3 sm:flex-row'>
+            {sessionActions.map((action) => (
+              <Button
+                key={action.label}
+                size='lg'
+                variant={action.variant}
+                className='shadow-lg'
+                onClick={action.onClick}
+              >
+                <action.icon className='mr-2 h-5 w-5' />
+                {action.label}
+              </Button>
+            ))}
+          </div>
+        </div>
 
-                <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'>
-                  {quickStats.map((stat) => (
-                    <div
-                      key={stat.label}
-                      className='rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur-sm hover:scale-[1.02] transition-all duration-300'
-                    >
-                      <div className='mb-4 flex items-center justify-between'>
-                        <span className='text-sm text-muted-foreground'>{stat.label}</span>
-                        <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary'>
-                          <stat.icon className='h-5 w-5' />
-                        </div>
-                      </div>
-                      <p className='text-3xl font-bold tracking-tight'>{stat.value}</p>
-                      <p className='mt-1 text-xs text-muted-foreground'>{stat.sublabel}</p>
-                    </div>
-                  ))}
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+          {quickStats.map((stat) => (
+            <div
+              key={stat.label}
+              className='rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur-sm hover:scale-[1.02] transition-all duration-300'
+            >
+              <div className='mb-4 flex items-center justify-between'>
+                <span className='text-sm text-muted-foreground'>{stat.label}</span>
+                <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary'>
+                  <stat.icon className='h-5 w-5' />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <p className='text-3xl font-bold tracking-tight'>{stat.value}</p>
+              <p className='mt-1 text-xs text-muted-foreground'>{stat.sublabel}</p>
+            </div>
+          ))}
+        </div>
 
-          <Card className={`lg:col-span-4 ${glassCardClassName}`}>
+        <div className='grid gap-6 lg:grid-cols-12'>
+          <Card className={`lg:col-span-6 lg:order-2 ${glassCardClassName}`}>
             <CardHeader>
               <div className='flex items-center justify-between gap-3'>
                 <div>
@@ -503,15 +516,6 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                   Benchmark against genius rankings
                   <ArrowRight className='h-4 w-4' />
                 </Button>
-                <Button
-                  variant='outline'
-                  className='w-full justify-between'
-                  onClick={startCheckout}
-                  disabled={isStartingCheckout}
-                >
-                  {isStartingCheckout ? 'Redirecting to checkout…' : 'Explore official assessment'}
-                  <CreditCard className='h-4 w-4' />
-                </Button>
               </div>
 
               <div className='space-y-2'>
@@ -527,7 +531,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
             </CardContent>
           </Card>
 
-          <Card className={`lg:col-span-7 ${glassCardClassName}`}>
+          <Card className={`lg:col-span-12 lg:order-1 ${glassCardClassName}`}>
             <CardHeader>
               <div className='flex items-center justify-between gap-3'>
                 <div>
@@ -581,7 +585,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
             </CardContent>
           </Card>
 
-          <Card className={`lg:col-span-5 ${glassCardClassName}`}>
+          <Card className={`lg:col-span-6 lg:order-3 ${glassCardClassName}`}>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <TrendingUp className='h-5 w-5 text-primary' />
@@ -768,11 +772,6 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                   </p>
                 </div>
               </div>
-
-              <Button size='lg' className='w-full sm:w-auto' onClick={startCheckout} disabled={isStartingCheckout}>
-                <CreditCard className='mr-2 h-5 w-5' />
-                {isStartingCheckout ? 'Preparing booking…' : 'Book Certified Psychologist Session'}
-              </Button>
             </CardContent>
           </Card>
 

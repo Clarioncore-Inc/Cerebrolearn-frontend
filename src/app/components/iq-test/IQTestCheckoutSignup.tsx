@@ -20,7 +20,7 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
   const [redirecting, setRedirecting] = useState(false);
 
   const redirectToCheckout = async () => {
-    localStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+    sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
     setRedirecting(true);
 
     try {
@@ -80,7 +80,7 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
         ) : mode === 'signup' ? (
           <SignupForm
             simplified
-            fixedRole='learner'
+            fixedRole='iq_user'
             hideRoleSelection
             title='Create your booking account'
             description='Use a few details to continue with your certified psychologist session.'

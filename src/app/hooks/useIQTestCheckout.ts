@@ -17,7 +17,7 @@ export function useIQTestCheckout(onNavigate?: NavigateHandler) {
       return false;
     }
 
-    localStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+    sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
     setIsStartingCheckout(true);
 
     try {

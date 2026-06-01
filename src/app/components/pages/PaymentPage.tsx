@@ -102,7 +102,7 @@ export function PaymentPage({ course, onSuccess, onCancel }: PaymentPageProps) {
     e.preventDefault();
 
     if (!user) {
-      localStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+      sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
       setAuthMode('signup-choice');
       setAuthDialogOpen(true);
       return;
@@ -337,16 +337,16 @@ export function PaymentPage({ course, onSuccess, onCancel }: PaymentPageProps) {
               <SignupForm
                 onToggleMode={() => setAuthMode('login')}
                 hideRoleSelection
-                fixedRole='learner'
+                fixedRole='iq_user'
                 onSignedUp={() => {
-                  localStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+                  sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
                   setAuthMode('login');
                 }}
               />
             ) : (
               <SignupChoice
                 onSelectRegular={() => {
-                  localStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+                  sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
                   setAuthMode('signup');
                 }}
                 onSelectPsychologist={() => setAuthMode('signup')}

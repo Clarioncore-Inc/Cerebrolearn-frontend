@@ -8,6 +8,7 @@ interface UserProfile {
   full_name: string;
   role:
     | 'learner'
+    | 'iq_user'
     | 'instructor'
     | 'org_admin'
     | 'admin'
@@ -28,6 +29,7 @@ interface UserProfile {
 interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
+  isFirstLogin: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (
@@ -44,12 +46,30 @@ interface AuthContextType {
 }
 
 const AUTH_TOKEN_KEY = 'cerebrolearn.auth.token';
+const AUTH_FIRST_LOGIN_KEY = 'cerebrolearn.auth.is_first_login';
+const USER_INTENT_KEY = 'cerebrolearn.user.intent';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const readFirstLoginFlag = () => {
+  if (typeof window === 'undefined') return false;
+  return window.sessionStorage.getItem(AUTH_FIRST_LOGIN_KEY) === 'true';
+};
+
+const writeFirstLoginFlag = (value: boolean) => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.setItem(AUTH_FIRST_LOGIN_KEY, String(value));
+};
+
+const clearFirstLoginFlag = () => {
+  if (typeof window === 'undefined') return;
+  window.sessionStorage.removeItem(AUTH_FIRST_LOGIN_KEY);
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isFirstLogin, setIsFirstLogin] = useState(readFirstLoginFlag);
   const [loading, setLoading] = useState(true);
 
   const fetchAndSetProfile = async () => {
@@ -57,11 +77,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const userProfile = await authApi.getProfile();
       setUser(userProfile);
       setProfile(userProfile as unknown as UserProfile);
+      setIsFirstLogin(readFirstLoginFlag());
     } catch (error) {
       console.error('[Auth] Error fetching profile:', error);
       localStorage.removeItem(AUTH_TOKEN_KEY);
+      sessionStorage.removeItem(USER_INTENT_KEY);
+      clearFirstLoginFlag();
       setUser(null);
       setProfile(null);
+      setIsFirstLogin(false);
     }
   };
 
@@ -74,11 +98,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setUser(null);
           setProfile(null);
+          setIsFirstLogin(false);
         }
       } catch (error) {
         console.error('[Auth] Error initializing auth:', error);
         setUser(null);
         setProfile(null);
+        setIsFirstLogin(false);
       } finally {
         setLoading(false);
       }
@@ -92,8 +118,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (e.newValue) {
           fetchAndSetProfile();
         } else {
+          clearFirstLoginFlag();
           setUser(null);
           setProfile(null);
+          setIsFirstLogin(false);
         }
       }
     };
@@ -105,8 +133,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     const result = await authApi.login({ email, password });
     localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+    writeFirstLoginFlag(result.is_first_login);
     setUser(result.user);
     setProfile(result.user as unknown as UserProfile);
+    setIsFirstLogin(result.is_first_login);
   };
 
   const signUp = async (
@@ -127,8 +157,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    sessionStorage.removeItem(USER_INTENT_KEY);
+    clearFirstLoginFlag();
     setUser(null);
     setProfile(null);
+    setIsFirstLogin(false);
   };
 
   const signInWithGoogle = (): Promise<void> => {
@@ -163,8 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               password: derivedPassword,
             });
             localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+            writeFirstLoginFlag(result.is_first_login);
             setUser(result.user);
             setProfile(result.user as unknown as UserProfile);
+            setIsFirstLogin(result.is_first_login);
           } catch {
             // New user — create account then login
             await authApi.signup({
@@ -178,8 +213,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               password: derivedPassword,
             });
             localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
+            writeFirstLoginFlag(result.is_first_login);
             setUser(result.user);
             setProfile(result.user as unknown as UserProfile);
+            setIsFirstLogin(result.is_first_login);
           }
           resolve();
         } catch (err) {
@@ -244,6 +281,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         user,
         profile,
+        isFirstLogin,
         loading,
         signIn,
         signUp,

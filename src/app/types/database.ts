@@ -2,6 +2,7 @@
 
 export type UserRole =
   | 'learner'
+  | 'iq_user'
   | 'creator'
   | 'instructor'
   | 'admin'

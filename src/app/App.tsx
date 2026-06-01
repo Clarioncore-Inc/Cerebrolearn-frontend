@@ -305,10 +305,7 @@ function AppContent() {
           return null;
         }
 
-        if (
-          profile?.role === 'learner' &&
-          localStorage.getItem('cerebrolearn.user.intent') === 'iq-only'
-        ) {
+        if (profile?.role === 'iq_user') {
           return <IQUserDashboard onNavigate={handleNavigate} />;
         }
 
