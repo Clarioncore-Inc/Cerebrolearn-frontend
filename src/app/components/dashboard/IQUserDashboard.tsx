@@ -179,15 +179,22 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
   const sessionActions = [
+
     {
-      label: 'Find Psychologists',
+      label: 'Book IQ Test',
       icon: Users,
-      onClick: () => onNavigate('browse-psychologists'),
+      onClick: () => onNavigate('book-psychologist', { backPage: 'dashboard' }),
     },
     {
-      label: 'My Sessions',
+      label: 'Upcoming Tests',
       icon: Calendar,
       onClick: () => onNavigate('student-sessions'),
+      variant: 'outline' as const,
+    },
+        {
+      label: 'Practice Test',
+      icon: Play,
+      onClick: () => onNavigate('iq-test-practice'),
       variant: 'outline' as const,
     },
   ];

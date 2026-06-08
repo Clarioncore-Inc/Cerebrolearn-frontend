@@ -21,6 +21,8 @@ import {
 
 interface PsychologistBrowseProps {
   onNavigate: (page: string, data?: any) => void;
+  backPage?: string;
+  backData?: any;
 }
 
 interface Psychologist {
@@ -40,7 +42,7 @@ interface Psychologist {
   verified: boolean;
 }
 
-export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
+export function PsychologistBrowse({ onNavigate, backPage, backData }: PsychologistBrowseProps) {
   const [psychologists, setPsychologists] = useState<Psychologist[]>([]);
   const [filteredPsychologists, setFilteredPsychologists] = useState<Psychologist[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,6 +179,11 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
   );
 
   const handleGoBack = () => {
+    if (backPage) {
+      onNavigate(backPage, backData);
+      return;
+    }
+
     if (window.history.length > 1) {
       window.history.back();
       return;
@@ -343,10 +350,10 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
                   <Users className="h-4 w-4" />
                   <span>{psychologist.sessionsCompleted} sessions</span>
                 </div>
-                <div className="flex items-center gap-1 font-semibold text-foreground">
+                {/* <div className="flex items-center gap-1 font-semibold text-foreground">
                   <Clock className="h-4 w-4" />
                   <span>${psychologist.hourlyRate}/hr</span>
-                </div>
+                </div> */}
               </div>
 
               {/* Action Buttons */}
@@ -354,7 +361,13 @@ export function PsychologistBrowse({ onNavigate }: PsychologistBrowseProps) {
                 <Button
                   variant="outline"
                   className="flex-1"
-                  onClick={() => onNavigate('psychologist-profile', { psychologist })}
+                  onClick={() =>
+                    onNavigate('psychologist-profile', {
+                      psychologist,
+                      backPage: 'browse-psychologists',
+                      backData: backPage ? { backPage, backData } : null,
+                    })
+                  }
                 >
                   View Profile
                 </Button>

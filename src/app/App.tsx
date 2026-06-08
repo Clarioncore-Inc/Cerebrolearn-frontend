@@ -11,6 +11,7 @@ import { LoginForm } from './components/auth/LoginForm';
 import { SignupForm } from './components/auth/SignupForm';
 import { LearnerDashboard } from './components/dashboard/LearnerDashboard';
 import { IQUserDashboard } from './components/dashboard/IQUserDashboard';
+import { BookingPage } from './components/dashboard/BookingFormDialog';
 import { InstructorDashboard } from './components/dashboard/InstructorDashboard';
 import { CourseCreatorDashboard } from './components/dashboard/CourseCreatorDashboard';
 import { AdminDashboard } from './components/dashboard/AdminDashboard';
@@ -652,17 +653,37 @@ function AppContent() {
           <PsychologistManagementPage onNavigate={handleNavigate} />
         );
 
+      case 'book-psychologist':
+        return (
+          <BookingPage
+            onNavigate={handleNavigate}
+            backPage={pageData?.backPage || 'dashboard'}
+          />
+        );
+
       case 'browse-psychologists':
-        return <PsychologistBrowse onNavigate={handleNavigate} />;
+        return (
+          <PsychologistBrowse
+            onNavigate={handleNavigate}
+            backPage={pageData?.backPage}
+            backData={pageData?.backData}
+          />
+        );
 
       case 'psychologist-profile':
         return pageData?.psychologist ? (
           <PsychologistProfilePage
             onNavigate={handleNavigate}
             psychologist={pageData.psychologist}
+            backPage={pageData?.backPage}
+            backData={pageData?.backData}
           />
         ) : (
-          <PsychologistBrowse onNavigate={handleNavigate} />
+          <PsychologistBrowse
+            onNavigate={handleNavigate}
+            backPage={pageData?.backPage}
+            backData={pageData?.backData}
+          />
         );
 
       case 'book-appointment':

@@ -1,4 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { HowItWorksSection } from '../sections/HowItWorksSection';
 import { AIHeroSection } from './AIHeroSection';
 import { BrilliantBanner } from './BrilliantBanner';
@@ -63,6 +64,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onNavigate }: LandingPageProps) {
   const { user } = useAuth();
+  const { formattedIQTestPrice } = useAppSettings();
 
   const allInOneFeatures = [
     {
@@ -184,7 +186,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
     {
       icon: FileText,
       title: 'Testing Center',
-      description: 'Take free IQ Tests through Cerebrolearn in the testing center for immediate estimated IQ Scores! Schedule official IQ tests with verified psychologists.',
+      description: `Unlock practice tests and book an official psychologist-proctored IQ assessment for ${formattedIQTestPrice}.`,
       image: imgOnlineTest1,
       action: () => onNavigate(user ? 'dashboard' : 'auth')
     },
@@ -655,7 +657,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       {/* AI Technology Banner */}
       <BrilliantBanner variant="technology" />
 
-      {/* IQ Test Promotional Section - FREE for Everyone */}
+      {/* IQ Test Promotional Section */}
       <section className="py-20 bg-gradient-to-br from-[#395192] via-[#4a63a8] to-[#5875be] relative overflow-hidden">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
@@ -671,7 +673,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               <div className="text-white space-y-6">
                 <Badge className="bg-white/20 hover:bg-white/30 border-0 text-white backdrop-blur-md text-sm">
                   <Sparkles className="w-4 h-4 mr-1.5" />
-                  FREE Practice Test • Official Testing $299
+                  Practice Access Included • Official Testing {formattedIQTestPrice}
                 </Badge>
 
                 <div className="space-y-4">
@@ -683,7 +685,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                   </h2>
                   
                   <p className="text-xl text-white/90 leading-relaxed">
-                    Take our free practice IQ test or book a verified psychologist for an official assessment. Compare yourself with history's greatest minds!
+                    Book your official IQ package to unlock practice tests, then complete a verified psychologist assessment and compare yourself with history's greatest minds.
                   </p>
                 </div>
 
@@ -694,8 +696,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                       <CheckCircle className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <p className="font-semibold text-lg">Free Practice Questions</p>
-                      <p className="text-white/80">No registration needed—take our practice test anytime, completely free</p>
+                      <p className="font-semibold text-lg">Unlimited Practice Access</p>
+                      <p className="text-white/80">Practice tests unlock after booking, so you can prepare before your final exam</p>
                     </div>
                   </div>
 
@@ -705,7 +707,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                     </div>
                     <div>
                       <p className="font-semibold text-lg">Official Testing Available</p>
-                      <p className="text-white/80">Book a verified psychologist for $299 and get a certified IQ assessment</p>
+                      <p className="text-white/80">Book a verified psychologist for {formattedIQTestPrice} and get a certified IQ assessment</p>
                     </div>
                   </div>
 
@@ -728,7 +730,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                     className="bg-white dark:bg-primary text-primary dark:text-primary-foreground hover:bg-white/90 dark:hover:bg-primary/90 shadow-2xl text-lg h-14 px-8 group"
                   >
                     <Brain className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                    Start Free Practice Test
+                    Explore Official IQ Test
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
 
@@ -744,7 +746,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 </div>
 
                 <p className="text-sm text-white/70 pt-2">
-                  ⚡ Free practice test available • Official testing with psychologist $299
+                  ⚡ Unlimited practice access included • Official testing with psychologist {formattedIQTestPrice}
                 </p>
               </div>
 
@@ -841,7 +843,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                   <div className="relative">
                     <div className="absolute inset-0 bg-[#fbbf24] rounded-full blur-xl opacity-75 animate-pulse"></div>
                     <Badge className="relative bg-gradient-to-r from-[#fbbf24] to-[#f59e0b] text-white border-0 shadow-2xl px-4 py-2 text-sm font-bold">
-                      FREE PRACTICE
+                      OFFICIAL IQ TEST
                     </Badge>
                   </div>
                 </div>

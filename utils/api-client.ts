@@ -218,7 +218,7 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'https://backened-core.onrender.com/api';
+const BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -1161,6 +1161,11 @@ export const psychologistApi = {
   getBookings: (userId: string) =>
     request<any[] | { items?: any[]; results?: any[]; bookings?: any[] }>(
       `/psychologist/bookings?user_id=${encodeURIComponent(userId)}`,
+    ),
+
+  getAvailableSlots: (bookingDate: string, bookingType: 'standard' | 'emergency' = 'standard') =>
+    request<{ date: string; available_slots: string[] }>(
+      `/psychologist/bookings/available-slots?booking_date=${encodeURIComponent(bookingDate)}&booking_type=${encodeURIComponent(bookingType)}`,
     ),
 
   createBooking: (data: {

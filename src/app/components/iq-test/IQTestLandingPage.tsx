@@ -30,20 +30,20 @@ export function IQTestLandingPage({ onNavigate, handleStartTest, hasResults, lat
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 size="lg" 
-                onClick={handleStartTest}
+                onClick={() => onNavigate('iq-test-overview')}
                 className="text-lg px-8 py-6"
               >
                 <Brain className="w-5 h-5 mr-2" />
-                Start Full IQ Test
+                View Official IQ Test Details
               </Button>
               <Button 
                 size="lg" 
                 variant="outline"
-                onClick={() => onNavigate('iq-test-practice')}
+                onClick={() => onNavigate('browse-psychologists')}
                 className="text-lg px-8 py-6"
               >
                 <Target className="w-5 h-5 mr-2" />
-                Practice Mode
+                Browse Psychologists
               </Button>
               {hasResults && (
                 <Button 
@@ -239,8 +239,8 @@ export function IQTestLandingPage({ onNavigate, handleStartTest, hasResults, lat
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    The IQ test is completely free! Optional psychologist consultations are 
-                    priced individually based on the professional's rates and session duration.
+                    Practice access is included after booking your official IQ package, before your
+                    final psychologist-reviewed assessment.
                   </p>
                 </CardContent>
               </Card>
@@ -258,11 +258,11 @@ export function IQTestLandingPage({ onNavigate, handleStartTest, hasResults, lat
           </p>
           <Button 
             size="lg"
-            onClick={() => onNavigate('iq-test-interface')}
+            onClick={() => onNavigate('iq-test-overview')}
             className="text-lg px-12"
           >
             <Brain className="w-5 h-5 mr-2" />
-            Start Your IQ Test Now
+            View Official IQ Test Details
           </Button>
         </div>
       </div>

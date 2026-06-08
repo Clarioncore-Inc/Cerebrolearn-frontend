@@ -249,16 +249,22 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
             <div className="flex items-start gap-3 flex-1">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={booking.psychologistAvatar} alt={booking.psychologistName} />
+                  {booking.status !== 'pending' && (
+                    <AvatarImage src={booking.psychologistAvatar} alt={booking.psychologistName} />
+                  )}
                   <AvatarFallback className="bg-primary/10 text-primary">
-                    {booking.psychologistName?.charAt(0).toUpperCase() || 'P'}
+                    {booking.status === 'pending' ? '?' : (booking.psychologistName?.charAt(0).toUpperCase() || 'P')}
                   </AvatarFallback>
                 </Avatar>
               </div>
               <div className="flex-1 min-w-0">
-                <CardTitle className="text-lg mb-1">{booking.psychologistName}</CardTitle>
+                <CardTitle className="text-lg mb-1">
+                  {booking.status === 'pending' ? 'Psychologist Pending Assignment' : booking.psychologistName}
+                </CardTitle>
                 <CardDescription className="mb-2">
-                  {booking.psychologistSpecialization || 'Clinical Psychologist'}
+                  {booking.status === 'pending'
+                    ? 'You will be notified once your booking is confirmed.'
+                    : (booking.psychologistSpecialization || 'Clinical Psychologist')}
                 </CardDescription>
                 {today && booking.status === 'confirmed' && (
                   <Badge className="bg-green-500">Today's Session</Badge>
@@ -494,7 +500,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
         </Card>
       ) : null}
 
-      {upcomingBookings.length === 0 && completedBookings.length === 0 && (
+      {/* {upcomingBookings.length === 0 && completedBookings.length === 0 && (
         <Card className="mb-6 border-primary/20 bg-primary/5">
           <CardContent className="pt-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -513,7 +519,7 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       {/* Sessions Tabs */}
       <Tabs defaultValue="upcoming" className="space-y-6">

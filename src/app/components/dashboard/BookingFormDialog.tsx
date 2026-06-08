@@ -1,0 +1,443 @@
+import React, { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Alert, AlertDescription } from '../ui/alert';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  RefreshCw,
+  Zap,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import api, { SessionType } from '../../utils/api-client';
+
+interface BookingPageProps {
+  onNavigate: (page: string, data?: any) => void;
+  backPage?: string;
+}
+
+type BookingType = 'standard' | 'emergency';
+type Step = 'type-date' | 'time' | 'details' | 'success';
+
+const today = () => {
+  const d = new Date();
+  return d.toISOString().split('T')[0];
+};
+
+const formatTimeLabel = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  const d = new Date();
+  d.setHours(hours, minutes, 0, 0);
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+};
+
+const formatDisplayDate = (dateStr: string) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+};
+
+export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageProps) {
+  const [step, setStep] = useState<Step>('type-date');
+
+  // Step 1
+  const [bookingType, setBookingType] = useState<BookingType>('standard');
+  const [bookingDate, setBookingDate] = useState<string>('');
+
+  // Step 2
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string>('');
+
+  // Step 3
+  const [sessionType, setSessionType] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState<string>('');
+  const [sessionTypesList, setSessionTypesList] = useState<SessionType[]>([]);
+  const [sessionTypesLoading, setSessionTypesLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Load session types on mount
+  useEffect(() => {
+    setSessionTypesLoading(true);
+    api.psychologist
+      .listSessionTypes()
+      .then((data) => setSessionTypesList(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setSessionTypesLoading(false));
+  }, []);
+
+  const fetchAvailableSlots = async (date: string, type: BookingType) => {
+    setSlotsLoading(true);
+    setSlotsError(null);
+    setAvailableSlots([]);
+    setSelectedTime('');
+    try {
+      const res = await api.psychologist.getAvailableSlots(date, type);
+      const slots = res?.available_slots ?? [];
+      setAvailableSlots(slots);
+      if (slots.length === 0) {
+        setSlotsError('No available time slots for the selected date and booking type. Try a different date or booking type.');
+      }
+    } catch {
+      setSlotsError('Failed to load available slots. Please try again.');
+    } finally {
+      setSlotsLoading(false);
+    }
+  };
+
+  // Auto-fetch slots and advance when date (or type) changes
+  useEffect(() => {
+    if (!bookingDate) return;
+    setStep('time');
+    fetchAvailableSlots(bookingDate, bookingType);
+  }, [bookingDate, bookingType]);
+
+  const handleProceedToDetails = () => {
+    if (!selectedTime) {
+      toast.error('Please select a time slot.');
+      return;
+    }
+    setStep('details');
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      await api.psychologist.createBooking({
+        psychologist_id: null as any,
+        date: bookingDate,
+        time: selectedTime,
+        booking_type: bookingType,
+        session_type: sessionType || 'General',
+        notes,
+        is_recurring: isRecurring,
+        recurring_frequency: isRecurring ? recurringFrequency : '',
+        reminder_preferences: '',
+        price: sessionTypesList.find((s) => s.name === sessionType)?.price ?? 0,
+      });
+      setStep('success');
+    } catch (err: any) {
+      const message = err?.message || 'Failed to create booking. Please try again.';
+      toast.error(message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className='min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(57,81,146,0.08),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_30%)]'>
+      <div className='container max-w-2xl py-8 md:py-10 space-y-6'>
+
+        {/* Back button */}
+        <Button variant='ghost' size='sm' className='-ml-2' onClick={() => onNavigate(backPage)}>
+          <ArrowLeft className='mr-2 h-4 w-4' />
+          Back
+        </Button>
+
+        <Card className='border-border/60 bg-background/80 backdrop-blur-xl shadow-lg'>
+          <CardHeader>
+            <div className='flex items-start justify-between gap-3'>
+              <div>
+                <CardTitle className='flex items-center gap-2 text-xl'>
+                  <Calendar className='h-5 w-5 text-primary' />
+                  Book a Consultation
+                </CardTitle>
+                <CardDescription className='mt-1'>
+                  {step === 'type-date' && 'Choose your booking type and preferred date.'}
+                  {step === 'time' && 'Select an available time slot for your session.'}
+                  {step === 'details' && 'Provide any additional details for your session.'}
+                  {step === 'success' && 'Your booking has been received.'}
+                </CardDescription>
+              </div>
+            </div>
+
+            {/* Step indicator */}
+            {step !== 'success' && (
+              <div className='flex items-center gap-2 pt-2 text-xs text-muted-foreground'>
+                {(['type-date', 'time', 'details'] as Step[]).map((s, i) => (
+                  <React.Fragment key={s}>
+                    <span
+                      className={`font-medium ${step === s ? 'text-primary' : i < ['type-date', 'time', 'details'].indexOf(step) ? 'text-emerald-600' : ''}`}
+                    >
+                      {i + 1}. {s === 'type-date' ? 'Date' : s === 'time' ? 'Time' : 'Details'}
+                    </span>
+                    {i < 2 && <span>›</span>}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent>
+
+        {/* ── Step 1: Type + Date ── */}
+        {step === 'type-date' && (
+          <div className='space-y-5 pt-1'>
+            <div className='space-y-2'>
+              <Label>Booking Type</Label>
+              <div className='grid grid-cols-2 gap-3'>
+                <button
+                  type='button'
+                  onClick={() => setBookingType('standard')}
+                  className={`rounded-xl border p-3 text-left transition-all ${
+                    bookingType === 'standard'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border/60 hover:border-primary/40'
+                  }`}
+                >
+                  <div className='flex items-center gap-2 font-semibold'>
+                    <Calendar className='h-4 w-4' />
+                    Standard
+                  </div>
+                  <p className='mt-1 text-xs text-muted-foreground'>Scheduled consultation</p>
+                </button>
+                <button
+                  type='button'
+                  onClick={() => setBookingType('emergency')}
+                  className={`rounded-xl border p-3 text-left transition-all ${
+                    bookingType === 'emergency'
+                      ? 'border-rose-500 bg-rose-500/10 text-rose-600'
+                      : 'border-border/60 hover:border-rose-400/40'
+                  }`}
+                >
+                  <div className='flex items-center gap-2 font-semibold'>
+                    <Zap className='h-4 w-4' />
+                    Emergency
+                  </div>
+                  <p className='mt-1 text-xs text-muted-foreground'>Urgent support needed</p>
+                </button>
+              </div>
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='booking-date'>Preferred Date</Label>
+              <input
+                id='booking-date'
+                type='date'
+                min={today()}
+                value={bookingDate}
+                onChange={(e) => setBookingDate(e.target.value)}
+                className='w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Time slots ── */}
+        {step === 'time' && (
+          <div className='space-y-4 pt-1'>
+            <div className='rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm'>
+              <p className='text-muted-foreground'>
+                <span className='font-medium text-foreground'>{formatDisplayDate(bookingDate)}</span>
+                {' · '}
+                <span className='capitalize'>{bookingType}</span>
+              </p>
+            </div>
+
+            {slotsLoading && (
+              <div className='flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground'>
+                <Loader2 className='h-5 w-5 animate-spin' />
+                Loading available slots…
+              </div>
+            )}
+
+            {!slotsLoading && slotsError && (
+              <Alert variant='destructive'>
+                <AlertTriangle className='h-4 w-4' />
+                <AlertDescription>{slotsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!slotsLoading && availableSlots.length > 0 && (
+              <div className='space-y-2'>
+                <Label>Select a Time</Label>
+                <div className='grid grid-cols-3 gap-2'>
+                  {availableSlots.map((slot) => (
+                    <button
+                      key={slot}
+                      type='button'
+                      onClick={() => setSelectedTime(slot)}
+                      className={`flex items-center justify-center gap-1.5 rounded-lg border py-2.5 text-sm font-medium transition-all ${
+                        selectedTime === slot
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border/60 hover:border-primary/40'
+                      }`}
+                    >
+                      <Clock className='h-3.5 w-3.5' />
+                      {formatTimeLabel(slot)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className='flex justify-between pt-2'>
+              <Button variant='outline' onClick={() => setStep('type-date')}>
+                <ArrowLeft className='mr-2 h-4 w-4' />
+                Back
+              </Button>
+              <div className='flex gap-2'>
+                {!slotsLoading && (slotsError || availableSlots.length === 0) && (
+                  <Button
+                    variant='outline'
+                    onClick={() => fetchAvailableSlots(bookingDate, bookingType)}
+                  >
+                    <RefreshCw className='mr-2 h-4 w-4' />
+                    Retry
+                  </Button>
+                )}
+                {!slotsLoading && availableSlots.length === 0 && slotsError && (
+                  <Button variant='outline' onClick={() => setStep('type-date')}>
+                    Modify Filters
+                  </Button>
+                )}
+                {availableSlots.length > 0 && (
+                  <Button onClick={handleProceedToDetails} disabled={!selectedTime}>
+                    Continue
+                    <ArrowRight className='ml-2 h-4 w-4' />
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Details ── */}
+        {step === 'details' && (
+          <div className='space-y-4 pt-1'>
+            <div className='rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm'>
+              <p className='text-muted-foreground'>
+                <span className='font-medium text-foreground'>{formatDisplayDate(bookingDate)}</span>
+                {' at '}
+                <span className='font-medium text-foreground'>{formatTimeLabel(selectedTime)}</span>
+                {' · '}
+                <span className='capitalize'>{bookingType}</span>
+              </p>
+            </div>
+
+            <div className='space-y-2'>
+              <Label>Session Type <span className='text-muted-foreground text-xs'>(optional)</span></Label>
+              <Select value={sessionType} onValueChange={setSessionType}>
+                <SelectTrigger>
+                  <SelectValue placeholder={sessionTypesLoading ? 'Loading…' : 'Select a session type'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {sessionTypesList.map((s) => (
+                    <SelectItem key={s.id} value={s.name}>
+                      {s.name}
+                      {s.price ? ` — $${s.price}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className='space-y-2'>
+              <Label htmlFor='notes'>Notes <span className='text-muted-foreground text-xs'>(optional)</span></Label>
+              <Textarea
+                id='notes'
+                placeholder="Briefly describe what you'd like to discuss…"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            <div className='space-y-2'>
+              <div className='flex items-center gap-2'>
+                <input
+                  id='recurring'
+                  type='checkbox'
+                  checked={isRecurring}
+                  onChange={(e) => setIsRecurring(e.target.checked)}
+                  className='h-4 w-4 rounded border-border/60 accent-primary'
+                />
+                <Label htmlFor='recurring' className='cursor-pointer font-normal'>
+                  Recurring session
+                </Label>
+              </div>
+              {isRecurring && (
+                <Select value={recurringFrequency} onValueChange={setRecurringFrequency}>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select frequency' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='weekly'>Weekly</SelectItem>
+                    <SelectItem value='biweekly'>Bi-weekly</SelectItem>
+                    <SelectItem value='monthly'>Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+
+            <div className='flex justify-between pt-2'>
+              <Button variant='outline' onClick={() => setStep('time')}>
+                <ArrowLeft className='mr-2 h-4 w-4' />
+                Back
+              </Button>
+              <Button onClick={handleSubmit} disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                    Booking…
+                  </>
+                ) : (
+                  'Confirm Booking'
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: Success ── */}
+        {step === 'success' && (
+          <div className='flex flex-col items-center gap-4 py-10 text-center'>
+            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10'>
+              <CheckCircle2 className='h-8 w-8 text-emerald-500' />
+            </div>
+            <div>
+              <p className='text-xl font-semibold'>Booking Received</p>
+              <p className='mt-2 max-w-sm text-sm text-muted-foreground'>
+                Your consultation request for{' '}
+                <span className='font-medium text-foreground'>{formatDisplayDate(bookingDate)}</span>{' '}
+                at{' '}
+                <span className='font-medium text-foreground'>{formatTimeLabel(selectedTime)}</span>{' '}
+                is pending confirmation. You'll be notified once it's confirmed.
+              </p>
+            </div>
+            <div className='flex flex-wrap justify-center gap-2'>
+              <Badge variant='secondary' className='rounded-full'>
+                Status: Pending
+              </Badge>
+              <Badge variant='secondary' className='rounded-full capitalize'>
+                {bookingType}
+              </Badge>
+            </div>
+            <div className='flex gap-3 mt-2'>
+              <Button variant='outline' onClick={() => onNavigate('student-sessions')}>
+                View My Sessions
+              </Button>
+              <Button onClick={() => onNavigate(backPage)}>
+                Back to Dashboard
+              </Button>
+            </div>
+          </div>
+        )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

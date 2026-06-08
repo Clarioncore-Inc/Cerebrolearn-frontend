@@ -7,6 +7,8 @@ import { ArrowLeft, Calendar, MapPin, Star, Award, Clock, Mail } from 'lucide-re
 
 interface PsychologistProfilePageProps {
   onNavigate: (page: string, data?: any) => void;
+  backPage?: string;
+  backData?: any;
   psychologist: {
     id: string;
     fullName: string;
@@ -24,7 +26,7 @@ interface PsychologistProfilePageProps {
   };
 }
 
-export function PsychologistProfilePage({ onNavigate, psychologist }: PsychologistProfilePageProps) {
+export function PsychologistProfilePage({ onNavigate, psychologist, backPage, backData }: PsychologistProfilePageProps) {
   const specializationLabel = psychologist.specialization
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -32,7 +34,7 @@ export function PsychologistProfilePage({ onNavigate, psychologist }: Psychologi
 
   return (
     <div className="container max-w-5xl py-8 space-y-6">
-      <Button variant="outline" onClick={() => onNavigate('browse-psychologists')}>
+      <Button variant="outline" onClick={() => onNavigate(backPage || 'browse-psychologists', backData)}>
         <ArrowLeft className="h-4 w-4 mr-2" />
         Back to Psychologists
       </Button>
@@ -73,10 +75,10 @@ export function PsychologistProfilePage({ onNavigate, psychologist }: Psychologi
                   <div className="flex items-center gap-2 text-sm text-muted-foreground"><Award className="h-4 w-4" /> Sessions</div>
                   <p className="mt-2 text-xl font-semibold">{psychologist.sessionsCompleted}</p>
                 </div>
-                <div className="rounded-lg bg-muted/50 p-4">
+                {/* <div className="rounded-lg bg-muted/50 p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground"><Clock className="h-4 w-4" /> Hourly Rate</div>
                   <p className="mt-2 text-xl font-semibold">${psychologist.hourlyRate}</p>
-                </div>
+                </div> */}
                 <div className="rounded-lg bg-muted/50 p-4">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground"><MapPin className="h-4 w-4" /> Location</div>
                   <p className="mt-2 text-xl font-semibold">{psychologist.location}</p>

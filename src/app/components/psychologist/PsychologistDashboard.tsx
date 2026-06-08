@@ -930,7 +930,7 @@ export function PsychologistDashboard({
       case 'completed':
         return <Badge variant='secondary'>Done</Badge>;
       case 'cancelled':
-        return <Badge variant='destructive'>Rejected</Badge>;
+        return <Badge variant='destructive'></Badge>;
       default:
         return <Badge variant='outline'>{status}</Badge>;
     }
@@ -1436,7 +1436,7 @@ export function PsychologistDashboard({
                             {booking.notes}
                           </div>
                         ) : null}
-                        {booking.status === 'cancelled' && booking.rejectionReason ? (
+                        {/* {booking.status === 'cancelled' && booking.rejectionReason ? (
                           <div className='ml-13'>
                             <Button
                               type='button'
@@ -1448,7 +1448,7 @@ export function PsychologistDashboard({
                               View rejection reason
                             </Button>
                           </div>
-                        ) : null}
+                        ) : null} */}
                         {booking.status === 'completed' &&
                         booking.sessionNotes?.session_summary ? (
                           <div className='ml-13 rounded-lg border bg-muted/30 p-3 text-sm'>
@@ -1460,9 +1460,9 @@ export function PsychologistDashboard({
                           <Badge variant='secondary'>
                             {booking.bookingType}
                           </Badge>
-                          {booking.price > 0 ? (
+                          {/* {booking.price > 0 ? (
                             <Badge variant='outline'>${booking.price}</Badge>
-                          ) : null}
+                          ) : null} */}
                           {booking.isRecurring && booking.recurringFrequency ? (
                             <Badge variant='outline'>
                               {booking.recurringFrequency}
@@ -1484,9 +1484,9 @@ export function PsychologistDashboard({
                               ) : (
                                 <CheckCircle2 className='mr-2 h-4 w-4' />
                               )}
-                              Confirm
+                              Confirm Appointment
                             </Button>
-                            <Button
+                            {/* <Button
                               size='sm'
                               variant='destructive'
                               onClick={() => openRejectDialog(booking)}
@@ -1494,7 +1494,7 @@ export function PsychologistDashboard({
                             >
                               <XCircle className='mr-2 h-4 w-4' />
                               Reject
-                            </Button>
+                            </Button> */}
                           </>
                         ) : null}
 

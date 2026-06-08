@@ -1,13 +1,18 @@
 import React, { useMemo } from 'react';
-import { Brain, Clock, Award, TrendingUp, Users, Shield, Target } from 'lucide-react';
+import { Brain, Clock, Award, TrendingUp, Users, Shield } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
+import { useAppSettings } from '../../hooks/useAppSettings';
+import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 
 interface IQTestLandingProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
 export function IQTestLanding({ onNavigate }: IQTestLandingProps) {
+  const { formattedIQTestPrice } = useAppSettings();
+  const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
+
   // Check if user has previous results
   const { hasResults, latestResultId } = useMemo(() => {
     const results = JSON.parse(localStorage.getItem('iq_test_results') || '[]');
@@ -16,10 +21,6 @@ export function IQTestLanding({ onNavigate }: IQTestLandingProps) {
       latestResultId: results.length > 0 ? results[results.length - 1].id : null
     };
   }, []);
-
-  const handleStartTest = () => {
-    onNavigate('iq-test-interface');
-  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,26 +35,27 @@ export function IQTestLanding({ onNavigate }: IQTestLandingProps) {
               Discover Your Cognitive Potential
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Take our scientifically validated IQ test and unlock insights into your cognitive strengths. 
-              Get personalized recommendations and optional professional review from certified psychologists.
+              Book the official IQ package for {formattedIQTestPrice} to unlock unlimited practice tests,
+              detailed analytics, and a certified psychologist-reviewed final assessment.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
               <Button 
                 size="lg" 
-                onClick={handleStartTest}
+                onClick={startCheckout}
+                disabled={isStartingCheckout}
                 className="text-lg px-8 py-6"
               >
                 <Brain className="w-5 h-5 mr-2" />
-                Start Full IQ Test
+                {isStartingCheckout ? 'Preparing booking…' : 'Unlock Practice Tests'}
               </Button>
               <Button 
                 size="lg" 
                 variant="outline"
-                onClick={() => onNavigate('iq-test-practice')}
+                onClick={() => onNavigate('iq-test-overview')}
                 className="text-lg px-8 py-6"
               >
-                <Target className="w-5 h-5 mr-2" />
-                Practice Mode
+                <Users className="w-5 h-5 mr-2" />
+                See What's Included
               </Button>
               {hasResults && (
                 <Button 
@@ -249,8 +251,8 @@ export function IQTestLanding({ onNavigate }: IQTestLandingProps) {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    The IQ test is completely free! Optional psychologist consultations are 
-                    priced individually based on the professional's rates and session duration.
+                    The official IQ package costs {formattedIQTestPrice} and includes unlimited practice access
+                    before your final psychologist-reviewed assessment.
                   </p>
                 </CardContent>
               </Card>
@@ -269,20 +271,21 @@ export function IQTestLanding({ onNavigate }: IQTestLandingProps) {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               size="lg"
-              onClick={handleStartTest}
+              onClick={startCheckout}
+              disabled={isStartingCheckout}
               className="text-lg px-12"
             >
               <Brain className="w-5 h-5 mr-2" />
-              Start Your IQ Test Now
+              {isStartingCheckout ? 'Preparing booking…' : 'Unlock Practice Tests'}
             </Button>
             <Button 
               size="lg"
               variant="outline"
-              onClick={() => onNavigate('iq-test-practice')}
+              onClick={() => onNavigate('iq-test-overview')}
               className="text-lg px-12"
             >
-              <Target className="w-5 h-5 mr-2" />
-              Try Practice Mode
+              <Users className="w-5 h-5 mr-2" />
+              See What's Included
             </Button>
           </div>
         </div>

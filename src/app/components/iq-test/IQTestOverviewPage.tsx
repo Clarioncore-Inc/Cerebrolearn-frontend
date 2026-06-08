@@ -160,37 +160,26 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <div>
               <Badge className="mb-4 bg-white/20 hover:bg-white/30 text-primary-foreground border-0">
                 <Sparkles className="w-4 h-4 mr-1" />
-                Free Practice • Certified Session {formattedIQTestPrice}
+                Official IQ Package • Only {formattedIQTestPrice}
               </Badge>
               <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-                Discover Your True Cognitive Potential
+                 Proctored IQ Test Performed by Registered Certified Psychologist
+                 <br/> ONLY {formattedIQTestPrice}!
               </h1>
               <p className="text-xl text-primary-foreground/90 mb-8 leading-relaxed">
-                Start with our free practice IQ test or book a session with a certified psychologist for {formattedIQTestPrice} to receive guided interpretation, official documentation, and expert follow-up.
-              </p>
-              <p className="text-base md:text-lg font-semibold text-primary-foreground mb-8">
-                Certified psychologist session from {formattedIQTestPrice} - book your official consultation
+                Includes your results on an <strong>Official</strong> IQ <strong>Certification</strong> <strong>Document</strong> and <strong>Unlimited Practice Tests</strong> before your final IQ exam.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mb-8">
                 <Button 
                   size="lg" 
                   variant="secondary"
-                  className="text-lg px-8"
-                  onClick={() => onNavigate('iq-test-landing')}
-                >
-                  <Play className="w-5 h-5 mr-2" />
-                  Start Free Practice Test
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10 text-lg"
+                  className="w-full text-lg px-8"
                   onClick={startCheckout}
                   disabled={isStartingCheckout}
                 >
-                  <Users className="w-5 h-5 mr-2" />
-                  {isStartingCheckout ? 'Preparing booking…' : 'Book Certified Psychologist Session'}
+                  <Brain className="w-5 h-5 mr-2" />
+                  {isStartingCheckout ? 'Preparing booking…' : 'Order an IQ Test'}
                 </Button>
               </div>
 
@@ -203,8 +192,8 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 </div>
                 <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
                   <Brain className="w-6 h-6 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">FREE</p>
-                  <p className="text-sm text-primary-foreground/80">Practice</p>
+                  <p className="text-2xl font-bold">Included</p>
+                  <p className="text-sm text-primary-foreground/80">Practice Access</p>
                 </div>
                 <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
                   <Users className="w-6 h-6 mx-auto mb-2" />
@@ -433,7 +422,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             </Badge>
             <h2 className="text-4xl font-bold mb-4">Need Official, Human-Reviewed Results?</h2>
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-              The free test is great for exploration, but a certified psychologist session is ideal when you need
+              The guided practice experience helps you prepare, but a certified psychologist session is ideal when you need
               formal interpretation, personalized guidance, and official documentation.
             </p>
           </div>
@@ -560,7 +549,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Star className="w-5 h-5 text-primary" />
-                Practice Test vs Certified Psychologist Session
+                Included Practice vs Certified Psychologist Session
               </CardTitle>
               <CardDescription>
                 Choose the path that matches your goal right now.
@@ -569,7 +558,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                 <div>
-                  <p className="font-semibold mb-2">Free Practice Test</p>
+                  <p className="font-semibold mb-2">Included Practice Access</p>
                   <div className="space-y-3">
                     <div>
                       <p className="text-sm text-muted-foreground mb-1">Speed and accessibility</p>
@@ -672,7 +661,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               <Brain className="w-20 h-20 mx-auto mb-6" />
               <h2 className="text-4xl font-bold mb-4">Ready to Discover Your IQ?</h2>
               <p className="text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
-                Start with our free practice experience or book a certified psychologist session for guided insight,
+                Unlock unlimited practice tests, then complete your certified psychologist session for guided insight,
                 official documentation, and expert follow-up.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -680,26 +669,24 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   size="lg" 
                   variant="secondary"
                   className="text-lg px-8"
-                  onClick={() => onNavigate('iq-test-landing')}
+                  onClick={startCheckout}
+                  disabled={isStartingCheckout}
                 >
-                  <Play className="w-5 h-5 mr-2" />
-                  Start Free Practice Test
+                  <Brain className="w-5 h-5 mr-2" />
+                  {isStartingCheckout ? 'Preparing booking…' : 'Unlock Practice Tests'}
                 </Button>
                 <Button 
                   size="lg" 
                   variant="outline"
                   className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10 text-lg"
-                  onClick={startCheckout}
-                  disabled={isStartingCheckout}
+                  onClick={() => onNavigate('browse-psychologists')}
                 >
                   <Users className="w-5 h-5 mr-2" />
-                  {isStartingCheckout
-                    ? 'Preparing booking…'
-                    : `Book Certified Psychologist Session (${formattedIQTestPrice})`}
+                  Find Certified Psychologists
                 </Button>
               </div>
               <p className="mt-6 text-sm text-primary-foreground/70">
-                Free practice experience • Certified psychologist session {formattedIQTestPrice} • Guided follow-up
+                Unlimited practice tests included • Certified psychologist session {formattedIQTestPrice} • Guided follow-up
               </p>
             </CardContent>
           </Card>
