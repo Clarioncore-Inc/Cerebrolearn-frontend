@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { psychologistApi } from '../../utils/api-client';
 
 interface MyBookingsProps {
@@ -46,19 +47,25 @@ interface Booking {
 
 export function MyBookings({ onNavigate }: MyBookingsProps) {
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [activeTab, setActiveTab] = useState('upcoming');
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!user) return;
 
     let isMounted = true;
+    const refreshIntervalMs =
+      Math.max(settings.refresh_booking_in_minute || 5, 1) * 60 * 1000;
 
-    const loadBookings = async () => {
+    const loadBookings = async (showLoader = true) => {
       try {
-        setBookingsLoading(true);
+        if (showLoader) {
+          setBookingsLoading(true);
+        }
         setBookingsError(null);
 
         const data = await psychologistApi.getBookings(user.id);
@@ -113,7 +120,7 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
             : 'Failed to load your bookings. Please try again.',
         );
       } finally {
-        if (isMounted) {
+        if (isMounted && showLoader) {
           setBookingsLoading(false);
         }
       }
@@ -121,10 +128,15 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
 
     loadBookings();
 
+    const intervalId = window.setInterval(() => {
+      loadBookings(false);
+    }, refreshIntervalMs);
+
     return () => {
       isMounted = false;
+      window.clearInterval(intervalId);
     };
-  }, [user]);
+  }, [user, settings.refresh_booking_in_minute, refreshTrigger]);
 
   const handleCancelBooking = () => {
     toast.info('Booking cancellation from the learner side is not available yet.');
@@ -339,11 +351,22 @@ export function MyBookings({ onNavigate }: MyBookingsProps) {
   return (
     <div className="container max-w-6xl mx-auto py-8 px-4">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">My Appointments</h1>
-        <p className="text-muted-foreground">
-          Manage your consultation bookings and sessions
-        </p>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="mb-2 text-3xl font-bold">My Appointments</h1>
+          <p className="text-muted-foreground">
+            Manage your consultation bookings and sessions
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setRefreshTrigger((current) => current + 1)}
+          disabled={bookingsLoading}
+        >
+          <RefreshCw className={`mr-2 h-4 w-4 ${bookingsLoading ? 'animate-spin' : ''}`} />
+          Refresh bookings
+        </Button>
       </div>
 
       {/* Quick Stats */}

@@ -25,6 +25,7 @@ import {
   Filter,
   BarChart3,
   Link as LinkIcon,
+  RefreshCw,
   Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -196,11 +197,17 @@ export function AdminBookingManagement() {
 
   return (
     <div className="container py-6 space-y-6">
-      <div>
-        <h1 className="mb-2">Booking Management</h1>
-        <p className="text-muted-foreground">
-          Monitor and manage all appointment bookings
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="mb-2">Booking Management</h1>
+          <p className="text-muted-foreground">
+            Monitor and manage all appointment bookings
+          </p>
+        </div>
+        <Button type="button" variant="outline" onClick={loadBookings}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh bookings
+        </Button>
       </div>
 
       {/* Meeting Configuration */}

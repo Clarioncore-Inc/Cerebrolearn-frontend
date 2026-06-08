@@ -19,9 +19,11 @@ import {
   XCircle,
   DollarSign,
   User,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { Alert, AlertDescription } from '../ui/alert';
+import { useAppSettings } from '../../hooks/useAppSettings';
 
 interface Application {
   id: string;
@@ -92,6 +94,7 @@ function BookingStatusBadge({ status }: { status: Booking['status'] }) {
 }
 
 export function PsychologistDetailPage({ onNavigate, application }: Props) {
+  const { settings } = useAppSettings();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [statusSubmitting, setStatusSubmitting] = useState(false);
@@ -100,11 +103,24 @@ export function PsychologistDetailPage({ onNavigate, application }: Props) {
   );
 
   useEffect(() => {
-    loadBookings();
-  }, []);
+    const refreshIntervalMs =
+      Math.max(settings.refresh_booking_in_minute || 5, 1) * 60 * 1000;
 
-const loadBookings = async () => {
-  setBookingsLoading(true);
+    loadBookings();
+
+    const intervalId = window.setInterval(() => {
+      loadBookings(false);
+    }, refreshIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [application.userId, settings.refresh_booking_in_minute]);
+
+const loadBookings = async (showLoader = true) => {
+  if (showLoader) {
+    setBookingsLoading(true);
+  }
   try {
     const data = await api.psychologist.getBookings(application.userId);
     const list: any[] = Array.isArray(data)
@@ -128,7 +144,9 @@ const loadBookings = async () => {
   } catch (error: any) {
     toast.error(error?.message ?? 'Failed to load bookings');
   } finally {
-    setBookingsLoading(false);
+    if (showLoader) {
+      setBookingsLoading(false);
+    }
   }
 };
 
@@ -324,9 +342,25 @@ const loadBookings = async () => {
         {/* ── Bookings ── */}
         <TabsContent value="bookings" className="pt-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Bookings</CardTitle>
-              <CardDescription>Sessions booked with {application.fullName}</CardDescription>
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Bookings</CardTitle>
+                <CardDescription>Sessions booked with {application.fullName}</CardDescription>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => loadBookings()}
+                disabled={bookingsLoading}
+              >
+                {bookingsLoading ? (
+                  <Clock className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Refresh bookings
+              </Button>
             </CardHeader>
             <CardContent>
               {bookingsLoading ? (

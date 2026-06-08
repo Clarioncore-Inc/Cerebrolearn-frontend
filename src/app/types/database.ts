@@ -159,6 +159,8 @@ export interface AppSettings {
   contacts: string | null;
   email: string | null;
   iq_test_price: number;
+  refresh_booking_in_minute: number;
+  psychologist_booking_reminder_in_minutes: number;
   created_at: string;
   updated_at?: string;
 }

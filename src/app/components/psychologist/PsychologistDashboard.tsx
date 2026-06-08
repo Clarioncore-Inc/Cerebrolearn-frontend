@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -40,6 +40,7 @@ import {
   TrendingUp,
   DollarSign,
   Loader2,
+  RefreshCw,
   Save,
   Star,
   UserCheck,
@@ -50,6 +51,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppSettings } from '../../hooks/useAppSettings';
 import { psychologistApi } from '../../utils/api-client';
 
 interface PsychologistDashboardProps {
@@ -196,6 +198,7 @@ export function PsychologistDashboard({
   onNavigate,
 }: PsychologistDashboardProps) {
   const { user } = useAuth();
+  const { settings } = useAppSettings();
   const [applicationLoading, setApplicationLoading] = useState(true);
   const [applicationStatus, setApplicationStatus] = useState<
     'incomplete' | 'pending' | 'approved' | 'rejected'
@@ -373,11 +376,13 @@ export function PsychologistDashboard({
     });
   };
 
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async (showLoader = true) => {
     if (!user) return;
 
     try {
-      setBookingsLoading(true);
+      if (showLoader) {
+        setBookingsLoading(true);
+      }
       setBookingsError(null);
 
       const data = await psychologistApi.getBookings(user.id);
@@ -407,9 +412,11 @@ export function PsychologistDashboard({
           : 'Failed to load bookings. Please try again.',
       );
     } finally {
-      setBookingsLoading(false);
+      if (showLoader) {
+        setBookingsLoading(false);
+      }
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -543,7 +550,22 @@ export function PsychologistDashboard({
   useEffect(() => {
     if (!user) return;
     loadBookings();
-  }, [user]);
+  }, [user, loadBookings]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshIntervalMs =
+      Math.max(settings.refresh_booking_in_minute || 5, 1) * 60 * 1000;
+
+    const intervalId = window.setInterval(() => {
+      loadBookings(false);
+    }, refreshIntervalMs);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [user, loadBookings, settings.refresh_booking_in_minute]);
 
   useEffect(() => {
     if (!user) return;
@@ -918,22 +940,15 @@ export function PsychologistDashboard({
   };
 
   const getBookingStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <Badge>Confirmed</Badge>;
-      case 'pending':
-        return (
-          <Badge variant='outline' className='border-yellow-500 text-yellow-700'>
-            Pending
-          </Badge>
-        );
-      case 'completed':
-        return <Badge variant='secondary'>Done</Badge>;
-      case 'cancelled':
-        return <Badge variant='destructive'></Badge>;
-      default:
-        return <Badge variant='outline'>{status}</Badge>;
+    if (status === 'pending') {
+      return (
+        <Badge variant='outline' className='border-yellow-500 text-yellow-700'>
+          Pending acknowledgement
+        </Badge>
+      );
     }
+
+    return <Badge>Acknowledged</Badge>;
   };
 
   const enabledAvailabilityDays = availabilityRecord
@@ -1374,11 +1389,27 @@ export function PsychologistDashboard({
         {/* Bookings Tab */}
         <TabsContent value='bookings' className='space-y-4'>
           <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Consultations</CardTitle>
-              <CardDescription>
-                Your scheduled sessions with students
-              </CardDescription>
+            <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+              <div>
+                <CardTitle>Upcoming Consultations</CardTitle>
+                <CardDescription>
+                  Your scheduled sessions with students
+                </CardDescription>
+              </div>
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                onClick={() => loadBookings()}
+                disabled={bookingsLoading}
+              >
+                {bookingsLoading ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <RefreshCw className='mr-2 h-4 w-4' />
+                )}
+                Refresh bookings
+              </Button>
             </CardHeader>
             <CardContent>
               {bookingsLoading ? (
@@ -1430,12 +1461,6 @@ export function PsychologistDashboard({
                             {booking.sessionType}
                           </span>
                         </div>
-                        {booking.notes ? (
-                          <div className='ml-13 rounded-lg bg-muted/50 p-3 text-sm text-muted-foreground'>
-                            <span className='font-medium text-foreground'>Client note:</span>{' '}
-                            {booking.notes}
-                          </div>
-                        ) : null}
                         {/* {booking.status === 'cancelled' && booking.rejectionReason ? (
                           <div className='ml-13'>
                             <Button
@@ -1449,17 +1474,10 @@ export function PsychologistDashboard({
                             </Button>
                           </div>
                         ) : null} */}
-                        {booking.status === 'completed' &&
-                        booking.sessionNotes?.session_summary ? (
-                          <div className='ml-13 rounded-lg border bg-muted/30 p-3 text-sm'>
-                            <span className='font-medium'>Session summary:</span>{' '}
-                            {booking.sessionNotes.session_summary}
-                          </div>
-                        ) : null}
                         <div className='flex items-center gap-2 ml-13'>
-                          <Badge variant='secondary'>
+                          {/* <Badge variant='secondary'>
                             {booking.bookingType}
-                          </Badge>
+                          </Badge> */}
                           {/* {booking.price > 0 ? (
                             <Badge variant='outline'>${booking.price}</Badge>
                           ) : null} */}
@@ -1496,29 +1514,6 @@ export function PsychologistDashboard({
                               Reject
                             </Button> */}
                           </>
-                        ) : null}
-
-                        {booking.status === 'confirmed' ? (
-                          <Button
-                            size='sm'
-                            onClick={() => openDoneDialog(booking)}
-                            disabled={bookingActionLoadingId === booking.id}
-                          >
-                            <FileText className='mr-2 h-4 w-4' />
-                            Done
-                          </Button>
-                        ) : null}
-
-                        {booking.status === 'completed' ? (
-                          <Button
-                            size='sm'
-                            variant='outline'
-                            onClick={() => openDoneDialog(booking)}
-                            disabled={bookingActionLoadingId === booking.id}
-                          >
-                            <FileText className='mr-2 h-4 w-4' />
-                            View Notes
-                          </Button>
                         ) : null}
 
                       </div>
@@ -1983,7 +1978,7 @@ export function PsychologistDashboard({
                   {selectedClientHistory?.studentName || 'Client'} history
                 </DialogTitle>
                 <DialogDescription>
-                  Review the client&apos;s bookings and the notes captured for each session.
+                  Review the client&apos;s booking history.
                 </DialogDescription>
               </DialogHeader>
 
@@ -2001,13 +1996,6 @@ export function PsychologistDashboard({
                         {getBookingStatusBadge(booking.status)}
                       </div>
 
-                      {booking.notes ? (
-                        <div className='rounded-lg bg-muted/40 p-3 text-sm'>
-                          <span className='font-medium'>Client booking note:</span>{' '}
-                          {booking.notes}
-                        </div>
-                      ) : null}
-
                       {booking.rejectionReason ? (
                         <Button
                           type='button'
@@ -2021,50 +2009,6 @@ export function PsychologistDashboard({
                         </Button>
                       ) : null}
 
-                      {booking.sessionNotes ? (
-                        <div className='grid gap-3 md:grid-cols-2'>
-                          {booking.sessionNotes.session_summary ? (
-                            <div className='rounded-lg border bg-muted/20 p-3 text-sm md:col-span-2'>
-                              <span className='font-medium'>Session summary:</span>{' '}
-                              {booking.sessionNotes.session_summary}
-                            </div>
-                          ) : null}
-                          {booking.sessionNotes.presenting_concerns ? (
-                            <div className='rounded-lg border p-3 text-sm'>
-                              <span className='font-medium'>Presenting concerns:</span>{' '}
-                              {booking.sessionNotes.presenting_concerns}
-                            </div>
-                          ) : null}
-                          {booking.sessionNotes.observations ? (
-                            <div className='rounded-lg border p-3 text-sm'>
-                              <span className='font-medium'>Observations:</span>{' '}
-                              {booking.sessionNotes.observations}
-                            </div>
-                          ) : null}
-                          {booking.sessionNotes.follow_up_plan ? (
-                            <div className='rounded-lg border p-3 text-sm'>
-                              <span className='font-medium'>Follow-up plan:</span>{' '}
-                              {booking.sessionNotes.follow_up_plan}
-                            </div>
-                          ) : null}
-                          {booking.sessionNotes.next_session_focus ? (
-                            <div className='rounded-lg border p-3 text-sm'>
-                              <span className='font-medium'>Next session focus:</span>{' '}
-                              {booking.sessionNotes.next_session_focus}
-                            </div>
-                          ) : null}
-                          {booking.sessionNotes.homework_assigned ? (
-                            <div className='rounded-lg border p-3 text-sm md:col-span-2'>
-                              <span className='font-medium'>Homework assigned:</span>{' '}
-                              {booking.sessionNotes.homework_assigned}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        <p className='text-sm text-muted-foreground'>
-                          No session notes recorded for this booking yet.
-                        </p>
-                      )}
                     </div>
                   ))}
                 </div>

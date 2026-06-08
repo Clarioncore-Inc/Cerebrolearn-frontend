@@ -10,6 +10,8 @@ const DEFAULT_APP_SETTINGS: AppSettings = {
   contacts: null,
   email: null,
   iq_test_price: 299,
+  refresh_booking_in_minute: 5,
+  psychologist_booking_reminder_in_minutes: 30,
   created_at: '',
   updated_at: '',
 };
@@ -33,6 +35,13 @@ export function useAppSettings() {
           ...DEFAULT_APP_SETTINGS,
           ...data,
           iq_test_price: Number(data.iq_test_price ?? DEFAULT_APP_SETTINGS.iq_test_price),
+          refresh_booking_in_minute: Number(
+            data.refresh_booking_in_minute ?? DEFAULT_APP_SETTINGS.refresh_booking_in_minute,
+          ),
+          psychologist_booking_reminder_in_minutes: Number(
+            data.psychologist_booking_reminder_in_minutes ??
+              DEFAULT_APP_SETTINGS.psychologist_booking_reminder_in_minutes,
+          ),
         });
       } catch (err) {
         if (!isActive) {

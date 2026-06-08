@@ -41,7 +41,7 @@ interface Booking {
   time: string;
   sessionType: string;
   notes: string;
-  status: 'pending' | 'confirmed' | 'cancelled' | 'completed';
+  status: string;
   createdAt: string;
   hourlyRate: number;
   sessionNotes?: string;
@@ -58,10 +58,8 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [bookingsError, setBookingsError] = useState<string | null>(null);
   const [stats, setStats] = useState({
-    upcoming: 0,
-    completed: 0,
-    cancelled: 0,
-    pending: 0,
+    pendingAcknowledgement: 0,
+    acknowledged: 0,
   });
 
   useEffect(() => {
@@ -130,22 +128,18 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
 
         setBookings(normalizedBookings);
 
-        const now = new Date();
-        const upcoming = normalizedBookings.filter((b) => {
-          const bookingDate = new Date(`${b.date} ${b.time}`);
-          return bookingDate > now && b.status === 'confirmed';
-        }).length;
-        const completed = normalizedBookings.filter((b) => b.status === 'completed').length;
-        const cancelled = normalizedBookings.filter((b) => b.status === 'cancelled').length;
-        const pending = normalizedBookings.filter((b) => b.status === 'pending').length;
+        const pendingAcknowledgement = normalizedBookings.filter(
+          (b) => b.status === 'pending',
+        ).length;
+        const acknowledged = normalizedBookings.filter((b) => b.status !== 'pending').length;
 
-        setStats({ upcoming, completed, cancelled, pending });
+        setStats({ pendingAcknowledgement, acknowledged });
       } catch (error: any) {
         if (!isMounted) return;
 
         console.error('[StudentSessionsDashboard] Error loading bookings:', error);
         setBookings([]);
-        setStats({ upcoming: 0, completed: 0, cancelled: 0, pending: 0 });
+        setStats({ pendingAcknowledgement: 0, acknowledged: 0 });
         setBookingsError(
           error?.message && error.message !== '[object Object]'
             ? error.message
@@ -179,8 +173,8 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
       );
       setStats((prev) => ({
         ...prev,
-        pending: Math.max(prev.pending - 1, 0),
-        cancelled: prev.cancelled + 1,
+        pendingAcknowledgement: Math.max(prev.pendingAcknowledgement - 1, 0),
+        acknowledged: prev.acknowledged + 1,
       }));
       toast.success('Appointment cancelled');
     } catch (error: any) {
@@ -226,17 +220,18 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
     return bookingDate < now;
   };
 
-  const upcomingBookings = bookings.filter(b => {
-    const bookingDate = new Date(`${b.date} ${b.time}`);
-    const now = new Date();
-    return bookingDate > now && b.status === 'confirmed';
-  }).sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime());
+  const isPendingAcknowledgement = (booking: Booking) => booking.status === 'pending';
 
-  const pendingBookings = bookings.filter(b => b.status === 'pending')
+  const pendingBookings = bookings.filter(isPendingAcknowledgement)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  const completedBookings = bookings.filter(b => b.status === 'completed')
-    .sort((a, b) => new Date(`${b.date} ${b.time}`).getTime() - new Date(`${a.date} ${a.time}`).getTime());
+  const acknowledgedBookings = bookings
+    .filter((booking) => !isPendingAcknowledgement(booking))
+    .sort(
+      (a, b) =>
+        new Date(`${b.date} ${b.time}`).getTime() -
+        new Date(`${a.date} ${a.time}`).getTime(),
+    );
 
   const SessionCard = ({ booking }: { booking: Booking }) => {
     const past = isPast(booking);
@@ -259,11 +254,11 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               </div>
               <div className="flex-1 min-w-0">
                 <CardTitle className="text-lg mb-1">
-                  {booking.status === 'pending' ? 'Psychologist Pending Assignment' : booking.psychologistName}
+                  {booking.status === 'pending' ? 'Pending acknowledgement' : booking.psychologistName}
                 </CardTitle>
                 <CardDescription className="mb-2">
                   {booking.status === 'pending'
-                    ? 'You will be notified once your booking is confirmed.'
+                    ? 'Your booking is waiting for a psychologist to acknowledge it.'
                     : (booking.psychologistSpecialization || 'Clinical Psychologist')}
                 </CardDescription>
                 {today && booking.status === 'confirmed' && (
@@ -272,10 +267,13 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               </div>
             </div>
             <div>
-              {booking.status === 'pending' && <Badge variant="outline" className="border-yellow-500 text-yellow-700">Pending</Badge>}
-              {booking.status === 'confirmed' && <Badge variant="default" className="bg-green-500">Confirmed</Badge>}
-              {booking.status === 'completed' && <Badge variant="secondary">Completed</Badge>}
-              {booking.status === 'cancelled' && <Badge variant="destructive">Cancelled</Badge>}
+              {booking.status === 'pending' ? (
+                <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                  Pending acknowledgement
+                </Badge>
+              ) : (
+                <Badge className="bg-green-500">Acknowledged</Badge>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -294,13 +292,13 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               <span>{booking.sessionType}</span>
             </div>
           </div>
-
+{/* 
           {booking.notes && (
             <div className="bg-muted/50 rounded-lg p-3">
               <p className="text-sm font-medium mb-1">Your Notes:</p>
               <p className="text-sm text-muted-foreground">{booking.notes}</p>
             </div>
-          )}
+          )} */}
 
           {booking.sessionNotes && booking.status === 'completed' && (
             <div className="bg-primary/5 rounded-lg p-3 border border-primary/20">
@@ -308,14 +306,14 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               <p className="text-sm text-muted-foreground">{booking.sessionNotes}</p>
             </div>
           )}
-
+{/* 
           {booking.status === 'cancelled' && booking.rejectionReason ? (
             <Alert variant="destructive">
               <AlertDescription>
                 <strong>Reason provided:</strong> {booking.rejectionReason}
               </AlertDescription>
             </Alert>
-          ) : null}
+          ) : null} */}
 
           <div className="flex items-center justify-between pt-2 border-t">
             <span className="text-sm text-muted-foreground">Session Fee:</span>
@@ -367,11 +365,11 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               </>
             )} */}
 
-            {booking.status === 'confirmed' && past && (
+            {/* {booking.status === 'confirmed' && past && (
               <div className="w-full text-center py-2 text-sm text-muted-foreground">
                 Waiting for psychologist to complete session
               </div>
-            )}
+            )} */}
 
             {booking.status === 'completed' && (
               <>
@@ -442,48 +440,26 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Upcoming
+              Pending acknowledgement
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.upcoming}</div>
+            <div className="text-2xl font-bold">{stats.pendingAcknowledgement}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending
+              Acknowledged
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.pending}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Completed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.completed}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Cancelled
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.cancelled}</div>
+            <div className="text-2xl font-bold">{stats.acknowledged}</div>
           </CardContent>
         </Card>
       </div>
@@ -522,21 +498,17 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
       )} */}
 
       {/* Sessions Tabs */}
-      <Tabs defaultValue="upcoming" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="upcoming">
-            Upcoming ({stats.upcoming + stats.pending})
+      <Tabs defaultValue="pending" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="pending">
+            Pending acknowledgement ({stats.pendingAcknowledgement})
           </TabsTrigger>
-          <TabsTrigger value="completed">
-            Completed ({stats.completed})
-          </TabsTrigger>
-          <TabsTrigger value="cancelled">
-            Cancelled ({stats.cancelled})
+          <TabsTrigger value="acknowledged">
+            Acknowledged ({stats.acknowledged})
           </TabsTrigger>
         </TabsList>
 
-        {/* Upcoming Tab */}
-        <TabsContent value="upcoming" className="space-y-4">
+        <TabsContent value="pending" className="space-y-4">
           {bookingsLoading ? (
             <Card className="p-12">
               <div className="text-center">
@@ -546,56 +518,33 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
               </div>
             </Card>
           ) : (
-            <>
-          {pendingBookings.length > 0 && (
-            <div className="mb-4">
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                Pending Confirmation
-              </h3>
+            pendingBookings.length > 0 ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {pendingBookings.map((booking) => (
                   <SessionCard key={booking.id} booking={booking} />
                 ))}
               </div>
-            </div>
-          )}
-
-          {upcomingBookings.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                Confirmed Sessions
-              </h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {upcomingBookings.map((booking) => (
-                  <SessionCard key={booking.id} booking={booking} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {upcomingBookings.length === 0 && pendingBookings.length === 0 && (
-            <Card className="p-12">
-              <div className="text-center">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No upcoming sessions</h3>
-                <p className="text-muted-foreground mb-4">
-                  Book a session to get started
-                </p>
-                <Button onClick={handleBrowsePsychologists}>
-                  Browse Psychologists
-                </Button>
-              </div>
-            </Card>
-          )}
-            </>
+            ) : (
+              <Card className="p-12">
+                <div className="text-center">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">No pending sessions</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Book a session to get started
+                  </p>
+                  <Button onClick={handleBrowsePsychologists}>
+                    Browse Psychologists
+                  </Button>
+                </div>
+              </Card>
+            )
           )}
         </TabsContent>
 
-        {/* Completed Tab */}
-        <TabsContent value="completed" className="space-y-4">
-          {completedBookings.length > 0 ? (
+        <TabsContent value="acknowledged" className="space-y-4">
+          {acknowledgedBookings.length > 0 ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {completedBookings.map((booking) => (
+              {acknowledgedBookings.map((booking) => (
                 <SessionCard key={booking.id} booking={booking} />
               ))}
             </div>
@@ -603,30 +552,9 @@ export function StudentSessionsDashboard({ onNavigate }: StudentSessionsDashboar
             <Card className="p-12">
               <div className="text-center">
                 <CheckCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No completed sessions</h3>
+                <h3 className="text-lg font-semibold mb-2">No acknowledged sessions</h3>
                 <p className="text-muted-foreground">
-                  Completed sessions will appear here
-                </p>
-              </div>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Cancelled Tab */}
-        <TabsContent value="cancelled" className="space-y-4">
-          {bookings.filter(b => b.status === 'cancelled').length > 0 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {bookings.filter(b => b.status === 'cancelled').map((booking) => (
-                <SessionCard key={booking.id} booking={booking} />
-              ))}
-            </div>
-          ) : (
-            <Card className="p-12">
-              <div className="text-center">
-                <XCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <h3 className="text-lg font-semibold mb-2">No cancelled sessions</h3>
-                <p className="text-muted-foreground">
-                  Cancelled sessions will appear here
+                  Acknowledged sessions will appear here
                 </p>
               </div>
             </Card>

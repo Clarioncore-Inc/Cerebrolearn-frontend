@@ -273,6 +273,42 @@ function AppContent() {
     );
   }
 
+  const renderDashboardPage = () => {
+    if (!user) {
+      handleNavigate('landing');
+      return null;
+    }
+
+    if (profile?.role === 'iq_user') {
+      return <IQUserDashboard onNavigate={handleNavigate} />;
+    }
+
+    if (
+      profile?.role === 'psychologist' ||
+      profile?.role === 'psychologist_pending'
+    ) {
+      return <PsychologistDashboard onNavigate={handleNavigate} />;
+    }
+
+    if (
+      profile?.role === 'course_creator' ||
+      profile?.role === 'instructor'
+    ) {
+      return (
+        <CourseCreatorDashboard
+          onNavigate={handleNavigate}
+          currentPage='creator-dashboard'
+        />
+      );
+    }
+
+    if (profile?.role === 'admin' || profile?.role === 'org_admin') {
+      return <AdminPortal />;
+    }
+
+    return <LearnerDashboard onNavigate={handleNavigate} />;
+  };
+
   const renderPage = () => {
     switch (currentPage) {
       case 'landing':
@@ -301,35 +337,7 @@ function AppContent() {
         );
 
       case 'dashboard':
-        if (!user) {
-          handleNavigate('landing');
-          return null;
-        }
-
-        if (profile?.role === 'iq_user') {
-          return <IQUserDashboard onNavigate={handleNavigate} />;
-        }
-
-        if (
-          profile?.role === 'psychologist' ||
-          profile?.role === 'psychologist_pending'
-        ) {
-          return <PsychologistDashboard onNavigate={handleNavigate} />;
-        } else if (
-          profile?.role === 'course_creator' ||
-          profile?.role === 'instructor'
-        ) {
-          return (
-            <CourseCreatorDashboard
-              onNavigate={handleNavigate}
-              currentPage='creator-dashboard'
-            />
-          );
-        } else if (profile?.role === 'admin' || profile?.role === 'org_admin') {
-          return <AdminPortal />;
-        } else {
-          return <LearnerDashboard onNavigate={handleNavigate} />;
-        }
+        return renderDashboardPage();
 
       // Legacy instructor routes - redirect to creator routes
       case 'instructor':
@@ -655,10 +663,13 @@ function AppContent() {
 
       case 'book-psychologist':
         return (
-          <BookingPage
-            onNavigate={handleNavigate}
-            backPage={pageData?.backPage || 'dashboard'}
-          />
+          <>
+            {renderDashboardPage()}
+            <BookingPage
+              onNavigate={handleNavigate}
+              backPage={pageData?.backPage || 'dashboard'}
+            />
+          </>
         );
 
       case 'browse-psychologists':

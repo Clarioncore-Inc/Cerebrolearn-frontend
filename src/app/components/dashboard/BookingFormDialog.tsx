@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Dialog, DialogContent } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
@@ -15,7 +16,6 @@ import {
   Clock,
   Loader2,
   RefreshCw,
-  Zap,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { SessionType } from '../../utils/api-client';
@@ -27,6 +27,7 @@ interface BookingPageProps {
 
 type BookingType = 'standard' | 'emergency';
 type Step = 'type-date' | 'time' | 'details' | 'success';
+const DEFAULT_BOOKING_TYPE: BookingType = 'standard';
 
 const today = () => {
   const d = new Date();
@@ -50,7 +51,6 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   const [step, setStep] = useState<Step>('type-date');
 
   // Step 1
-  const [bookingType, setBookingType] = useState<BookingType>('standard');
   const [bookingDate, setBookingDate] = useState<string>('');
 
   // Step 2
@@ -73,22 +73,32 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
     setSessionTypesLoading(true);
     api.psychologist
       .listSessionTypes()
-      .then((data) => setSessionTypesList(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const list = Array.isArray(data) ? data : [];
+        setSessionTypesList(list);
+        setSessionType((current) => current || list[0]?.name || '');
+      })
       .catch(() => {})
       .finally(() => setSessionTypesLoading(false));
   }, []);
 
-  const fetchAvailableSlots = async (date: string, type: BookingType) => {
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      onNavigate(backPage);
+    }
+  };
+
+  const fetchAvailableSlots = async (date: string) => {
     setSlotsLoading(true);
     setSlotsError(null);
     setAvailableSlots([]);
     setSelectedTime('');
     try {
-      const res = await api.psychologist.getAvailableSlots(date, type);
+      const res = await api.psychologist.getAvailableSlots(date, DEFAULT_BOOKING_TYPE);
       const slots = res?.available_slots ?? [];
       setAvailableSlots(slots);
       if (slots.length === 0) {
-        setSlotsError('No available time slots for the selected date and booking type. Try a different date or booking type.');
+        setSlotsError('No available time slots for the selected date. Try a different date.');
       }
     } catch {
       setSlotsError('Failed to load available slots. Please try again.');
@@ -97,12 +107,12 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
     }
   };
 
-  // Auto-fetch slots and advance when date (or type) changes
+  // Auto-fetch slots and advance when the date changes
   useEffect(() => {
     if (!bookingDate) return;
     setStep('time');
-    fetchAvailableSlots(bookingDate, bookingType);
-  }, [bookingDate, bookingType]);
+    fetchAvailableSlots(bookingDate);
+  }, [bookingDate]);
 
   const handleProceedToDetails = () => {
     if (!selectedTime) {
@@ -119,7 +129,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         psychologist_id: null as any,
         date: bookingDate,
         time: selectedTime,
-        booking_type: bookingType,
+        booking_type: DEFAULT_BOOKING_TYPE,
         session_type: sessionType || 'General',
         notes,
         is_recurring: isRecurring,
@@ -137,16 +147,12 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   };
 
   return (
-    <div className='min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(57,81,146,0.08),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.08),transparent_30%)]'>
-      <div className='container max-w-2xl py-8 md:py-10 space-y-6'>
-
-        {/* Back button */}
-        <Button variant='ghost' size='sm' className='-ml-2' onClick={() => onNavigate(backPage)}>
-          <ArrowLeft className='mr-2 h-4 w-4' />
-          Back
-        </Button>
-
-        <Card className='border-border/60 bg-background/80 backdrop-blur-xl shadow-lg'>
+    <Dialog open onOpenChange={handleOpenChange}>
+      <DialogContent
+        overlayClassName='bg-black/70 backdrop-blur-md'
+        className='max-w-2xl border-none bg-transparent p-0 shadow-none sm:max-w-2xl'
+      >
+        <Card className='border-border/60 bg-background/95 backdrop-blur-xl shadow-lg'>
           <CardHeader>
             <div className='flex items-start justify-between gap-3'>
               <div>
@@ -155,7 +161,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                   Book a Consultation
                 </CardTitle>
                 <CardDescription className='mt-1'>
-                  {step === 'type-date' && 'Choose your booking type and preferred date.'}
+                  {step === 'type-date' && 'Choose your preferred date.'}
                   {step === 'time' && 'Select an available time slot for your session.'}
                   {step === 'details' && 'Provide any additional details for your session.'}
                   {step === 'success' && 'Your booking has been received.'}
@@ -186,42 +192,6 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         {step === 'type-date' && (
           <div className='space-y-5 pt-1'>
             <div className='space-y-2'>
-              <Label>Booking Type</Label>
-              <div className='grid grid-cols-2 gap-3'>
-                <button
-                  type='button'
-                  onClick={() => setBookingType('standard')}
-                  className={`rounded-xl border p-3 text-left transition-all ${
-                    bookingType === 'standard'
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border/60 hover:border-primary/40'
-                  }`}
-                >
-                  <div className='flex items-center gap-2 font-semibold'>
-                    <Calendar className='h-4 w-4' />
-                    Standard
-                  </div>
-                  <p className='mt-1 text-xs text-muted-foreground'>Scheduled consultation</p>
-                </button>
-                <button
-                  type='button'
-                  onClick={() => setBookingType('emergency')}
-                  className={`rounded-xl border p-3 text-left transition-all ${
-                    bookingType === 'emergency'
-                      ? 'border-rose-500 bg-rose-500/10 text-rose-600'
-                      : 'border-border/60 hover:border-rose-400/40'
-                  }`}
-                >
-                  <div className='flex items-center gap-2 font-semibold'>
-                    <Zap className='h-4 w-4' />
-                    Emergency
-                  </div>
-                  <p className='mt-1 text-xs text-muted-foreground'>Urgent support needed</p>
-                </button>
-              </div>
-            </div>
-
-            <div className='space-y-2'>
               <Label htmlFor='booking-date'>Preferred Date</Label>
               <input
                 id='booking-date'
@@ -241,8 +211,6 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
             <div className='rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm'>
               <p className='text-muted-foreground'>
                 <span className='font-medium text-foreground'>{formatDisplayDate(bookingDate)}</span>
-                {' · '}
-                <span className='capitalize'>{bookingType}</span>
               </p>
             </div>
 
@@ -292,7 +260,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                 {!slotsLoading && (slotsError || availableSlots.length === 0) && (
                   <Button
                     variant='outline'
-                    onClick={() => fetchAvailableSlots(bookingDate, bookingType)}
+                    onClick={() => fetchAvailableSlots(bookingDate)}
                   >
                     <RefreshCw className='mr-2 h-4 w-4' />
                     Retry
@@ -322,8 +290,6 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                 <span className='font-medium text-foreground'>{formatDisplayDate(bookingDate)}</span>
                 {' at '}
                 <span className='font-medium text-foreground'>{formatTimeLabel(selectedTime)}</span>
-                {' · '}
-                <span className='capitalize'>{bookingType}</span>
               </p>
             </div>
 
@@ -344,7 +310,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
               </Select>
             </div>
 
-            <div className='space-y-2'>
+            {/* <div className='space-y-2'>
               <Label htmlFor='notes'>Notes <span className='text-muted-foreground text-xs'>(optional)</span></Label>
               <Textarea
                 id='notes'
@@ -353,10 +319,10 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
               />
-            </div>
+            </div> */}
 
             <div className='space-y-2'>
-              <div className='flex items-center gap-2'>
+              {/* <div className='flex items-center gap-2'>
                 <input
                   id='recurring'
                   type='checkbox'
@@ -367,7 +333,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                 <Label htmlFor='recurring' className='cursor-pointer font-normal'>
                   Recurring session
                 </Label>
-              </div>
+              </div> */}
               {isRecurring && (
                 <Select value={recurringFrequency} onValueChange={setRecurringFrequency}>
                   <SelectTrigger>
@@ -419,10 +385,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
             </div>
             <div className='flex flex-wrap justify-center gap-2'>
               <Badge variant='secondary' className='rounded-full'>
-                Status: Pending
-              </Badge>
-              <Badge variant='secondary' className='rounded-full capitalize'>
-                {bookingType}
+                Status: Pending acknowledgement
               </Badge>
             </div>
             <div className='flex gap-3 mt-2'>
@@ -437,7 +400,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         )}
           </CardContent>
         </Card>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
