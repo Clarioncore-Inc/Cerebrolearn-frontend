@@ -89,18 +89,16 @@ interface DashboardBooking {
 }
 
 interface BookingNotesForm {
-  meetingPlatform: 'zoom' | 'google_meet' | 'other';
-  meetingLink: string;
-  sessionSummary: string;
-  presentingConcerns: string;
-  observations: string;
-  interventionsUsed: string;
-  riskAssessment: string;
-  homeworkAssigned: string;
-  followUpPlan: string;
-  nextSessionFocus: string;
-  privateNotes: string;
-  nextSessionRecommended: boolean;
+  patternRecognitionScore: string;
+  patternRecognitionNote: string;
+  workingMemoryScore: string;
+  workingMemoryNote: string;
+  processingSpeedScore: string;
+  processingSpeedNote: string;
+  verbalIntelligenceScore: string;
+  verbalIntelligenceNote: string;
+  spatialReasoningScore: string;
+  spatialReasoningNote: string;
 }
 
 interface ClientHistoryItem {
@@ -147,18 +145,16 @@ const DEFAULT_VISIBLE_PROFILE_FIELDS = {
 };
 
 const DEFAULT_BOOKING_NOTES_FORM: BookingNotesForm = {
-  meetingPlatform: 'zoom',
-  meetingLink: '',
-  sessionSummary: '',
-  presentingConcerns: '',
-  observations: '',
-  interventionsUsed: '',
-  riskAssessment: '',
-  homeworkAssigned: '',
-  followUpPlan: '',
-  nextSessionFocus: '',
-  privateNotes: '',
-  nextSessionRecommended: false,
+  patternRecognitionScore: '',
+  patternRecognitionNote: '',
+  workingMemoryScore: '',
+  workingMemoryNote: '',
+  processingSpeedScore: '',
+  processingSpeedNote: '',
+  verbalIntelligenceScore: '',
+  verbalIntelligenceNote: '',
+  spatialReasoningScore: '',
+  spatialReasoningNote: '',
 };
 
 const createProfessionalProfileForm = (
@@ -214,6 +210,48 @@ export function PsychologistDashboard({
     averageRating: 0,
     reviewCount: 0,
   });
+
+const COGNITIVE_PROFILE_FIELDS: Array<{
+  scoreKey:
+    | 'patternRecognitionScore'
+    | 'workingMemoryScore'
+    | 'processingSpeedScore'
+    | 'verbalIntelligenceScore'
+    | 'spatialReasoningScore';
+  noteKey:
+    | 'patternRecognitionNote'
+    | 'workingMemoryNote'
+    | 'processingSpeedNote'
+    | 'verbalIntelligenceNote'
+    | 'spatialReasoningNote';
+  label: string;
+}> = [
+  {
+    scoreKey: 'patternRecognitionScore',
+    noteKey: 'patternRecognitionNote',
+    label: 'Pattern Recognition',
+  },
+  {
+    scoreKey: 'workingMemoryScore',
+    noteKey: 'workingMemoryNote',
+    label: 'Working Memory',
+  },
+  {
+    scoreKey: 'processingSpeedScore',
+    noteKey: 'processingSpeedNote',
+    label: 'Processing Speed',
+  },
+  {
+    scoreKey: 'verbalIntelligenceScore',
+    noteKey: 'verbalIntelligenceNote',
+    label: 'Verbal Intelligence',
+  },
+  {
+    scoreKey: 'spatialReasoningScore',
+    noteKey: 'spatialReasoningNote',
+    label: 'Spatial Reasoning',
+  },
+];
   const [qualifications, setQualifications] = useState('');
   const [certifications, setCertifications] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -281,23 +319,31 @@ export function PsychologistDashboard({
   };
 
   const createBookingNotesForm = (source?: Record<string, any> | null): BookingNotesForm => ({
-    meetingPlatform:
-      source?.meeting_platform === 'google_meet' || source?.meeting_platform === 'other'
-        ? source.meeting_platform
-        : 'zoom',
-    meetingLink: source?.meeting_link ?? '',
-    sessionSummary: source?.session_summary ?? '',
-    presentingConcerns: source?.presenting_concerns ?? '',
-    observations: source?.observations ?? '',
-    interventionsUsed: Array.isArray(source?.interventions_used)
-      ? source.interventions_used.join('\n')
-      : '',
-    riskAssessment: source?.risk_assessment ?? '',
-    homeworkAssigned: source?.homework_assigned ?? '',
-    followUpPlan: source?.follow_up_plan ?? '',
-    nextSessionFocus: source?.next_session_focus ?? '',
-    privateNotes: source?.private_notes ?? '',
-    nextSessionRecommended: Boolean(source?.next_session_recommended),
+    patternRecognitionScore:
+      source?.cognitive_profile?.pattern_recognition != null
+        ? String(source.cognitive_profile.pattern_recognition)
+        : '',
+    patternRecognitionNote: source?.cognitive_profile_notes?.pattern_recognition ?? '',
+    workingMemoryScore:
+      source?.cognitive_profile?.working_memory != null
+        ? String(source.cognitive_profile.working_memory)
+        : '',
+    workingMemoryNote: source?.cognitive_profile_notes?.working_memory ?? '',
+    processingSpeedScore:
+      source?.cognitive_profile?.processing_speed != null
+        ? String(source.cognitive_profile.processing_speed)
+        : '',
+    processingSpeedNote: source?.cognitive_profile_notes?.processing_speed ?? '',
+    verbalIntelligenceScore:
+      source?.cognitive_profile?.verbal_intelligence != null
+        ? String(source.cognitive_profile.verbal_intelligence)
+        : '',
+    verbalIntelligenceNote: source?.cognitive_profile_notes?.verbal_intelligence ?? '',
+    spatialReasoningScore:
+      source?.cognitive_profile?.spatial_reasoning != null
+        ? String(source.cognitive_profile.spatial_reasoning)
+        : '',
+    spatialReasoningNote: source?.cognitive_profile_notes?.spatial_reasoning ?? '',
   });
 
   const normalizeDashboardBooking = (
@@ -894,9 +940,78 @@ export function PsychologistDashboard({
   const handleCompleteBooking = async () => {
     if (!selectedBooking) return;
 
-    const trimmedSummary = bookingNotes.sessionSummary.trim();
-    if (!trimmedSummary) {
-      toast.error('Session summary is required before marking this booking done');
+    const parseKpiScore = (label: string, rawValue: string) => {
+      const trimmedValue = rawValue.trim();
+      if (!trimmedValue) {
+        throw new Error(`${label} score is required`);
+      }
+
+      const numericValue = Number(trimmedValue);
+      if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 100) {
+        throw new Error(`${label} must be a number between 0 and 100`);
+      }
+
+      return Math.round(numericValue * 100) / 100;
+    };
+
+    const normalizeOptionalNote = (rawValue: string) => {
+      const trimmedValue = rawValue.trim();
+      return trimmedValue || undefined;
+    };
+
+    let cognitiveProfile:
+      | {
+          pattern_recognition: number;
+          working_memory: number;
+          processing_speed: number;
+          verbal_intelligence: number;
+          spatial_reasoning: number;
+        }
+      | undefined;
+    let cognitiveProfileNotes:
+      | {
+          pattern_recognition?: string;
+          working_memory?: string;
+          processing_speed?: string;
+          verbal_intelligence?: string;
+          spatial_reasoning?: string;
+        }
+      | undefined;
+
+    try {
+      cognitiveProfile = {
+        pattern_recognition: parseKpiScore(
+          'Pattern Recognition',
+          bookingNotes.patternRecognitionScore,
+        ),
+        working_memory: parseKpiScore('Working Memory', bookingNotes.workingMemoryScore),
+        processing_speed: parseKpiScore(
+          'Processing Speed',
+          bookingNotes.processingSpeedScore,
+        ),
+        verbal_intelligence: parseKpiScore(
+          'Verbal Intelligence',
+          bookingNotes.verbalIntelligenceScore,
+        ),
+        spatial_reasoning: parseKpiScore(
+          'Spatial Reasoning',
+          bookingNotes.spatialReasoningScore,
+        ),
+      };
+
+      cognitiveProfileNotes = {
+        pattern_recognition: normalizeOptionalNote(bookingNotes.patternRecognitionNote),
+        working_memory: normalizeOptionalNote(bookingNotes.workingMemoryNote),
+        processing_speed: normalizeOptionalNote(bookingNotes.processingSpeedNote),
+        verbal_intelligence: normalizeOptionalNote(bookingNotes.verbalIntelligenceNote),
+        spatial_reasoning: normalizeOptionalNote(bookingNotes.spatialReasoningNote),
+      };
+
+      if (!Object.values(cognitiveProfileNotes).some(Boolean)) {
+        cognitiveProfileNotes = undefined;
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Enter valid KPI scores');
       return;
     }
 
@@ -904,21 +1019,8 @@ export function PsychologistDashboard({
 
     try {
       await psychologistApi.updateBookingNotes(selectedBooking.id, {
-        meeting_platform: bookingNotes.meetingPlatform,
-        meeting_link: bookingNotes.meetingLink.trim() || undefined,
-        session_summary: trimmedSummary,
-        presenting_concerns: bookingNotes.presentingConcerns.trim() || undefined,
-        observations: bookingNotes.observations.trim() || undefined,
-        interventions_used: bookingNotes.interventionsUsed
-          .split(/\r?\n|,/)
-          .map((item) => item.trim())
-          .filter(Boolean),
-        risk_assessment: bookingNotes.riskAssessment.trim() || undefined,
-        homework_assigned: bookingNotes.homeworkAssigned.trim() || undefined,
-        follow_up_plan: bookingNotes.followUpPlan.trim() || undefined,
-        next_session_focus: bookingNotes.nextSessionFocus.trim() || undefined,
-        private_notes: bookingNotes.privateNotes.trim() || undefined,
-        next_session_recommended: bookingNotes.nextSessionRecommended,
+        cognitive_profile: cognitiveProfile,
+        cognitive_profile_notes: cognitiveProfileNotes,
       });
 
       await psychologistApi.updateBooking({
@@ -1516,6 +1618,17 @@ export function PsychologistDashboard({
                           </>
                         ) : null}
 
+                        {booking.status === 'confirmed' ? (
+                          <Button
+                            size='sm'
+                            onClick={() => openDoneDialog(booking)}
+                            disabled={bookingActionLoadingId === booking.id}
+                          >
+                            <FileText className='mr-2 h-4 w-4' />
+                            Done
+                          </Button>
+                        ) : null}
+
                       </div>
                     </div>
                   ))}
@@ -1603,184 +1716,50 @@ export function PsychologistDashboard({
               <DialogHeader>
                 <DialogTitle>Session completion notes</DialogTitle>
                 <DialogDescription>
-                  Capture what happened during the session before marking this
-                  booking as done.
+                  Enter the KPI scores for this session and add optional notes for
+                  any metric where you want more context.
                 </DialogDescription>
               </DialogHeader>
 
-              <div className='grid gap-4 md:grid-cols-2'>
-                <div className='space-y-2'>
-                  <Label htmlFor='meeting-platform'>Meeting platform</Label>
-                  <Select
-                    value={bookingNotes.meetingPlatform}
-                    onValueChange={(value: 'zoom' | 'google_meet' | 'other') =>
-                      handleBookingNotesFieldChange('meetingPlatform', value)
-                    }
-                  >
-                    <SelectTrigger id='meeting-platform'>
-                      <SelectValue placeholder='Select platform' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value='zoom'>Zoom</SelectItem>
-                      <SelectItem value='google_meet'>Google Meet</SelectItem>
-                      <SelectItem value='other'>Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='meeting-link'>Meeting link</Label>
-                  <Input
-                    id='meeting-link'
-                    placeholder='https://...'
-                    value={bookingNotes.meetingLink}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange('meetingLink', e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2 md:col-span-2'>
-                  <Label htmlFor='session-summary'>Session summary</Label>
-                  <Textarea
-                    id='session-summary'
-                    rows={4}
-                    placeholder='Summarize what transpired during the session.'
-                    value={bookingNotes.sessionSummary}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange('sessionSummary', e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='presenting-concerns'>Presenting concerns</Label>
-                  <Textarea
-                    id='presenting-concerns'
-                    rows={3}
-                    value={bookingNotes.presentingConcerns}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange(
-                        'presentingConcerns',
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='observations'>Observations</Label>
-                  <Textarea
-                    id='observations'
-                    rows={3}
-                    value={bookingNotes.observations}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange('observations', e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='interventions-used'>Interventions used</Label>
-                  <Textarea
-                    id='interventions-used'
-                    rows={3}
-                    placeholder='One per line or comma separated'
-                    value={bookingNotes.interventionsUsed}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange(
-                        'interventionsUsed',
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='risk-assessment'>Risk assessment</Label>
-                  <Textarea
-                    id='risk-assessment'
-                    rows={3}
-                    value={bookingNotes.riskAssessment}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange(
-                        'riskAssessment',
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='homework-assigned'>Homework assigned</Label>
-                  <Textarea
-                    id='homework-assigned'
-                    rows={3}
-                    value={bookingNotes.homeworkAssigned}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange(
-                        'homeworkAssigned',
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='follow-up-plan'>Follow-up plan</Label>
-                  <Textarea
-                    id='follow-up-plan'
-                    rows={3}
-                    value={bookingNotes.followUpPlan}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange('followUpPlan', e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='next-session-focus'>Next session focus</Label>
-                  <Textarea
-                    id='next-session-focus'
-                    rows={3}
-                    value={bookingNotes.nextSessionFocus}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange(
-                        'nextSessionFocus',
-                        e.target.value,
-                      )
-                    }
-                  />
-                </div>
-
-                <div className='space-y-2'>
-                  <Label htmlFor='private-notes'>Private notes</Label>
-                  <Textarea
-                    id='private-notes'
-                    rows={3}
-                    value={bookingNotes.privateNotes}
-                    onChange={(e) =>
-                      handleBookingNotesFieldChange('privateNotes', e.target.value)
-                    }
-                  />
-                </div>
-
-                <div className='md:col-span-2 flex items-center justify-between rounded-lg border p-4'>
-                  <div className='space-y-1'>
-                    <Label>Recommend a follow-up session</Label>
-                    <p className='text-sm text-muted-foreground'>
-                      Toggle this if the client should schedule another session.
+              <div className='space-y-4'>
+                <div className='space-y-3'>
+                  <div>
+                    <Label>Cognitive Profile Analytics Preview</Label>
+                    <p className='mt-1 text-xs text-muted-foreground'>
+                      All five KPI scores are required. Additional notes are optional.
                     </p>
                   </div>
-                  <Switch
-                    checked={bookingNotes.nextSessionRecommended}
-                    onCheckedChange={(checked) =>
-                      handleBookingNotesFieldChange(
-                        'nextSessionRecommended',
-                        checked,
-                      )
-                    }
-                  />
+                  <div className='grid gap-4 md:grid-cols-2'>
+                    {COGNITIVE_PROFILE_FIELDS.map((field) => (
+                      <div key={field.scoreKey} className='rounded-2xl border p-4 space-y-3'>
+                        <Label htmlFor={field.scoreKey}>{field.label}</Label>
+                        <Input
+                          id={field.scoreKey}
+                          type='number'
+                          min='0'
+                          max='100'
+                          step='0.01'
+                          placeholder='0 - 100'
+                          value={bookingNotes[field.scoreKey]}
+                          onChange={(e) =>
+                            handleBookingNotesFieldChange(field.scoreKey, e.target.value)
+                          }
+                        />
+                        <div className='space-y-2'>
+                          <Label htmlFor={field.noteKey}>Additional note</Label>
+                          <Textarea
+                            id={field.noteKey}
+                            rows={3}
+                            placeholder={`Optional note about ${field.label.toLowerCase()}`}
+                            value={bookingNotes[field.noteKey]}
+                            onChange={(e) =>
+                              handleBookingNotesFieldChange(field.noteKey, e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 

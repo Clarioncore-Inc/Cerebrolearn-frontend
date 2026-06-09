@@ -272,10 +272,10 @@ const loadBookings = async (showLoader = true) => {
                   <Award className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <span>{application.yearsOfExperience} years of experience</span>
                 </div>
-                <div className="flex items-start gap-2">
+                {/* <div className="flex items-start gap-2">
                   <DollarSign className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
                   <span>${application.hourlyRate} / hour</span>
-                </div>
+                </div> */}
               </CardContent>
             </Card>
           </div>

@@ -4,6 +4,22 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 
+export interface IQSessionCognitiveProfile {
+  pattern_recognition?: number;
+  working_memory?: number;
+  processing_speed?: number;
+  verbal_intelligence?: number;
+  spatial_reasoning?: number;
+}
+
+export interface IQSessionCognitiveProfileNotes {
+  pattern_recognition?: string;
+  working_memory?: string;
+  processing_speed?: string;
+  verbal_intelligence?: string;
+  spatial_reasoning?: string;
+}
+
 export interface IQSessionNotes {
   session_summary?: string;
   meeting_platform?: string;
@@ -12,6 +28,8 @@ export interface IQSessionNotes {
   follow_up_plan?: string;
   next_session_focus?: string;
   next_session_recommended?: boolean;
+  cognitive_profile?: IQSessionCognitiveProfile | null;
+  cognitive_profile_notes?: IQSessionCognitiveProfileNotes | null;
 }
 
 export interface IQSessionBooking {
@@ -46,11 +64,53 @@ const formatDate = (dateString: string) =>
 
 const hasVisibleResults = (notes?: IQSessionNotes | null) =>
   Boolean(
+    notes?.cognitive_profile?.pattern_recognition != null ||
+      notes?.cognitive_profile?.working_memory != null ||
+      notes?.cognitive_profile?.processing_speed != null ||
+      notes?.cognitive_profile?.verbal_intelligence != null ||
+      notes?.cognitive_profile?.spatial_reasoning != null ||
+      notes?.cognitive_profile_notes?.pattern_recognition ||
+      notes?.cognitive_profile_notes?.working_memory ||
+      notes?.cognitive_profile_notes?.processing_speed ||
+      notes?.cognitive_profile_notes?.verbal_intelligence ||
+      notes?.cognitive_profile_notes?.spatial_reasoning ||
     notes?.session_summary ||
       notes?.follow_up_plan ||
       notes?.homework_assigned ||
       notes?.next_session_focus,
   );
+
+const getCognitiveProfileMetrics = (
+  profile?: IQSessionCognitiveProfile | null,
+  profileNotes?: IQSessionCognitiveProfileNotes | null,
+) =>
+  [
+    {
+      label: 'Pattern Recognition',
+      value: profile?.pattern_recognition,
+      note: profileNotes?.pattern_recognition,
+    },
+    {
+      label: 'Working Memory',
+      value: profile?.working_memory,
+      note: profileNotes?.working_memory,
+    },
+    {
+      label: 'Processing Speed',
+      value: profile?.processing_speed,
+      note: profileNotes?.processing_speed,
+    },
+    {
+      label: 'Verbal Intelligence',
+      value: profile?.verbal_intelligence,
+      note: profileNotes?.verbal_intelligence,
+    },
+    {
+      label: 'Spatial Reasoning',
+      value: profile?.spatial_reasoning,
+      note: profileNotes?.spatial_reasoning,
+    },
+  ].filter((metric) => typeof metric.value === 'number' || Boolean(metric.note));
 
 const isAcknowledgedSession = (booking: IQSessionBooking) => booking.status !== 'pending';
 
@@ -58,6 +118,10 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
   const statusLabel = booking.status === 'pending' ? 'Pending acknowledgement' : 'Acknowledged';
   const notes = booking.sessionNotes;
   const isAcknowledged = isAcknowledgedSession(booking);
+  const cognitiveProfileMetrics = getCognitiveProfileMetrics(
+    notes?.cognitive_profile,
+    notes?.cognitive_profile_notes,
+  );
 
   return (
     <div className='container max-w-5xl space-y-6 py-8'>
@@ -163,6 +227,25 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
                 <Video className='mr-2 h-4 w-4' />
                 Open Meeting Link
               </Button>
+            </div>
+          ) : null}
+
+          {cognitiveProfileMetrics.length ? (
+            <div className='space-y-3'>
+              <p className='font-semibold'>Cognitive profile analytics</p>
+              <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-5'>
+                {cognitiveProfileMetrics.map((metric) => (
+                  <div key={metric.label} className='rounded-2xl border p-4 text-center'>
+                    <p className='text-xs text-muted-foreground'>{metric.label}</p>
+                    <p className='mt-2 text-2xl font-bold'>
+                      {typeof metric.value === 'number' ? `${metric.value}%` : '—'}
+                    </p>
+                    {metric.note ? (
+                      <p className='mt-2 text-xs text-muted-foreground'>{metric.note}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
 

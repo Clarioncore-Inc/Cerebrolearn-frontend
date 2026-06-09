@@ -286,6 +286,7 @@ function AppContent() {
           onNavigate={handleNavigate}
           initialSessionTab={pageData?.initialSessionTab}
           focusSection={pageData?.focusSection}
+          refreshIQSessionsKey={pageData?.refreshIQSessionsKey}
         />
       );
     }
@@ -767,8 +768,9 @@ function AppContent() {
         return profile?.role === 'iq_user' ? (
           <IQUserDashboard
             onNavigate={handleNavigate}
-            initialSessionTab='upcoming'
-            focusSection='sessions'
+            initialSessionTab={pageData?.initialSessionTab || 'upcoming'}
+            focusSection={pageData?.focusSection || 'sessions'}
+            refreshIQSessionsKey={pageData?.refreshIQSessionsKey}
           />
         ) : (
           <StudentSessionsDashboard onNavigate={handleNavigate} />

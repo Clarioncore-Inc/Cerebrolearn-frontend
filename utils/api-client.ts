@@ -218,7 +218,7 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'https://backened-core.onrender.com/api';
+const BASE_URL = 'http://127.0.0.1:8000/api';
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -1168,6 +1168,14 @@ export const psychologistApi = {
       `/psychologist/bookings/available-slots?booking_date=${encodeURIComponent(bookingDate)}&booking_type=${encodeURIComponent(bookingType)}`,
     ),
 
+  getAvailableDates: (
+    month: string,
+    bookingType: 'standard' | 'emergency' = 'standard',
+  ) =>
+    request<{ month: string; available_dates: string[] }>(
+      `/psychologist/bookings/available-dates?month=${encodeURIComponent(month)}&booking_type=${encodeURIComponent(bookingType)}`,
+    ),
+
   createBooking: (data: {
     psychologist_id: string;
     date: string | null;
@@ -1216,6 +1224,20 @@ export const psychologistApi = {
       next_session_focus?: string;
       private_notes?: string;
       next_session_recommended?: boolean;
+      cognitive_profile?: {
+        pattern_recognition?: number;
+        working_memory?: number;
+        processing_speed?: number;
+        verbal_intelligence?: number;
+        spatial_reasoning?: number;
+      };
+      cognitive_profile_notes?: {
+        pattern_recognition?: string;
+        working_memory?: string;
+        processing_speed?: string;
+        verbal_intelligence?: string;
+        spatial_reasoning?: string;
+      };
     },
   ) =>
     request<any>(`/psychologist/bookings/${bookingId}/notes`, {

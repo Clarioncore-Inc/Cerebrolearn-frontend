@@ -37,7 +37,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 import { psychologistApi } from '../../utils/api-client';
-import type { IQSessionBooking, IQSessionNotes } from './IQSessionDetailPage';
+import type {
+  IQSessionBooking,
+  IQSessionCognitiveProfile,
+  IQSessionNotes,
+} from './IQSessionDetailPage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -48,6 +52,7 @@ interface IQUserDashboardProps {
   onNavigate: (page: string, data?: any) => void;
   initialSessionTab?: 'upcoming' | 'past';
   focusSection?: 'sessions';
+  refreshIQSessionsKey?: number;
 }
 
 interface IQQuestion {
@@ -122,11 +127,47 @@ const challengeCards = [
 
 const hasVisibleResults = (notes?: IQSessionNotes | null) =>
   Boolean(
+    notes?.cognitive_profile?.pattern_recognition != null ||
+      notes?.cognitive_profile?.working_memory != null ||
+      notes?.cognitive_profile?.processing_speed != null ||
+      notes?.cognitive_profile?.verbal_intelligence != null ||
+      notes?.cognitive_profile?.spatial_reasoning != null ||
+      notes?.cognitive_profile_notes?.pattern_recognition ||
+      notes?.cognitive_profile_notes?.working_memory ||
+      notes?.cognitive_profile_notes?.processing_speed ||
+      notes?.cognitive_profile_notes?.verbal_intelligence ||
+      notes?.cognitive_profile_notes?.spatial_reasoning ||
     notes?.session_summary ||
       notes?.follow_up_plan ||
       notes?.homework_assigned ||
       notes?.next_session_focus,
   );
+
+const getCognitiveProfileScore = (
+  profile: IQSessionCognitiveProfile | null | undefined,
+  key: keyof IQSessionCognitiveProfile,
+) => {
+  const value = profile?.[key];
+  return typeof value === 'number' && !Number.isNaN(value) ? clamp(value, 0, 100) : null;
+};
+
+const buildRadarDataFromCognitiveProfile = (
+  profile: IQSessionCognitiveProfile | null | undefined,
+  fallback: Array<{ metric: string; score: number }>,
+) => {
+  const scoreByMetric: Record<string, number | null> = {
+    'Pattern Recognition': getCognitiveProfileScore(profile, 'pattern_recognition'),
+    'Working Memory': getCognitiveProfileScore(profile, 'working_memory'),
+    'Processing Speed': getCognitiveProfileScore(profile, 'processing_speed'),
+    'Verbal Intelligence': getCognitiveProfileScore(profile, 'verbal_intelligence'),
+    'Spatial Reasoning': getCognitiveProfileScore(profile, 'spatial_reasoning'),
+  };
+
+  return fallback.map((item) => ({
+    metric: item.metric,
+    score: scoreByMetric[item.metric] ?? item.score,
+  }));
+};
 
 const formatSessionDate = (dateString: string) =>
   new Date(dateString).toLocaleDateString('en-US', {
@@ -137,6 +178,17 @@ const formatSessionDate = (dateString: string) =>
   });
 
 const getSessionDateTime = (session: IQSessionBooking) => new Date(`${session.date} ${session.time}`);
+
+const getSessionLatestTimestamp = (session: IQSessionBooking) => {
+  if (session.createdAt) {
+    const createdAtTime = new Date(session.createdAt).getTime();
+    if (!Number.isNaN(createdAtTime)) {
+      return createdAtTime;
+    }
+  }
+
+  return getSessionDateTime(session).getTime();
+};
 
 const isAcknowledgedSession = (session: IQSessionBooking) => session.status !== 'pending';
 
@@ -208,7 +260,12 @@ const getTierName = (level: number) => {
   return tiers[Math.min(tiers.length - 1, Math.max(0, level - 1))];
 };
 
-export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', focusSection }: IQUserDashboardProps) {
+export function IQUserDashboard({
+  onNavigate,
+  initialSessionTab = 'upcoming',
+  focusSection,
+  refreshIQSessionsKey,
+}: IQUserDashboardProps) {
   const { user, profile, isFirstLogin } = useAuth();
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
@@ -333,11 +390,38 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
     ];
   }, [allResults, categoryTotals, latestResult]);
 
-  const displayedRadarData = completedTests > 0 ? radarData : emptyRadarData;
+  const latestSessionWithCognitiveProfile = useMemo(
+    () =>
+      [...iqSessions]
+        .filter((session) =>
+          Boolean(
+            session.sessionNotes?.cognitive_profile &&
+              Object.values(session.sessionNotes.cognitive_profile).some(
+                (value) => typeof value === 'number' && !Number.isNaN(value),
+              ),
+          ),
+        )
+        .sort((a, b) => getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a))[0] ?? null,
+    [iqSessions],
+  );
+
+  const displayedRadarData = latestSessionWithCognitiveProfile
+    ? buildRadarDataFromCognitiveProfile(
+        latestSessionWithCognitiveProfile.sessionNotes?.cognitive_profile,
+        completedTests > 0 ? radarData : emptyRadarData,
+      )
+    : completedTests > 0
+      ? radarData
+      : emptyRadarData;
   const strongestMetric = displayedRadarData.reduce((best, item) =>
     item.score > best.score ? item : best,
   );
   const breakdownMetrics = [...displayedRadarData].sort((a, b) => b.score - a.score);
+  const cognitiveAnalyticsMode = latestSessionWithCognitiveProfile
+    ? 'Latest session result'
+    : completedTests > 0
+      ? 'Live data'
+      : 'Preview mode';
 
   const trendData = useMemo(
     () =>
@@ -505,13 +589,13 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, refreshIQSessionsKey]);
 
   const upcomingSessions = useMemo(
     () =>
       iqSessions
         .filter((session) => session.status !== 'completed' && session.status !== 'cancelled' && getSessionDateTime(session) >= new Date())
-        .sort((a, b) => getSessionDateTime(a).getTime() - getSessionDateTime(b).getTime()),
+        .sort((a, b) => getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a)),
     [iqSessions],
   );
 
@@ -519,7 +603,7 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
     () =>
       iqSessions
         .filter((session) => session.status === 'completed' || session.status === 'cancelled' || getSessionDateTime(session) < new Date())
-        .sort((a, b) => getSessionDateTime(b).getTime() - getSessionDateTime(a).getTime()),
+        .sort((a, b) => getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a)),
     [iqSessions],
   );
 
@@ -628,7 +712,7 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
           </div>
         </div>
 
-        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+        <div className='grid grid-cols-1 gap-3'>
           {quickStats.map((stat) => (
             <div
               key={stat.label}
@@ -710,10 +794,12 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
                     Cognitive Profile Analytics
                   </CardTitle>
                   <CardDescription>
-                    Estimated from your completed IQ assessments and recent performance patterns.
+                    {latestSessionWithCognitiveProfile
+                      ? 'Previewed from the KPI results entered by your psychologist in your latest completed IQ session.'
+                      : 'Estimated from your completed IQ assessments and recent performance patterns.'}
                   </CardDescription>
                 </div>
-                <Badge variant='secondary'>{completedTests > 0 ? 'Live data' : 'Preview mode'}</Badge>
+                <Badge variant='secondary'>{cognitiveAnalyticsMode}</Badge>
               </div>
             </CardHeader>
             <CardContent className='space-y-4'>
@@ -726,7 +812,9 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
                   <Badge className='border-0 bg-emerald-500/10 text-emerald-600'>{strongestMetric.score}%</Badge>
                 </div>
                 <p className='mt-3 text-sm text-muted-foreground'>
-                  {completedTests > 0
+                  {latestSessionWithCognitiveProfile
+                    ? 'These KPI scores were entered by your psychologist and give you a live preview of your latest cognitive profile.'
+                    : completedTests > 0
                     ? 'This area currently leads your profile and represents your strongest performance pattern.'
                     : 'Complete your first assessment to replace this preview with your live cognitive signature.'}
                 </p>
@@ -832,11 +920,11 @@ export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', fo
           </Card>
 
           <div className='lg:col-span-12'>
-            <div className='flex gap-4 overflow-x-auto pb-2'>
+            <div className='flex gap-4 pb-2'>
               {challengeCards.map((challenge) => (
                 <Card
                   key={challenge.title}
-                  className={`min-w-[280px] max-w-[320px] flex-1 border-border/60 bg-gradient-to-br ${challenge.accent} backdrop-blur-sm hover:scale-[1.02] transition-all duration-300`}
+                  className={` flex-1 border-border/60 bg-gradient-to-br ${challenge.accent} backdrop-blur-sm hover:scale-[1.02] transition-all duration-300`}
                 >
                   <CardContent className='flex h-full flex-col gap-4 p-5'>
                     <div className='flex items-start justify-between gap-3'>

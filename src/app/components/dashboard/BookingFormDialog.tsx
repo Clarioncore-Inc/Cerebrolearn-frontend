@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Calendar as CalendarView } from '../ui/calendar';
 import { Dialog, DialogContent } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
@@ -31,7 +32,21 @@ const DEFAULT_BOOKING_TYPE: BookingType = 'standard';
 
 const today = () => {
   const d = new Date();
-  return d.toISOString().split('T')[0];
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const toMonthKey = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
 };
 
 const formatTimeLabel = (time: string) => {
@@ -49,9 +64,13 @@ const formatDisplayDate = (dateStr: string) => {
 
 export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageProps) {
   const [step, setStep] = useState<Step>('type-date');
+  const [calendarMonth, setCalendarMonth] = useState<Date>(today());
 
   // Step 1
   const [bookingDate, setBookingDate] = useState<string>('');
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [availableDatesLoading, setAvailableDatesLoading] = useState(false);
+  const [availableDatesError, setAvailableDatesError] = useState<string | null>(null);
 
   // Step 2
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -81,6 +100,39 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
       .catch(() => {})
       .finally(() => setSessionTypesLoading(false));
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAvailableDates = async () => {
+      try {
+        setAvailableDatesLoading(true);
+        setAvailableDatesError(null);
+
+        const response = await api.psychologist.getAvailableDates(
+          toMonthKey(calendarMonth),
+          DEFAULT_BOOKING_TYPE,
+        );
+
+        if (!isMounted) return;
+        setAvailableDates(response?.available_dates ?? []);
+      } catch {
+        if (!isMounted) return;
+        setAvailableDates([]);
+        setAvailableDatesError('Failed to load available dates. Please try again.');
+      } finally {
+        if (isMounted) {
+          setAvailableDatesLoading(false);
+        }
+      }
+    };
+
+    loadAvailableDates();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [calendarMonth]);
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -146,6 +198,29 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
     }
   };
 
+  const navigateAfterSuccess = (page: string, data?: Record<string, any>) => {
+    const refreshIQSessionsKey = Date.now();
+    onNavigate(page, {
+      ...(data || {}),
+      refreshIQSessionsKey,
+    });
+  };
+
+  const availableDateSet = new Set(availableDates);
+  const selectedDate = bookingDate ? new Date(`${bookingDate}T00:00:00`) : undefined;
+  const availableDateObjects = availableDates.map((dateValue) => new Date(`${dateValue}T00:00:00`));
+
+  const isUnavailableDate = (date: Date) => {
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    if (normalizedDate < today()) {
+      return true;
+    }
+
+    return !availableDateSet.has(toIsoDate(normalizedDate));
+  };
+
   return (
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent
@@ -192,15 +267,44 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         {step === 'type-date' && (
           <div className='space-y-5 pt-1'>
             <div className='space-y-2'>
-              <Label htmlFor='booking-date'>Preferred Date</Label>
-              <input
-                id='booking-date'
-                type='date'
-                min={today()}
-                value={bookingDate}
-                onChange={(e) => setBookingDate(e.target.value)}
-                className='w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50'
-              />
+              <Label>Preferred Date</Label>
+              <div className='rounded-xl border border-border/60 bg-background p-3'>
+                <CalendarView
+                  mode='single'
+                  month={calendarMonth}
+                  onMonthChange={setCalendarMonth}
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (!date || isUnavailableDate(date)) return;
+                    setBookingDate(toIsoDate(date));
+                  }}
+                  disabled={(date) => availableDatesLoading || isUnavailableDate(date)}
+                  modifiers={{ available: availableDateObjects }}
+                  modifiersClassNames={{
+                    available:
+                      'bg-emerald-500/10 text-emerald-700 font-medium hover:bg-emerald-500/20',
+                  }}
+                  classNames={{
+                    day_disabled: 'text-muted-foreground opacity-35 line-through',
+                  }}
+                  className='mx-auto'
+                />
+              </div>
+              <p className='text-xs text-muted-foreground'>
+                Only dates with psychologist availability can be selected.
+              </p>
+              {availableDatesLoading ? (
+                <div className='flex items-center gap-2 text-sm text-muted-foreground'>
+                  <Loader2 className='h-4 w-4 animate-spin' />
+                  Loading available dates…
+                </div>
+              ) : null}
+              {availableDatesError ? (
+                <Alert variant='destructive'>
+                  <AlertTriangle className='h-4 w-4' />
+                  <AlertDescription>{availableDatesError}</AlertDescription>
+                </Alert>
+              ) : null}
             </div>
           </div>
         )}
@@ -391,10 +495,25 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
               </Badge>
             </div>
             <div className='flex gap-3 mt-2'>
-              <Button variant='outline' onClick={() => onNavigate('student-sessions')}>
+              <Button
+                variant='outline'
+                onClick={() =>
+                  navigateAfterSuccess('student-sessions', {
+                    initialSessionTab: 'upcoming',
+                    focusSection: 'sessions',
+                  })
+                }
+              >
                 View My Sessions
               </Button>
-              <Button onClick={() => onNavigate(backPage)}>
+              <Button
+                onClick={() =>
+                  navigateAfterSuccess(backPage, {
+                    initialSessionTab: 'upcoming',
+                    focusSection: 'sessions',
+                  })
+                }
+              >
                 Back to Dashboard
               </Button>
             </div>
