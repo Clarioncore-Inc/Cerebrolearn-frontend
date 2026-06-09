@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -19,8 +19,10 @@ import {
   Brain,
   Calendar,
   CheckCircle2,
+  Clock,
   CreditCard,
   Flame,
+  Loader2,
   Play,
   Shield,
   Sparkles,
@@ -34,13 +36,18 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
+import { psychologistApi } from '../../utils/api-client';
+import type { IQSessionBooking, IQSessionNotes } from './IQSessionDetailPage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 interface IQUserDashboardProps {
   onNavigate: (page: string, data?: any) => void;
+  initialSessionTab?: 'upcoming' | 'past';
+  focusSection?: 'sessions';
 }
 
 interface IQQuestion {
@@ -103,24 +110,6 @@ const comparisonRows = [
 
 const challengeCards = [
   {
-    title: 'Daily Brain Sprint',
-    description: 'A fast cognitive warmup to sharpen pattern spotting and mental agility.',
-    badge: '5 min',
-    cta: 'Continue Practice',
-    action: 'practice',
-    icon: Zap,
-    accent: 'from-primary/15 to-secondary/15',
-  },
-  {
-    title: 'Logic Drills',
-    description: 'Tight reasoning reps focused on deduction, sequences, and analytical speed.',
-    badge: 'Recommended',
-    cta: 'Launch Drill',
-    action: 'practice',
-    icon: Brain,
-    accent: 'from-secondary/15 to-primary/10',
-  },
-  {
     title: 'Genius Benchmark',
     description: 'See how your latest performance compares with the greatest minds in history.',
     badge: 'Compare',
@@ -130,6 +119,51 @@ const challengeCards = [
     accent: 'from-amber-500/15 to-primary/10',
   },
 ];
+
+const hasVisibleResults = (notes?: IQSessionNotes | null) =>
+  Boolean(
+    notes?.session_summary ||
+      notes?.follow_up_plan ||
+      notes?.homework_assigned ||
+      notes?.next_session_focus,
+  );
+
+const formatSessionDate = (dateString: string) =>
+  new Date(dateString).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+const getSessionDateTime = (session: IQSessionBooking) => new Date(`${session.date} ${session.time}`);
+
+const isAcknowledgedSession = (session: IQSessionBooking) => session.status !== 'pending';
+
+const normalizeIQSessionBooking = (item: any, index: number, fallbackEmail = ''): IQSessionBooking => ({
+  id: item.id ?? item._id ?? `iq-session-${index}`,
+  psychologistName:
+    item.psychologist?.full_name ??
+    item.psychologist_name ??
+    item.psychologistName ??
+    'Psychologist',
+  psychologistEmail:
+    item.psychologist?.email ?? item.psychologist_email ?? item.psychologistEmail ?? '',
+  psychologistSpecialization:
+    item.psychologist?.specialization ??
+    item.psychologist_specialization ??
+    item.psychologistSpecialization ??
+    '',
+  date: item.date ?? item.booking_date ?? item.session_date ?? '',
+  time: item.time ?? item.booking_time ?? item.session_time ?? '',
+  sessionType: item.session_type ?? item.sessionType ?? 'IQ Session',
+  status: item.status ?? 'pending',
+  createdAt: item.created_at ?? item.createdAt ?? '',
+  price: Number(item.price ?? item.hourly_rate ?? item.hourlyRate ?? 0),
+  rejectionReason: item.rejection_reason ?? item.rejectionReason ?? '',
+  sessionNotes: (item.session_notes ?? item.sessionNotes ?? null) as IQSessionNotes | null,
+  studentEmail: item.student?.email ?? item.student_email ?? item.studentEmail ?? fallbackEmail,
+});
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value));
 
@@ -174,12 +208,24 @@ const getTierName = (level: number) => {
   return tiers[Math.min(tiers.length - 1, Math.max(0, level - 1))];
 };
 
-export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
-  const { profile, isFirstLogin } = useAuth();
+export function IQUserDashboard({ onNavigate, initialSessionTab = 'upcoming', focusSection }: IQUserDashboardProps) {
+  const { user, profile, isFirstLogin } = useAuth();
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
-  const sessionActions = [
+  const sessionsSectionRef = useRef<HTMLDivElement | null>(null);
+  const [iqSessions, setIqSessions] = useState<IQSessionBooking[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [activeSessionTab, setActiveSessionTab] = useState<'upcoming' | 'past'>(initialSessionTab);
 
+  const focusSessionsSection = (tab: 'upcoming' | 'past' = 'upcoming') => {
+    setActiveSessionTab(tab);
+    window.requestAnimationFrame(() => {
+      sessionsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const sessionActions = [
     {
       label: 'Book IQ Test',
       icon: Users,
@@ -188,10 +234,10 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
     {
       label: 'Upcoming Tests',
       icon: Calendar,
-      onClick: () => onNavigate('student-sessions'),
+      onClick: () => focusSessionsSection('upcoming'),
       variant: 'outline' as const,
     },
-        {
+    {
       label: 'Practice Test',
       icon: Play,
       onClick: () => onNavigate('iq-test-practice'),
@@ -409,25 +455,142 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
       sublabel: completedTests > 0 ? 'Recorded attempts' : 'Start your first run',
       icon: Brain,
     },
-    {
-      label: 'Strongest Category',
-      value: completedTests > 0 ? getMetricLabel(strongestMetric.metric) : 'Pending',
-      sublabel: completedTests > 0 ? `${strongestMetric.score}% current signal` : 'Awaiting data',
-      icon: Target,
-    },
-    {
-      label: 'Estimated Percentile',
-      value: estimatedPercentile ? `${estimatedPercentile}th` : '—',
-      sublabel: latestIQScore ? `From IQ ${latestIQScore}` : 'Complete a test',
-      icon: TrendingUp,
-    },
-    {
-      label: 'Current Streak',
-      value: `${currentStreak}`,
-      sublabel: currentStreak > 0 ? 'Days of momentum' : 'Start a streak today',
-      icon: Flame,
-    },
   ];
+
+  useEffect(() => {
+    setActiveSessionTab(initialSessionTab);
+  }, [initialSessionTab]);
+
+  useEffect(() => {
+    if (focusSection === 'sessions') {
+      focusSessionsSection(initialSessionTab);
+    }
+  }, [focusSection, initialSessionTab]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let isMounted = true;
+
+    const loadSessions = async () => {
+      try {
+        setSessionsLoading(true);
+        setSessionsError(null);
+
+        const data = await psychologistApi.getBookings(user.id);
+        const list = Array.isArray(data) ? data : data.bookings ?? data.items ?? data.results ?? [];
+        const normalized = list
+          .map((item: any, index: number) => normalizeIQSessionBooking(item, index, user.email))
+          .filter((booking: any) => booking.studentEmail === user.email);
+
+        if (!isMounted) return;
+        setIqSessions(normalized);
+      } catch (error: any) {
+        if (!isMounted) return;
+        setIqSessions([]);
+        setSessionsError(
+          error?.message && error.message !== '[object Object]'
+            ? error.message
+            : 'Failed to load your booked sessions. Please try again.',
+        );
+      } finally {
+        if (isMounted) {
+          setSessionsLoading(false);
+        }
+      }
+    };
+
+    loadSessions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const upcomingSessions = useMemo(
+    () =>
+      iqSessions
+        .filter((session) => session.status !== 'completed' && session.status !== 'cancelled' && getSessionDateTime(session) >= new Date())
+        .sort((a, b) => getSessionDateTime(a).getTime() - getSessionDateTime(b).getTime()),
+    [iqSessions],
+  );
+
+  const pastSessions = useMemo(
+    () =>
+      iqSessions
+        .filter((session) => session.status === 'completed' || session.status === 'cancelled' || getSessionDateTime(session) < new Date())
+        .sort((a, b) => getSessionDateTime(b).getTime() - getSessionDateTime(a).getTime()),
+    [iqSessions],
+  );
+
+  const sessionResultsCount = useMemo(
+    () => iqSessions.filter((session) => hasVisibleResults(session.sessionNotes)).length,
+    [iqSessions],
+  );
+
+  const openSessionDetail = (session: IQSessionBooking, tab: 'upcoming' | 'past') => {
+    onNavigate('iq-session-detail', {
+      booking: session,
+      initialSessionTab: tab,
+    });
+  };
+
+  const renderSessionCard = (session: IQSessionBooking, tab: 'upcoming' | 'past') => {
+    const statusLabel = session.status === 'pending' ? 'Pending acknowledgement' : 'Acknowledged';
+    const isAcknowledged = isAcknowledgedSession(session);
+
+    return (
+      <div
+        key={session.id}
+        role='button'
+        tabIndex={0}
+        onClick={() => openSessionDetail(session, tab)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openSessionDetail(session, tab);
+          }
+        }}
+        className='cursor-pointer rounded-2xl border border-border/60 bg-background/70 p-5 transition-all duration-300 hover:border-primary/30 hover:bg-background/90 hover:shadow-lg'
+      >
+        <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+          <div className='space-y-3'>
+            <div>
+              <p className='text-lg font-semibold'>{session.sessionType}</p>
+              {isAcknowledged ? (
+                <p className='text-sm text-muted-foreground'>
+                  {session.psychologistName}
+                  {session.psychologistSpecialization ? ` · ${session.psychologistSpecialization}` : ''}
+                </p>
+              ) : (
+                <div className='relative mt-1 max-w-sm overflow-hidden rounded-md'>
+              
+                 
+                </div>
+              )}
+            </div>
+            <div className='space-y-2 text-sm text-muted-foreground'>
+              <div className='flex items-center gap-2'>
+                <Calendar className='h-4 w-4 text-primary' />
+                <span>{formatSessionDate(session.date)}</span>
+              </div>
+              <div className='flex items-center gap-2'>
+                <Clock className='h-4 w-4 text-primary' />
+                <span>{session.time}</span>
+              </div>
+            </div>
+          </div>
+          <div className='flex flex-col items-start gap-2 sm:items-end'>
+            <Badge variant={session.status === 'pending' ? 'outline' : 'secondary'}>{statusLabel}</Badge>
+            {hasVisibleResults(session.sessionNotes) ? (
+              <Badge className='border-0 bg-emerald-500/10 text-emerald-600'>Results available</Badge>
+            ) : null}
+            <p className='text-sm font-medium text-primary'>View details</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className='min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(57,81,146,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.10),transparent_28%)]'>
@@ -484,7 +647,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
         </div>
 
         <div className='grid gap-6 lg:grid-cols-12'>
-          <Card className={`lg:col-span-6 lg:order-2 ${glassCardClassName}`}>
+          {/* <Card className={`lg:col-span-6 lg:order-2 ${glassCardClassName}`}>
             <CardHeader>
               <div className='flex items-center justify-between gap-3'>
                 <div>
@@ -536,7 +699,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className={`lg:col-span-12 lg:order-1 ${glassCardClassName}`}>
             <CardHeader>
@@ -592,7 +755,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
             </CardContent>
           </Card>
 
-          <Card className={`lg:col-span-6 lg:order-3 ${glassCardClassName}`}>
+          <Card className={`lg:col-span-12 lg:order-3 ${glassCardClassName}`}>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <TrendingUp className='h-5 w-5 text-primary' />
@@ -668,54 +831,121 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
             </CardContent>
           </Card>
 
-          <Card className={`lg:col-span-12 ${glassCardClassName}`}>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Sparkles className='h-5 w-5 text-primary' />
-                Challenge Carousel
-              </CardTitle>
-              <CardDescription>Curated drills and comparison experiences to keep your cognitive edge sharp.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className='flex gap-4 overflow-x-auto pb-2'>
-                {challengeCards.map((challenge) => (
-                  <Card
-                    key={challenge.title}
-                    className={`min-w-[280px] max-w-[320px] flex-1 border-border/60 bg-gradient-to-br ${challenge.accent} backdrop-blur-sm hover:scale-[1.02] transition-all duration-300`}
-                  >
-                    <CardContent className='flex h-full flex-col gap-4 p-5'>
-                      <div className='flex items-start justify-between gap-3'>
-                        <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-background/80 text-primary'>
-                          <challenge.icon className='h-6 w-6' />
-                        </div>
-                        <Badge variant='secondary'>{challenge.badge}</Badge>
+          <div className='lg:col-span-12'>
+            <div className='flex gap-4 overflow-x-auto pb-2'>
+              {challengeCards.map((challenge) => (
+                <Card
+                  key={challenge.title}
+                  className={`min-w-[280px] max-w-[320px] flex-1 border-border/60 bg-gradient-to-br ${challenge.accent} backdrop-blur-sm hover:scale-[1.02] transition-all duration-300`}
+                >
+                  <CardContent className='flex h-full flex-col gap-4 p-5'>
+                    <div className='flex items-start justify-between gap-3'>
+                      <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-background/80 text-primary'>
+                        <challenge.icon className='h-6 w-6' />
                       </div>
-                      <div>
-                        <p className='text-lg font-semibold'>{challenge.title}</p>
-                        <p className='mt-2 text-sm text-muted-foreground'>{challenge.description}</p>
+                      <Badge variant='secondary'>{challenge.badge}</Badge>
+                    </div>
+                    <div>
+                      <p className='text-lg font-semibold'>{challenge.title}</p>
+                      <p className='mt-2 text-sm text-muted-foreground'>{challenge.description}</p>
+                    </div>
+                    <div className='mt-auto'>
+                      <Button
+                        variant='outline'
+                        className='w-full justify-between bg-background/70'
+                        onClick={() =>
+                          onNavigate(
+                            challenge.action === 'rankings' ? 'genius-rankings' : 'iq-test-landing',
+                          )
+                        }
+                      >
+                        {challenge.cta}
+                        <ArrowRight className='h-4 w-4' />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div ref={sessionsSectionRef} className='lg:col-span-12 scroll-mt-24'>
+            <Card className={glassCardClassName}>
+              <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div>
+                  <CardTitle className='flex items-center gap-2'>
+                    <Calendar className='h-5 w-5 text-primary' />
+                    IQ Test Sessions
+                  </CardTitle>
+                  <CardDescription>
+                    Track your upcoming and past psychologist-led IQ sessions directly from your dashboard.
+                  </CardDescription>
+                </div>
+                <Badge variant='secondary'>Results available: {sessionResultsCount}</Badge>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                {sessionsError ? (
+                  <div className='rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm'>
+                    <p className='font-semibold'>Unable to load sessions</p>
+                    <p className='mt-1 text-muted-foreground'>{sessionsError}</p>
+                  </div>
+                ) : null}
+
+                <Tabs value={activeSessionTab} onValueChange={(value) => setActiveSessionTab(value as 'upcoming' | 'past')}>
+                  <TabsList className='grid w-full grid-cols-2 md:w-fit'>
+                    <TabsTrigger value='upcoming'>Upcoming ({upcomingSessions.length})</TabsTrigger>
+                    <TabsTrigger value='past'>Past ({pastSessions.length})</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value='upcoming' className='mt-6'>
+                    {sessionsLoading ? (
+                      <div className='flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20'>
+                        <Loader2 className='mr-3 h-5 w-5 animate-spin text-primary' />
+                        <span className='text-sm text-muted-foreground'>Loading your upcoming sessions…</span>
                       </div>
-                      <div className='mt-auto'>
-                        <Button
-                          variant='outline'
-                          className='w-full justify-between bg-background/70'
-                          onClick={() =>
-                            onNavigate(
-                              challenge.action === 'rankings' ? 'genius-rankings' : 'iq-test-landing',
-                            )
-                          }
-                        >
-                          {challenge.cta}
-                          <ArrowRight className='h-4 w-4' />
+                    ) : upcomingSessions.length > 0 ? (
+                      <div className='grid gap-4 lg:grid-cols-2'>
+                        {upcomingSessions.map((session) => renderSessionCard(session, 'upcoming'))}
+                      </div>
+                    ) : (
+                      <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
+                        <p className='text-lg font-semibold'>No upcoming sessions</p>
+                        <p className='mt-2 text-sm text-muted-foreground'>
+                          Book an IQ test session when you are ready for a psychologist-led assessment.
+                        </p>
+                        <Button className='mt-4' onClick={() => onNavigate('book-psychologist', { backPage: 'dashboard' })}>
+                          <Users className='mr-2 h-4 w-4' />
+                          Book IQ Test
                         </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                    )}
+                  </TabsContent>
 
-          <Card className={`lg:col-span-7 overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-secondary/10 ${glassCardClassName}`}>
+                  <TabsContent value='past' className='mt-6'>
+                    {sessionsLoading ? (
+                      <div className='flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20'>
+                        <Loader2 className='mr-3 h-5 w-5 animate-spin text-primary' />
+                        <span className='text-sm text-muted-foreground'>Loading your past sessions…</span>
+                      </div>
+                    ) : pastSessions.length > 0 ? (
+                      <div className='grid gap-4 lg:grid-cols-2'>
+                        {pastSessions.map((session) => renderSessionCard(session, 'past'))}
+                      </div>
+                    ) : (
+                      <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
+                        <p className='text-lg font-semibold'>No past sessions yet</p>
+                        <p className='mt-2 text-sm text-muted-foreground'>
+                          Completed psychologist-led IQ session results will appear here after your sessions take place.
+                        </p>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* <Card className={`lg:col-span-7 overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-background to-secondary/10 ${glassCardClassName}`}>
             <CardHeader>
               <div className='flex items-center justify-between gap-3'>
                 <div>
@@ -780,9 +1010,9 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
-          <Card className={`lg:col-span-5 ${glassCardClassName}`}>
+          {/* <Card className={`lg:col-span-5 ${glassCardClassName}`}>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <Star className='h-5 w-5 text-primary' />
@@ -808,7 +1038,7 @@ export function IQUserDashboard({ onNavigate }: IQUserDashboardProps) {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </div>

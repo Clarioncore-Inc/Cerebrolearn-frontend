@@ -11,6 +11,7 @@ import { LoginForm } from './components/auth/LoginForm';
 import { SignupForm } from './components/auth/SignupForm';
 import { LearnerDashboard } from './components/dashboard/LearnerDashboard';
 import { IQUserDashboard } from './components/dashboard/IQUserDashboard';
+import { IQSessionDetailPage } from './components/dashboard/IQSessionDetailPage';
 import { BookingPage } from './components/dashboard/BookingFormDialog';
 import { InstructorDashboard } from './components/dashboard/InstructorDashboard';
 import { CourseCreatorDashboard } from './components/dashboard/CourseCreatorDashboard';
@@ -280,7 +281,13 @@ function AppContent() {
     }
 
     if (profile?.role === 'iq_user') {
-      return <IQUserDashboard onNavigate={handleNavigate} />;
+      return (
+        <IQUserDashboard
+          onNavigate={handleNavigate}
+          initialSessionTab={pageData?.initialSessionTab}
+          focusSection={pageData?.focusSection}
+        />
+      );
     }
 
     if (
@@ -757,7 +764,26 @@ function AppContent() {
 
       // Student Session & Communication routes
       case 'student-sessions':
-        return <StudentSessionsDashboard onNavigate={handleNavigate} />;
+        return profile?.role === 'iq_user' ? (
+          <IQUserDashboard
+            onNavigate={handleNavigate}
+            initialSessionTab='upcoming'
+            focusSection='sessions'
+          />
+        ) : (
+          <StudentSessionsDashboard onNavigate={handleNavigate} />
+        );
+
+      case 'iq-session-detail':
+        return pageData?.booking && profile?.role === 'iq_user' ? (
+          <IQSessionDetailPage
+            onNavigate={handleNavigate}
+            booking={pageData.booking}
+            initialSessionTab={pageData.initialSessionTab}
+          />
+        ) : (
+          renderDashboardPage()
+        );
 
       case 'therapy-dashboard':
       case 'enhanced-therapy-dashboard':

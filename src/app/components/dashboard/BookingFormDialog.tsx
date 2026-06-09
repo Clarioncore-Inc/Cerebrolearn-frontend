@@ -149,7 +149,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   return (
     <Dialog open onOpenChange={handleOpenChange}>
       <DialogContent
-        overlayClassName='bg-black/70 backdrop-blur-md'
+        overlayClassName='bg-black/45 backdrop-blur-sm'
         className='max-w-2xl border-none bg-transparent p-0 shadow-none sm:max-w-2xl'
       >
         <Card className='border-border/60 bg-background/95 backdrop-blur-xl shadow-lg'>
@@ -293,22 +293,24 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
               </p>
             </div>
 
-            <div className='space-y-2'>
-              <Label>Session Type <span className='text-muted-foreground text-xs'>(optional)</span></Label>
-              <Select value={sessionType} onValueChange={setSessionType}>
-                <SelectTrigger>
-                  <SelectValue placeholder={sessionTypesLoading ? 'Loading…' : 'Select a session type'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sessionTypesList.map((s) => (
-                    <SelectItem key={s.id} value={s.name}>
-                      {s.name}
-                      {s.price ? ` — $${s.price}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {sessionTypesList.length > 1 ? (
+              <div className='space-y-2'>
+                <Label>Session Type <span className='text-muted-foreground text-xs'>(optional)</span></Label>
+                <Select value={sessionType} onValueChange={setSessionType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={sessionTypesLoading ? 'Loading…' : 'Select a session type'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sessionTypesList.map((s) => (
+                      <SelectItem key={s.id} value={s.name}>
+                        {s.name}
+                        {s.price ? ` — $${s.price}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
 
             {/* <div className='space-y-2'>
               <Label htmlFor='notes'>Notes <span className='text-muted-foreground text-xs'>(optional)</span></Label>
