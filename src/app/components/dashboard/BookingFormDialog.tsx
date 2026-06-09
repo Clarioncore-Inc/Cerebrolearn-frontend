@@ -268,7 +268,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
           <div className='space-y-5 pt-1'>
             <div className='space-y-2'>
               <Label>Preferred Date</Label>
-              <div className='rounded-xl border border-border/60 bg-background p-3'>
+              <div className='flex justify-center rounded-xl border border-border/60 bg-background p-3'>
                 <CalendarView
                   mode='single'
                   month={calendarMonth}
@@ -287,7 +287,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                   classNames={{
                     day_disabled: 'text-muted-foreground opacity-35 line-through',
                   }}
-                  className='mx-auto'
+                  className='mx-auto w-fit'
                 />
               </div>
               <p className='text-xs text-muted-foreground'>
