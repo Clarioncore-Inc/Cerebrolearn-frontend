@@ -121,7 +121,7 @@ const buildIQCertificateHtml = (
           position: relative;
           z-index: 1;
           min-height: 100vh;
-          padding: 64px 84px 72px;
+          padding: 64px 104px 72px;
           display: flex;
           flex-direction: column;
         }
@@ -148,20 +148,25 @@ const buildIQCertificateHtml = (
         .title p { margin: 10px 0 0; color: #6b7280; font-family: ${BRAND_FONT_FAMILY}; }
         .content { text-align: center; padding: 16px 24px 8px; }
         .eyebrow { font-family: ${BRAND_FONT_FAMILY}; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
-        .student { margin: 18px 0 10px; font-size: 100px; line-height: 1.1; color: ${BRAND_COLOR}; font-family: ${STUDENT_NAME_FONT_FAMILY}; }
+        .student { margin: 18px 0 10px; font-size: 80px; line-height: 1.1; color: ${BRAND_COLOR}; font-family: ${STUDENT_NAME_FONT_FAMILY}; }
         .score-wrap { margin: 30px auto 24px; width: fit-content; padding: 18px 34px; border-radius: 999px; background: ${BRAND_COLOR}; color: white; }
         .score-label { font-family: ${BRAND_FONT_FAMILY}; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; }
         .score-value { font-size: 42px; font-weight: 700; line-height: 1.05; }
         .certificate-footer {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 28px;
+          gap: 20px;
           margin-top: 34px;
+          padding: 0 42px;
           align-items: end;
           font-family: 'Times New Roman', Times, serif;
         }
         .footer-col {
           text-align: center;
+        }
+        .footer-col:first-child,
+        .footer-col:last-child {
+          padding-inline: 18px;
         }
         .footer-line {
           height: 1px;
@@ -170,21 +175,25 @@ const buildIQCertificateHtml = (
           margin-bottom: 10px;
         }
         .footer-label {
-          font-size: 15px;
+          font-size: 14px;
           color: #000;
           font-weight:700;
           margin-bottom: 8px;
+          font-family: 'Times New Roman', Times, serif;
         }
         .footer-value {
-          font-size: 24px;
+          font-size: 18px;
           color: #000;
           font-weight: 700;
           line-height: 1.25;
+          font-family: 'Times New Roman', Times, serif;
+          overflow-wrap: anywhere;
         }
         .footer-subvalue {
           margin-top: 6px;
-          font-size: 18px;
+          font-size: 14px;
            font-weight: 700;
+           font-family: 'Times New Roman', Times, serif;
           color: #000;
           line-height: 1.3;
         }
@@ -196,12 +205,12 @@ const buildIQCertificateHtml = (
         <div class="certificate-shell">
         ${buildCertificateBrandHtml(logoAssetUrl)}
         <div class="title">
-          <p style=" color: ${BRAND_COLOR}; font-size: 46px; font-family: 'Times New Roman', Times, serif; font-weight:700;">INTELLIGENT QUOTIENT CERTIFICATE</p>
-          <p style=" color: #000; font-family: 'Times New Roman', Times, serif;font-size:32px;">Issued to:</p>
+          <p style=" color: ${BRAND_COLOR}; font-size: 32px; font-family: 'Times New Roman', Times, serif; font-weight:700;">INTELLIGENT QUOTIENT CERTIFICATE</p>
+          <p style=" color: #000; font-family: 'Times New Roman', Times, serif;font-size:24px;margin-top:20px;">Issued to:</p>
         </div>
         <div class="content">
           <div class="student">${escapeHtml(certificate.studentName)}</div>
-          <p style="font-family: 'Times New Roman', Times, serif; font-size: 32px; line-height: 1.6; margin: 0;">
+          <p style="font-family: 'Times New Roman', Times, serif; font-size: 24px; line-height: 1.6; margin: 0;">
             for successfully completing the <span style="color: ${BRAND_COLOR};">Culture Fair Intelligence Test</span> -<br />
             with a certified Psychologist Cognitive Growth Edition with the following score
           </p>
@@ -298,8 +307,8 @@ export function IQCertificatePreview({ certificate }: { certificate: IQCertifica
             <p className='text-3xl font-bold md:text-5xl'>{certificate.iqScore}</p>
           </div>
         </div>
-        <div className='mt-8 grid gap-5 text-center md:grid-cols-3'>
-          <div>
+        <div className='mt-8 grid gap-4 px-6 text-center md:grid-cols-3 md:px-12'>
+          <div className='px-2 md:px-6'>
             <div className='w-full border-t border-[#395192]/50 pt-3' />
             <p className='text-sm text-muted-foreground' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
               Date of issuance
@@ -320,7 +329,7 @@ export function IQCertificatePreview({ certificate }: { certificate: IQCertifica
               {certificate.psychologistSpecialization || 'Certified Psychologist'}
             </p>
           </div>
-          <div>
+          <div className='px-2 md:px-6'>
             <div className='w-full border-t border-[#395192]/50 pt-3' />
             <p className='text-sm text-muted-foreground' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
               Certificate ID

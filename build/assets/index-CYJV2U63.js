@@ -1046,7 +1046,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
           position: relative;
           z-index: 1;
           min-height: 100vh;
-          padding: 64px 84px 72px;
+          padding: 64px 104px 72px;
           display: flex;
           flex-direction: column;
         }
@@ -1073,20 +1073,25 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
         .title p { margin: 10px 0 0; color: #6b7280; font-family: ${eh}; }
         .content { text-align: center; padding: 16px 24px 8px; }
         .eyebrow { font-family: ${eh}; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
-        .student { margin: 18px 0 10px; font-size: 100px; line-height: 1.1; color: ${Zm}; font-family: ${N2e}; }
+        .student { margin: 18px 0 10px; font-size: 80px; line-height: 1.1; color: ${Zm}; font-family: ${N2e}; }
         .score-wrap { margin: 30px auto 24px; width: fit-content; padding: 18px 34px; border-radius: 999px; background: ${Zm}; color: white; }
         .score-label { font-family: ${eh}; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; }
         .score-value { font-size: 42px; font-weight: 700; line-height: 1.05; }
         .certificate-footer {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 28px;
+          gap: 20px;
           margin-top: 34px;
+          padding: 0 42px;
           align-items: end;
           font-family: 'Times New Roman', Times, serif;
         }
         .footer-col {
           text-align: center;
+        }
+        .footer-col:first-child,
+        .footer-col:last-child {
+          padding-inline: 18px;
         }
         .footer-line {
           height: 1px;
@@ -1101,10 +1106,11 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
           margin-bottom: 8px;
         }
         .footer-value {
-          font-size: 24px;
+          font-size: 18px;
           color: #000;
           font-weight: 700;
           line-height: 1.25;
+          overflow-wrap: anywhere;
         }
         .footer-subvalue {
           margin-top: 6px;
@@ -1121,12 +1127,12 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
         <div class="certificate-shell">
         ${A2e(r)}
         <div class="title">
-          <p style=" color: ${Zm}; font-size: 46px; font-family: 'Times New Roman', Times, serif; font-weight:700;">INTELLIGENT QUOTIENT CERTIFICATE</p>
-          <p style=" color: #000; font-family: 'Times New Roman', Times, serif;font-size:32px;">Issued to:</p>
+          <p style=" color: ${Zm}; font-size: 32px; font-family: 'Times New Roman', Times, serif; font-weight:700;">INTELLIGENT QUOTIENT CERTIFICATE</p>
+          <p style=" color: #000; font-family: 'Times New Roman', Times, serif;font-size:24px;margin-top:20px;">Issued to:</p>
         </div>
         <div class="content">
           <div class="student">${th(t.studentName)}</div>
-          <p style="font-family: 'Times New Roman', Times, serif; font-size: 32px; line-height: 1.6; margin: 0;">
+          <p style="font-family: 'Times New Roman', Times, serif; font-size: 24px; line-height: 1.6; margin: 0;">
             for successfully completing the <span style="color: ${Zm};">Culture Fair Intelligence Test</span> -<br />
             with a certified Psychologist Cognitive Growth Edition with the following score
           </p>
