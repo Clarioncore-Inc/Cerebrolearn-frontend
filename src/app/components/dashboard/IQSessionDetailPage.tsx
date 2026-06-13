@@ -171,6 +171,8 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
       ? {
           studentName: learnerName,
           psychologistName: booking.psychologistName || 'Psychologist',
+          psychologistSpecialization:
+            booking.psychologistSpecialization || 'Certified Psychologist',
           iqScore: officialIQScore,
           certificateId: buildIQCertificateId(booking.id),
           issuedAt: booking.createdAt ?? booking.date,
