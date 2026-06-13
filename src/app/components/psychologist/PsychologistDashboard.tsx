@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -53,6 +53,10 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { psychologistApi } from '../../utils/api-client';
+import {
+  calculateIQScoreFromCognitiveProfile,
+  type IQCertificateCognitiveProfile,
+} from '../dashboard/IQCertificate';
 
 interface PsychologistDashboardProps {
   onNavigate: (page: string, data?: any) => void;
@@ -100,6 +104,16 @@ interface BookingNotesForm {
   spatialReasoningScore: string;
   spatialReasoningNote: string;
 }
+
+type BookingCognitiveProfile = IQCertificateCognitiveProfile;
+
+type BookingCognitiveProfileNotes = {
+  pattern_recognition?: string;
+  working_memory?: string;
+  processing_speed?: string;
+  verbal_intelligence?: string;
+  spatial_reasoning?: string;
+};
 
 interface ClientHistoryItem {
   studentEmail: string;
@@ -887,6 +901,73 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
     }));
   };
 
+  const buildCompletionPayload = (notesForm: BookingNotesForm) => {
+    const parseKpiScore = (label: string, rawValue: string) => {
+      const trimmedValue = rawValue.trim();
+      if (!trimmedValue) {
+        throw new Error(`${label} score is required`);
+      }
+
+      const numericValue = Number(trimmedValue);
+      if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 100) {
+        throw new Error(`${label} must be a number between 0 and 100`);
+      }
+
+      return Math.round(numericValue * 100) / 100;
+    };
+
+    const normalizeOptionalNote = (rawValue: string) => {
+      const trimmedValue = rawValue.trim();
+      return trimmedValue || undefined;
+    };
+
+    const cognitiveProfile: BookingCognitiveProfile = {
+      pattern_recognition: parseKpiScore(
+        'Pattern Recognition',
+        notesForm.patternRecognitionScore,
+      ),
+      working_memory: parseKpiScore('Working Memory', notesForm.workingMemoryScore),
+      processing_speed: parseKpiScore(
+        'Processing Speed',
+        notesForm.processingSpeedScore,
+      ),
+      verbal_intelligence: parseKpiScore(
+        'Verbal Intelligence',
+        notesForm.verbalIntelligenceScore,
+      ),
+      spatial_reasoning: parseKpiScore(
+        'Spatial Reasoning',
+        notesForm.spatialReasoningScore,
+      ),
+    };
+
+    let cognitiveProfileNotes: BookingCognitiveProfileNotes | undefined = {
+      pattern_recognition: normalizeOptionalNote(notesForm.patternRecognitionNote),
+      working_memory: normalizeOptionalNote(notesForm.workingMemoryNote),
+      processing_speed: normalizeOptionalNote(notesForm.processingSpeedNote),
+      verbal_intelligence: normalizeOptionalNote(notesForm.verbalIntelligenceNote),
+      spatial_reasoning: normalizeOptionalNote(notesForm.spatialReasoningNote),
+    };
+
+    if (!Object.values(cognitiveProfileNotes).some(Boolean)) {
+      cognitiveProfileNotes = undefined;
+    }
+
+    return {
+      cognitiveProfile,
+      cognitiveProfileNotes,
+      iqScore: calculateIQScoreFromCognitiveProfile(cognitiveProfile),
+    };
+  };
+
+  const estimatedCertificateIqScore = useMemo(() => {
+    try {
+      return buildCompletionPayload(bookingNotes).iqScore;
+    } catch {
+      return null;
+    }
+  }, [bookingNotes]);
+
   const handleConfirmBooking = async (booking: DashboardBooking) => {
     setBookingActionLoadingId(booking.id);
 
@@ -940,76 +1021,13 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
   const handleCompleteBooking = async () => {
     if (!selectedBooking) return;
 
-    const parseKpiScore = (label: string, rawValue: string) => {
-      const trimmedValue = rawValue.trim();
-      if (!trimmedValue) {
-        throw new Error(`${label} score is required`);
-      }
-
-      const numericValue = Number(trimmedValue);
-      if (!Number.isFinite(numericValue) || numericValue < 0 || numericValue > 100) {
-        throw new Error(`${label} must be a number between 0 and 100`);
-      }
-
-      return Math.round(numericValue * 100) / 100;
-    };
-
-    const normalizeOptionalNote = (rawValue: string) => {
-      const trimmedValue = rawValue.trim();
-      return trimmedValue || undefined;
-    };
-
-    let cognitiveProfile:
-      | {
-          pattern_recognition: number;
-          working_memory: number;
-          processing_speed: number;
-          verbal_intelligence: number;
-          spatial_reasoning: number;
-        }
-      | undefined;
-    let cognitiveProfileNotes:
-      | {
-          pattern_recognition?: string;
-          working_memory?: string;
-          processing_speed?: string;
-          verbal_intelligence?: string;
-          spatial_reasoning?: string;
-        }
-      | undefined;
+    let cognitiveProfile: BookingCognitiveProfile;
+    let cognitiveProfileNotes: BookingCognitiveProfileNotes | undefined;
 
     try {
-      cognitiveProfile = {
-        pattern_recognition: parseKpiScore(
-          'Pattern Recognition',
-          bookingNotes.patternRecognitionScore,
-        ),
-        working_memory: parseKpiScore('Working Memory', bookingNotes.workingMemoryScore),
-        processing_speed: parseKpiScore(
-          'Processing Speed',
-          bookingNotes.processingSpeedScore,
-        ),
-        verbal_intelligence: parseKpiScore(
-          'Verbal Intelligence',
-          bookingNotes.verbalIntelligenceScore,
-        ),
-        spatial_reasoning: parseKpiScore(
-          'Spatial Reasoning',
-          bookingNotes.spatialReasoningScore,
-        ),
-      };
-
-      cognitiveProfileNotes = {
-        pattern_recognition: normalizeOptionalNote(bookingNotes.patternRecognitionNote),
-        working_memory: normalizeOptionalNote(bookingNotes.workingMemoryNote),
-        processing_speed: normalizeOptionalNote(bookingNotes.processingSpeedNote),
-        verbal_intelligence: normalizeOptionalNote(bookingNotes.verbalIntelligenceNote),
-        spatial_reasoning: normalizeOptionalNote(bookingNotes.spatialReasoningNote),
-      };
-
-      if (!Object.values(cognitiveProfileNotes).some(Boolean)) {
-        cognitiveProfileNotes = undefined;
-      }
+      const payload = buildCompletionPayload(bookingNotes);
+      cognitiveProfile = payload.cognitiveProfile;
+      cognitiveProfileNotes = payload.cognitiveProfileNotes;
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Enter valid KPI scores');
       return;
@@ -1712,19 +1730,14 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
           </Dialog>
 
           <Dialog open={doneDialogOpen} onOpenChange={handleDoneDialogChange}>
-            <DialogContent className='max-w-3xl max-h-[90vh] overflow-y-auto'>
+            <DialogContent className='w-[96vw] max-w-[72rem] max-h-[90vh] overflow-y-auto'>
               <DialogHeader>
                 <DialogTitle>Session completion notes</DialogTitle>
-                <DialogDescription>
-                  Enter the KPI scores for this session and add optional notes for
-                  any metric where you want more context.
-                </DialogDescription>
               </DialogHeader>
 
               <div className='space-y-4'>
                 <div className='space-y-3'>
                   <div>
-                    <Label>Cognitive Profile Analytics Preview</Label>
                     <p className='mt-1 text-xs text-muted-foreground'>
                       All five KPI scores are required. Additional notes are optional.
                     </p>
@@ -1759,6 +1772,24 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                <div className='rounded-2xl border border-primary/20 bg-primary/5 p-4'>
+                  <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+                    <div>
+                      <p className='font-semibold'>Official result preview</p>
+                      <p className='mt-1 text-sm text-muted-foreground'>
+                        Once you save these results, the learner will be able to
+                        download their IQ certificate from their session results page.
+                      </p>
+                    </div>
+                    <div className='rounded-full bg-background px-4 py-2 text-sm font-semibold shadow-sm text-center'>
+                      Estimated IQ Score:{' '}
+                      <span className='text-primary'>
+                        {estimatedCertificateIqScore ?? 'Complete all five scores'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

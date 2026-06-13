@@ -83,7 +83,7 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
                     className="group border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground text-lg px-8 h-14 shadow-lg transition-all duration-300"
                   >
                     <Rocket className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                    Test Your IQ
+                    Test My IQ
                   </Button>
                 </div>
               </SlideInView>

@@ -1,8 +1,17 @@
-import React from 'react';
-import { ArrowLeft, Calendar, CheckCircle2, Clock, FileText, User, Video } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { ArrowLeft, Calendar, CheckCircle2, Clock, Download, FileText, User, Video } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { toast } from 'sonner';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  buildIQCertificateId,
+  calculateIQScoreFromCognitiveProfile,
+  downloadIQCertificate,
+  type IQCertificateCognitiveProfile,
+  type IQCertificateData,
+} from './IQCertificate';
 
 export interface IQSessionCognitiveProfile {
   pattern_recognition?: number;
@@ -112,9 +121,32 @@ const getCognitiveProfileMetrics = (
     },
   ].filter((metric) => typeof metric.value === 'number' || Boolean(metric.note));
 
+const getCertificateEligibleProfile = (
+  profile?: IQSessionCognitiveProfile | null,
+): IQCertificateCognitiveProfile | null => {
+  if (
+    typeof profile?.pattern_recognition !== 'number' ||
+    typeof profile?.working_memory !== 'number' ||
+    typeof profile?.processing_speed !== 'number' ||
+    typeof profile?.verbal_intelligence !== 'number' ||
+    typeof profile?.spatial_reasoning !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    pattern_recognition: profile.pattern_recognition,
+    working_memory: profile.working_memory,
+    processing_speed: profile.processing_speed,
+    verbal_intelligence: profile.verbal_intelligence,
+    spatial_reasoning: profile.spatial_reasoning,
+  };
+};
+
 const isAcknowledgedSession = (booking: IQSessionBooking) => booking.status !== 'pending';
 
 export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = 'upcoming' }: IQSessionDetailPageProps) {
+  const { user, profile } = useAuth();
   const statusLabel = booking.status === 'pending' ? 'Pending acknowledgement' : 'Acknowledged';
   const notes = booking.sessionNotes;
   const isAcknowledged = isAcknowledgedSession(booking);
@@ -122,6 +154,42 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
     notes?.cognitive_profile,
     notes?.cognitive_profile_notes,
   );
+  const certificateProfile = useMemo(
+    () => getCertificateEligibleProfile(notes?.cognitive_profile),
+    [notes?.cognitive_profile],
+  );
+  const officialIQScore = certificateProfile
+    ? calculateIQScoreFromCognitiveProfile(certificateProfile)
+    : null;
+  const learnerName =
+    profile?.full_name ??
+    user?.full_name ??
+    booking.studentEmail?.split('@')[0] ??
+    'Learner';
+  const certificateData: IQCertificateData | null =
+    certificateProfile && officialIQScore != null
+      ? {
+          studentName: learnerName,
+          psychologistName: booking.psychologistName || 'Psychologist',
+          iqScore: officialIQScore,
+          certificateId: buildIQCertificateId(booking.id),
+          issuedAt: booking.createdAt ?? booking.date,
+          assessmentDate: booking.date,
+        }
+      : null;
+
+  const handleDownloadCertificate = () => {
+    if (!certificateData) return;
+
+    try {
+      downloadIQCertificate(certificateData);
+      toast.success('Certificate download started');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : 'Unable to download certificate',
+      );
+    }
+  };
 
   return (
     <div className='container max-w-5xl space-y-6 py-8'>
@@ -227,6 +295,32 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
                 <Video className='mr-2 h-4 w-4' />
                 Open Meeting Link
               </Button>
+            </div>
+          ) : null}
+
+          {certificateData ? (
+            <div className='rounded-2xl border border-primary/20 bg-primary/5 p-4'>
+              <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+                <div>
+                  <p className='font-semibold'>Your official IQ certificate is ready</p>
+                  <p className='mt-1 text-sm text-muted-foreground'>
+                    Your psychologist has finalized your result. You can download your
+                    certificate anytime from this page.
+                  </p>
+                </div>
+                <div className='rounded-2xl bg-background px-4 py-3 text-center shadow-sm'>
+                  <p className='text-xs uppercase tracking-[0.18em] text-muted-foreground'>
+                    Official IQ Score
+                  </p>
+                  <p className='mt-1 text-3xl font-bold text-primary'>{officialIQScore}</p>
+                </div>
+              </div>
+              <div className='mt-4'>
+                <Button onClick={handleDownloadCertificate}>
+                  <Download className='mr-2 h-4 w-4' />
+                  Download IQ Certificate
+                </Button>
+              </div>
             </div>
           ) : null}
 

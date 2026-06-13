@@ -81,6 +81,7 @@ interface ResumeState {
 
 const glassCardClassName =
   'border-border/60 bg-background/75 backdrop-blur-xl shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] hover:scale-[1.02] transition-all duration-300';
+const SESSIONS_PAGE_SIZE = 4;
 
 const emptyRadarData = [
   { metric: 'Pattern Recognition', score: 54 },
@@ -274,6 +275,10 @@ export function IQUserDashboard({
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
   const [activeSessionTab, setActiveSessionTab] = useState<'upcoming' | 'past'>(initialSessionTab);
+  const [visibleSessionCounts, setVisibleSessionCounts] = useState<Record<'upcoming' | 'past', number>>({
+    upcoming: SESSIONS_PAGE_SIZE,
+    past: SESSIONS_PAGE_SIZE,
+  });
 
   const focusSessionsSection = (tab: 'upcoming' | 'past' = 'upcoming') => {
     setActiveSessionTab(tab);
@@ -284,7 +289,7 @@ export function IQUserDashboard({
 
   const sessionActions = [
     {
-      label: 'Book IQ Test',
+      label: 'Book My IQ Test',
       icon: Users,
       onClick: () => onNavigate('book-psychologist', { backPage: 'dashboard' }),
     },
@@ -607,6 +612,16 @@ export function IQUserDashboard({
     [iqSessions],
   );
 
+  const visibleUpcomingSessions = useMemo(
+    () => upcomingSessions.slice(0, visibleSessionCounts.upcoming),
+    [upcomingSessions, visibleSessionCounts.upcoming],
+  );
+
+  const visiblePastSessions = useMemo(
+    () => pastSessions.slice(0, visibleSessionCounts.past),
+    [pastSessions, visibleSessionCounts.past],
+  );
+
   const sessionResultsCount = useMemo(
     () => iqSessions.filter((session) => hasVisibleResults(session.sessionNotes)).length,
     [iqSessions],
@@ -617,6 +632,48 @@ export function IQUserDashboard({
       booking: session,
       initialSessionTab: tab,
     });
+  };
+
+  const showMoreSessions = (tab: 'upcoming' | 'past') => {
+    setVisibleSessionCounts((current) => ({
+      ...current,
+      [tab]: current[tab] + SESSIONS_PAGE_SIZE,
+    }));
+  };
+
+  const showFewerSessions = (tab: 'upcoming' | 'past') => {
+    setVisibleSessionCounts((current) => ({
+      ...current,
+      [tab]: SESSIONS_PAGE_SIZE,
+    }));
+  };
+
+  const renderSessionPagination = (
+    tab: 'upcoming' | 'past',
+    totalSessions: IQSessionBooking[],
+    visibleSessions: IQSessionBooking[],
+  ) => {
+    if (totalSessions.length <= SESSIONS_PAGE_SIZE) return null;
+
+    return (
+      <div className='flex flex-col gap-3 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between'>
+        <p className='text-sm text-muted-foreground'>
+          Showing {visibleSessions.length} of {totalSessions.length} sessions
+        </p>
+        <div className='flex flex-wrap gap-2'>
+          {visibleSessionCounts[tab] > SESSIONS_PAGE_SIZE ? (
+            <Button variant='outline' size='sm' onClick={() => showFewerSessions(tab)}>
+              Show less
+            </Button>
+          ) : null}
+          {visibleSessions.length < totalSessions.length ? (
+            <Button variant='outline' size='sm' onClick={() => showMoreSessions(tab)}>
+              Load more
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    );
   };
 
   const renderSessionCard = (session: IQSessionBooking, tab: 'upcoming' | 'past') => {
@@ -992,8 +1049,11 @@ export function IQUserDashboard({
                         <span className='text-sm text-muted-foreground'>Loading your upcoming sessions…</span>
                       </div>
                     ) : upcomingSessions.length > 0 ? (
-                      <div className='grid gap-4 lg:grid-cols-2'>
-                        {upcomingSessions.map((session) => renderSessionCard(session, 'upcoming'))}
+                      <div className='space-y-4'>
+                        <div className='grid gap-4 lg:grid-cols-2'>
+                          {visibleUpcomingSessions.map((session) => renderSessionCard(session, 'upcoming'))}
+                        </div>
+                        {renderSessionPagination('upcoming', upcomingSessions, visibleUpcomingSessions)}
                       </div>
                     ) : (
                       <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
@@ -1016,8 +1076,11 @@ export function IQUserDashboard({
                         <span className='text-sm text-muted-foreground'>Loading your past sessions…</span>
                       </div>
                     ) : pastSessions.length > 0 ? (
-                      <div className='grid gap-4 lg:grid-cols-2'>
-                        {pastSessions.map((session) => renderSessionCard(session, 'past'))}
+                      <div className='space-y-4'>
+                        <div className='grid gap-4 lg:grid-cols-2'>
+                          {visiblePastSessions.map((session) => renderSessionCard(session, 'past'))}
+                        </div>
+                        {renderSessionPagination('past', pastSessions, visiblePastSessions)}
                       </div>
                     ) : (
                       <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>

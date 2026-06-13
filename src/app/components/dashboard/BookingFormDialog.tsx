@@ -268,7 +268,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
           <div className='space-y-5 pt-1'>
             <div className='space-y-2'>
               <Label>Preferred Date</Label>
-              <div className='flex justify-center rounded-xl border border-border/60 bg-background p-3'>
+              <div className='relative flex justify-center rounded-xl border border-border/60 bg-background p-3'>
                 <CalendarView
                   mode='single'
                   month={calendarMonth}
@@ -289,16 +289,18 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                   }}
                   className='mx-auto w-fit'
                 />
+                {availableDatesLoading ? (
+                  <div className='absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-background/75 backdrop-blur-[1px]'>
+                    <div className='flex items-center gap-2 rounded-full border border-border/60 bg-background/95 px-4 py-2 text-sm text-muted-foreground shadow-sm'>
+                      <Loader2 className='h-4 w-4 animate-spin text-primary' />
+                      Loading availability...
+                    </div>
+                  </div>
+                ) : null}
               </div>
               <p className='text-xs text-muted-foreground'>
                 Only dates with psychologist availability can be selected.
               </p>
-              {availableDatesLoading ? (
-                <div className='flex items-center gap-2 text-sm text-muted-foreground'>
-                  <Loader2 className='h-4 w-4 animate-spin' />
-                  Loading available dates…
-                </div>
-              ) : null}
               {availableDatesError ? (
                 <Alert variant='destructive'>
                   <AlertTriangle className='h-4 w-4' />

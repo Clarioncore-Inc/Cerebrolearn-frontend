@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 // CerebroLearn API Client
 import type {
   AppSettings,
@@ -218,7 +220,11 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const BASE_URL = 'http://127.0.0.1:8000/api';
+const DEFAULT_API_BASE_URL = import.meta.env.PROD
+  ? 'https://backened-core.onrender.com/api'
+  : 'http://127.0.0.1:8000/api';
+
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
