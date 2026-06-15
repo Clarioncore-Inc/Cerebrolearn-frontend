@@ -203,9 +203,14 @@ const normalizeIQSessionBooking = (item: any, index: number, fallbackEmail = '')
   psychologistEmail:
     item.psychologist?.email ?? item.psychologist_email ?? item.psychologistEmail ?? '',
   psychologistSpecialization:
-    item.psychologist?.specialization ??
     item.psychologist_specialization ??
+    item.psychologist?.specialization ??
     item.psychologistSpecialization ??
+    '',
+  psychologistSignatureImage:
+    item.psychologist_signature_image ??
+    item.psychologist?.psychologist_profile?.signature_image ??
+    item.psychologistSignatureImage ??
     '',
   date: item.date ?? item.booking_date ?? item.session_date ?? '',
   time: item.time ?? item.booking_time ?? item.session_time ?? '',

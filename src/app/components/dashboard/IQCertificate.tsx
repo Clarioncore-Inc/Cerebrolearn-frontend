@@ -1,10 +1,14 @@
 import React from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { createRoot } from 'react-dom/client';
 
 const BRAND_COLOR = '#395192';
 const BRAND_FONT_FAMILY = 'Roboto, Arial, sans-serif';
 const STUDENT_NAME_FONT_FAMILY = "'Courgette', cursive";
 const CERTIFICATE_BORDER_ASSET_PATH = '/assets/Vector.svg';
 const CERTIFICATE_LOGO_ASSET_PATH = '/assets/certificate_logo.svg';
+const CERTIFICATE_WRAPPER_ASSET_PATH = '/assets/Wrapper.svg';
 const CERTIFICATE_FONT_IMPORT =
   "@import url('https://fonts.googleapis.com/css2?family=Courgette&family=Roboto:wght@400;500;700;800&display=swap');";
 
@@ -20,22 +24,184 @@ export interface IQCertificateData {
   studentName: string;
   psychologistName: string;
   psychologistSpecialization?: string;
+  psychologistSignatureImage?: string;
   iqScore: number;
   certificateId: string;
   issuedAt: string;
   assessmentDate?: string;
 }
 
-const formatCertificateDate = (value?: string) => {
-  if (!value) return '—';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return '—';
-  return parsed.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-};
+const CERTIFICATE_EXPORT_WIDTH = 1122;
+const CERTIFICATE_EXPORT_HEIGHT = 794;
+const PDF_PAGE_WIDTH_MM = 297;
+const PDF_PAGE_HEIGHT_MM = 210;
+const CERTIFICATE_EXPORT_STYLES = `
+  .iq-certificate-export {
+    position: relative;
+    width: ${CERTIFICATE_EXPORT_WIDTH}px;
+    height: ${CERTIFICATE_EXPORT_HEIGHT}px;
+    overflow: hidden;
+    background: linear-gradient(135deg, #fffdf8 0%, #f8f2e5 100%);
+    color: #1f2937;
+  }
+  .iq-certificate-border {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+  }
+  .iq-certificate-shell {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    height: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 80px 100px 110px;
+  }
+  .iq-certificate-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .iq-certificate-brand-logo {
+    width: 180px;
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+  .iq-certificate-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .iq-certificate-title {
+    text-align: center;
+    margin: -4px 0 8px;
+  }
+  .iq-certificate-heading {
+    margin: 0;
+    color: ${BRAND_COLOR};
+    font-size: 26px;
+    font-family: 'Times New Roman', Times, serif;
+    font-weight: 700;
+  }
+  .iq-certificate-subheading {
+    margin: 12px 0 0;
+    color: #000;
+    font-size: 18px;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .iq-certificate-content {
+    padding: 8px 24px 4px;
+    text-align: center;
+  }
+  .iq-certificate-student {
+    margin: 8px 0 14px;
+    color: ${BRAND_COLOR};
+    font-size: 58px;
+    line-height: 1.1;
+    font-family: ${STUDENT_NAME_FONT_FAMILY};
+  }
+  .iq-certificate-description {
+    margin: 0;
+    color: #000;
+    font-size: 18px;
+    line-height: 1.6;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .iq-certificate-score-wrap {
+    width: fit-content;
+    margin: 24px auto 12px;
+    padding: 15px 32px;
+    border-radius: 999px;
+    background: ${BRAND_COLOR};
+    color: white;
+  }
+  .iq-certificate-score-label {
+    font-family: ${BRAND_FONT_FAMILY};
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .iq-certificate-score-value {
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1.12;
+  }
+  .iq-certificate-wrapper {
+    display: block;
+    width: 100%;
+    max-width: 520px;
+    height: auto;
+    margin: 18px auto 0;
+  }
+  .iq-certificate-footer {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+    padding: 0 42px;
+    align-items: end;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .iq-certificate-footer-col {
+    text-align: center;
+  }
+  .iq-certificate-footer-col:first-child,
+  .iq-certificate-footer-col:last-child {
+    padding-inline: 18px;
+  }
+  .iq-certificate-footer-line {
+    width: 100%;
+    height: 1px;
+    margin-bottom: 0;
+    background: rgba(57, 81, 146, 0.5);
+  }
+  .iq-certificate-footer-label {
+    margin-bottom: 8px;
+    color: #000;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .iq-certificate-footer-value {
+    color: #000;
+    font-size: 18px;
+    line-height: 1.25;
+    font-weight: 700;
+    font-family: 'Times New Roman', Times, serif;
+    overflow-wrap: anywhere;
+  }
+  .iq-certificate-footer-subvalue {
+    margin-top: 6px;
+    color: #000;
+    font-size: 14px;
+    line-height: 1.3;
+    font-weight: 700;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .iq-certificate-signature {
+    display: block;
+    width: 100%;
+    max-width: 180px;
+    height: 44px;
+    object-fit: contain;
+    position: relative;
+    z-index: 1;
+    margin: -24px auto 6px;
+    background: transparent;
+    mix-blend-mode: multiply;
+    filter: contrast(1.12) saturate(0.9);
+  }
+`;
 
 const formatFooterIssueDate = (value?: string) => {
   if (!value) return '—';
@@ -48,13 +214,19 @@ const formatFooterIssueDate = (value?: string) => {
   return `${month} ${day}, ${year}`;
 };
 
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+const formatPsychologistSpecialization = (specialization?: string) => {
+  const trimmedSpecialization = specialization?.trim();
+  if (!trimmedSpecialization) return 'Certified Psychologist';
+
+  const titleCasedSpecialization = trimmedSpecialization
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+
+  return titleCasedSpecialization.endsWith('Psychologist')
+    ? titleCasedSpecialization
+    : `${titleCasedSpecialization} Psychologist`;
+};
 
 export const calculateOfficialIQScore = (percentageScore: number) =>
   Math.round(100 + (percentageScore - 50) * 0.3);
@@ -76,295 +248,186 @@ export const calculateIQScoreFromCognitiveProfile = (
 export const buildIQCertificateId = (bookingId: string) =>
   `IQ-${bookingId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12).toUpperCase()}`;
 
-const buildCertificateBrandHtml = (logoAssetUrl: string) => `
-  <div class="brand-header">
-    <img class="brand-logo" src="${logoAssetUrl}" alt="CerebroLearn" />
-  </div>
-`;
+const waitForNextPaint = () =>
+  new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
 
-const buildIQCertificateHtml = (
-  certificate: IQCertificateData,
-  borderAssetUrl: string,
-  logoAssetUrl: string,
-) => `
-  <!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="UTF-8" />
-      <title>Official IQ Certificate</title>
-      <style>
-        ${CERTIFICATE_FONT_IMPORT}
-        @page { size: A4 landscape; margin: 0; }
-        * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        html {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-          height: 100%;
-          background: linear-gradient(135deg, #fffdf8 0%, #f8f2e5 100%);
-        }
-        body {
-          margin: 0;
-          padding: 0;
-          width: 100%;
-          height: 100%;
-          font-family: ${BRAND_FONT_FAMILY};
-          color: #1f2937;
-          background: linear-gradient(135deg, #fffdf8 0%, #f8f2e5 100%);
-        }
-        .certificate {
-          position: relative;
-          width: 100%;
-          height: 100%;
-          overflow: hidden;
-          background: linear-gradient(135deg, #fffdf8 0%, #f8f2e5 100%);
-        }
-        .certificate-border {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: fill;
-          pointer-events: none;
-          user-select: none;
-          z-index: 0;
-        }
-        .certificate-shell {
-          position: relative;
-          z-index: 1;
-          height: 100%;
-          padding: 120px 100px 110px;
-          display: flex;
-          flex-direction: column;
-          overflow: hidden;
-        }
-        .brand-header {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .brand-logo {
-          width: 180px;
-          max-width: 100%;
-          height: auto;
-          display: block;
-        }
-        .title { text-align: center; margin: 10px 0 6px; }
-        .title h1 {
-          margin: 0;
-          font-size: 28px;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          color: ${BRAND_COLOR};
-          font-family: ${BRAND_FONT_FAMILY};
-        }
-        .title p { margin: 6px 0 0; color: #6b7280; font-family: ${BRAND_FONT_FAMILY}; }
-        .main-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .content { text-align: center; padding: 8px 24px 4px; }
-        .eyebrow { font-family: ${BRAND_FONT_FAMILY}; color: #6b7280; letter-spacing: 0.08em; text-transform: uppercase; }
-        .student { margin: 8px 0 6px; font-size: 58px; line-height: 1.1; color: ${BRAND_COLOR}; font-family: ${STUDENT_NAME_FONT_FAMILY}; }
-        .score-wrap { margin: 14px auto 12px; width: fit-content; padding: 12px 28px; border-radius: 999px; background: ${BRAND_COLOR}; color: white; }
-        .score-label { font-family: ${BRAND_FONT_FAMILY}; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; }
-        .score-value { font-size: 36px; font-weight: 700; line-height: 1.05; }
-        .certificate-footer {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
-          margin-top: 18px;
-          padding: 0 42px;
-          align-items: end;
-          font-family: 'Times New Roman', Times, serif;
-        }
-        .footer-col {
-          text-align: center;
-        }
-        .footer-col:first-child,
-        .footer-col:last-child {
-          padding-inline: 18px;
-        }
-        .footer-line {
-          height: 1px;
-          width: 100%;
-          background: rgba(57, 81, 146, 0.5);
-          margin-bottom: 10px;
-        }
-        .footer-label {
-          font-size: 14px;
-          color: #000;
-          font-weight:700;
-          margin-bottom: 8px;
-          font-family: 'Times New Roman', Times, serif;
-        }
-        .footer-value {
-          font-size: 18px;
-          color: #000;
-          font-weight: 700;
-          line-height: 1.25;
-          font-family: 'Times New Roman', Times, serif;
-          overflow-wrap: anywhere;
-        }
-        .footer-subvalue {
-          margin-top: 6px;
-          font-size: 14px;
-           font-weight: 700;
-           font-family: 'Times New Roman', Times, serif;
-          color: #000;
-          line-height: 1.3;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="certificate">
-        <img class="certificate-border" src="${borderAssetUrl}" alt="" />
-        <div class="certificate-shell">
-        ${buildCertificateBrandHtml(logoAssetUrl)}
-        <div class="main-body">
-          <div class="title">
-            <p style="color: ${BRAND_COLOR}; font-size: 26px; font-family: 'Times New Roman', Times, serif; font-weight:700;">INTELLIGENT QUOTIENT CERTIFICATE</p>
-            <p style="color: #000; font-family: 'Times New Roman', Times, serif; font-size: 18px; margin-top: 10px;">Issued to:</p>
-          </div>
-          <div class="content">
-            <div class="student">${escapeHtml(certificate.studentName)}</div>
-            <p style="font-family: 'Times New Roman', Times, serif; font-size: 18px; line-height: 1.6; margin: 0;">
-              for successfully completing the <span style="color: ${BRAND_COLOR};">Culture Fair Intelligence Test</span> -<br />
-              with a certified Psychologist Cognitive Growth Edition with the following score
-            </p>
-            <div class="score-wrap">
-              <div class="score-label">Official IQ Score</div>
-              <div class="score-value">${certificate.iqScore}</div>
-            </div>
-          </div>
-        </div>
-        <div class="certificate-footer">
-          <div class="footer-col">
-            <div class="footer-label">Date of issuance</div>
-            <div class="footer-value">${escapeHtml(formatFooterIssueDate(certificate.issuedAt))}</div>
-          </div>
-          <div class="footer-col">
-            <div class="footer-line"></div>
-            <div class="footer-value">${escapeHtml(certificate.psychologistName)}</div>
-            <div class="footer-subvalue">${escapeHtml(
-              certificate.psychologistSpecialization || 'Certified Psychologist',
-            )}</div>
-          </div>
-          <div class="footer-col">
-            <div class="footer-label">Certificate ID</div>
-            <div class="footer-value">${escapeHtml(certificate.certificateId)}</div>
-          </div>
-        </div>
-        </div>
-      </div>
-    </body>
-  </html>
-`;
-
-export const downloadIQCertificate = (certificate: IQCertificateData) => {
-  const iframe = document.createElement('iframe');
-  // Off-screen but with real dimensions so the browser renders and prints it
-  iframe.style.cssText =
-    'position:fixed;left:-9999px;top:0;width:1122px;height:794px;border:0;pointer-events:none;';
-  document.body.appendChild(iframe);
-
-  const borderAssetUrl = `${window.location.origin}${CERTIFICATE_BORDER_ASSET_PATH}`;
-  const logoAssetUrl = `${window.location.origin}${CERTIFICATE_LOGO_ASSET_PATH}`;
-
-  const html = buildIQCertificateHtml(certificate, borderAssetUrl, logoAssetUrl);
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const blobUrl = URL.createObjectURL(blob);
-
-  const cleanup = () => {
-    URL.revokeObjectURL(blobUrl);
-    if (document.body.contains(iframe)) document.body.removeChild(iframe);
-  };
-
-  iframe.onload = () => {
-    if (!iframe.contentWindow) { cleanup(); return; }
-    iframe.contentWindow.document.fonts.ready.then(() => {
-      iframe.contentWindow!.print();
-      setTimeout(cleanup, 2000);
-    });
-  };
-
-  iframe.src = blobUrl;
+const waitForFonts = async () => {
+  if ('fonts' in document) {
+    try {
+      await document.fonts.ready;
+    } catch {
+      // Ignore font readiness failures and continue with export.
+    }
+  }
 };
 
-export function IQCertificatePreview({ certificate }: { certificate: IQCertificateData }) {
+const blobToDataUrl = (blob: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error('Unable to convert image blob to data URL.'));
+    };
+    reader.onerror = () => reject(new Error('Unable to read image blob.'));
+    reader.readAsDataURL(blob);
+  });
+
+const resolveExportImageSource = async (src?: string) => {
+  if (!src) return '';
+
+  if (/^(data:|blob:)/i.test(src)) {
+    return src;
+  }
+
+  if (!/^https?:\/\//i.test(src)) {
+    return src;
+  }
+
+  try {
+    const response = await fetch(src, { credentials: 'omit' });
+    if (!response.ok) {
+      return src;
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().startsWith('image/')) {
+      return src;
+    }
+
+    const imageBlob = await response.blob();
+    if (!imageBlob.type.toLowerCase().startsWith('image/')) {
+      return src;
+    }
+
+    return await blobToDataUrl(imageBlob);
+  } catch {
+    return src;
+  }
+};
+
+const waitForImages = async (container: HTMLElement) => {
+  const images = Array.from(container.querySelectorAll('img'));
+
+  await Promise.all(
+    images.map(
+      (image) =>
+        new Promise<void>((resolve) => {
+          const complete = () => {
+            if (typeof image.decode === 'function') {
+              image.decode().catch(() => undefined).finally(() => resolve());
+              return;
+            }
+            resolve();
+          };
+
+          if (image.complete) {
+            complete();
+            return;
+          }
+
+          image.addEventListener('load', complete, { once: true });
+          image.addEventListener('error', () => resolve(), { once: true });
+        }),
+    ),
+  );
+};
+
+const buildCertificateFilename = (certificateId: string) => {
+  const safeId = certificateId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `IQ_Certificate_${safeId || 'download'}.pdf`;
+};
+
+const prepareCertificateForExport = async (
+  certificate: IQCertificateData,
+): Promise<IQCertificateData> => ({
+  ...certificate,
+  psychologistSignatureImage: await resolveExportImageSource(
+    certificate.psychologistSignatureImage,
+  ),
+});
+
+function IQCertificateDocument({ certificate }: { certificate: IQCertificateData }) {
   return (
     <>
-      <style>{CERTIFICATE_FONT_IMPORT}</style>
-      <div className='relative aspect-[1.414/1] overflow-hidden bg-gradient-to-br from-[#fffdf8] via-[#fbf7ef] to-[#f5ecda] shadow-2xl'>
+      <style>{`${CERTIFICATE_FONT_IMPORT}
+${CERTIFICATE_EXPORT_STYLES}`}</style>
+      <div className='iq-certificate-export' data-iq-certificate-root='true'>
         <img
           src={CERTIFICATE_BORDER_ASSET_PATH}
           alt=''
           aria-hidden='true'
-          className='pointer-events-none absolute inset-0 h-full w-full select-none object-fill'
+          crossOrigin='anonymous'
+          className='iq-certificate-border'
         />
-        <div className='relative z-10 flex h-full flex-col px-8 py-5 md:px-14 md:py-8'>
-          <div className='flex items-center justify-center'>
+        <div className='iq-certificate-shell'>
+          <div className='iq-certificate-brand'>
             <img
               src={CERTIFICATE_LOGO_ASSET_PATH}
               alt='CerebroLearn'
-              className='h-auto w-[140px] max-w-full md:w-[180px]'
+              crossOrigin='anonymous'
+              className='iq-certificate-brand-logo'
             />
           </div>
-          <div className='flex flex-1 flex-col items-center justify-center px-2 text-center'>
-            <p
-              className='text-[9px] uppercase tracking-[0.25em] md:text-[11px]'
-              style={{ color: BRAND_COLOR, fontFamily: BRAND_FONT_FAMILY }}
-            >
-              Official IQ Certificate
-            </p>
-            <h2
-              className='mt-1 font-semibold'
-              style={{ color: BRAND_COLOR, fontFamily: STUDENT_NAME_FONT_FAMILY, fontSize: 'clamp(22px, 4.5vw, 58px)', lineHeight: 1.1 }}
-            >
-              {certificate.studentName}
-            </h2>
-            <p
-              className='mt-2 max-w-2xl text-[10px] text-muted-foreground md:text-sm'
-              style={{ fontFamily: 'Times New Roman, Times, serif', lineHeight: 1.6 }}
-            >
-              for successfully completing the{' '}
-              <span style={{ color: BRAND_COLOR }}>Culture Fair Intelligence Test</span> -
-              <br />
-              with a certified Psychologist Cognitive Growth Edition with the
-              following score
-            </p>
-            <div className='mt-3 rounded-full px-5 py-2 text-white md:px-8 md:py-3' style={{ backgroundColor: BRAND_COLOR, fontFamily: BRAND_FONT_FAMILY }}>
-              <p className='text-[9px] uppercase tracking-[0.25em] text-white/80 md:text-[11px]'>Official IQ Score</p>
-              <p className='text-2xl font-bold md:text-4xl'>{certificate.iqScore}</p>
+          <div className='iq-certificate-main'>
+            <div className='iq-certificate-title'>
+              <p className='iq-certificate-heading'>INTELLIGENT QUOTIENT CERTIFICATE</p>
+              <p className='iq-certificate-subheading'>Issued to:</p>
+            </div>
+            <div className='iq-certificate-content'>
+              <div className='iq-certificate-student'>{certificate.studentName}</div>
+              <p className='iq-certificate-description'>
+                for successfully completing the{' '}
+                <span style={{ color: BRAND_COLOR, fontWeight: 700 }}>
+                  Culture Fair Intelligence Test
+                </span>{' '}
+                -
+                <br />
+                with a certified Psychologist Cognitive Growth Edition with the
+                following score
+              </p>
+              <div className='iq-certificate-score-wrap'>
+                <div className='iq-certificate-score-label'>Official IQ Score</div>
+                <div className='iq-certificate-score-value'>{certificate.iqScore}</div>
+              </div>
+              <img
+                src={CERTIFICATE_WRAPPER_ASSET_PATH}
+                alt=''
+                aria-hidden='true'
+                crossOrigin='anonymous'
+                className='iq-certificate-wrapper'
+              />
             </div>
           </div>
-          <div className='mt-4 grid gap-3 px-4 text-center md:grid-cols-3 md:px-10'>
-            <div className='px-2 md:px-4'>
-              <div className='w-full border-t border-[#395192]/50 pt-2' />
-              <p className='text-[10px] text-muted-foreground md:text-xs' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
-                Date of issuance
-              </p>
-              <p className='mt-1 text-sm font-semibold md:text-base' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
+          <div className='iq-certificate-footer'>
+            <div className='iq-certificate-footer-col'>
+              <div className='iq-certificate-footer-label'>Date of issuance</div>
+              <div className='iq-certificate-footer-value'>
                 {formatFooterIssueDate(certificate.issuedAt)}
-              </p>
+              </div>
             </div>
-            <div>
-              <div className='w-full border-t border-[#395192]/50 pt-2' />
-              <p className='text-[10px] text-muted-foreground md:text-xs' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
-                Psychologist
-              </p>
-              <p className='mt-1 text-sm font-semibold md:text-base' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
-                {certificate.psychologistName}
-              </p>
-              <p className='mt-0.5 text-[10px] md:text-xs' style={{ color: BRAND_COLOR, fontFamily: 'Times New Roman, Times, serif' }}>
-                {certificate.psychologistSpecialization || 'Certified Psychologist'}
-              </p>
+            <div className='iq-certificate-footer-col'>
+              <div className='iq-certificate-footer-line' />
+              {certificate.psychologistSignatureImage ? (
+                <img
+                  src={certificate.psychologistSignatureImage}
+                  alt='Psychologist signature'
+                  className='iq-certificate-signature'
+                />
+              ) : null}
+              <div className='iq-certificate-footer-value'>{certificate.psychologistName}</div>
+              <div className='iq-certificate-footer-subvalue'>
+                {formatPsychologistSpecialization(certificate.psychologistSpecialization)}
+              </div>
             </div>
-            <div className='px-2 md:px-4'>
-              <div className='w-full border-t border-[#395192]/50 pt-2' />
-              <p className='text-[10px] text-muted-foreground md:text-xs' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
-                Certificate ID
-              </p>
-              <p className='mt-1 text-sm font-semibold md:text-base' style={{ fontFamily: 'Times New Roman, Times, serif' }}>
-                {certificate.certificateId}
-              </p>
+            <div className='iq-certificate-footer-col'>
+              <div className='iq-certificate-footer-label'>Certificate ID</div>
+              <div className='iq-certificate-footer-value'>{certificate.certificateId}</div>
             </div>
           </div>
         </div>
@@ -372,3 +435,90 @@ export function IQCertificatePreview({ certificate }: { certificate: IQCertifica
     </>
   );
 }
+
+export const downloadIQCertificate = async (certificate: IQCertificateData) => {
+  const mountNode = document.createElement('div');
+  mountNode.style.cssText = `position:fixed;left:-200vw;top:0;width:${CERTIFICATE_EXPORT_WIDTH}px;height:${CERTIFICATE_EXPORT_HEIGHT}px;pointer-events:none;opacity:0;overflow:hidden;`;
+  document.body.appendChild(mountNode);
+
+  const root = createRoot(mountNode);
+
+  try {
+    const exportCertificate = await prepareCertificateForExport(certificate);
+    root.render(<IQCertificateDocument certificate={exportCertificate} />);
+
+    await waitForNextPaint();
+    await waitForFonts();
+    await waitForImages(mountNode);
+    await waitForNextPaint();
+
+    const certificateElement = mountNode.querySelector<HTMLElement>(
+      '[data-iq-certificate-root="true"]',
+    );
+
+    if (!certificateElement) {
+      throw new Error('Unable to render the certificate for download.');
+    }
+
+    const canvas = await html2canvas(certificateElement, {
+      backgroundColor: null,
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      imageTimeout: 15000,
+    });
+
+    const pdf = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4',
+      compress: true,
+    });
+
+    pdf.addImage(
+      canvas.toDataURL('image/png'),
+      'PNG',
+      0,
+      0,
+      PDF_PAGE_WIDTH_MM,
+      PDF_PAGE_HEIGHT_MM,
+      undefined,
+      'FAST',
+    );
+
+    const pdfBlob = pdf.output('blob');
+    const downloadUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+
+    link.href = downloadUrl;
+    link.download = buildCertificateFilename(certificate.certificateId);
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error('Unable to generate the certificate download.');
+  } finally {
+    root.unmount();
+    mountNode.remove();
+  }
+};
+
+function IQCertificatePreview({ certificate }: { certificate: IQCertificateData }) {
+  return (
+    <>
+      <style>{`${CERTIFICATE_FONT_IMPORT}
+${CERTIFICATE_EXPORT_STYLES}`}</style>
+      <div style={{ display: 'inline-block', boxShadow: '0 24px 60px rgba(15, 23, 42, 0.18)' }}>
+        <IQCertificateDocument certificate={certificate} />
+      </div>
+    </>
+  );
+}
+
+export { IQCertificatePreview };

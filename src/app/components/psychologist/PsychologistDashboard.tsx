@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Card,
   CardContent,
@@ -45,6 +45,8 @@ import {
   Star,
   UserCheck,
   FileText,
+  Eraser,
+  PenLine,
   Upload,
   GraduationCap,
 } from 'lucide-react';
@@ -52,7 +54,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
-import { psychologistApi } from '../../utils/api-client';
+import { psychologistApi, storageApi } from '../../utils/api-client';
 import {
   calculateIQScoreFromCognitiveProfile,
   type IQCertificateCognitiveProfile,
@@ -127,6 +129,7 @@ interface ClientHistoryItem {
 
 interface ProfessionalProfileForm {
   bio: string;
+  signatureImage: string;
   hourlyRate: string;
   defaultSessionDuration: string;
   defaultBookingType: 'standard' | 'emergency';
@@ -176,6 +179,8 @@ const createProfessionalProfileForm = (
   currentProfile?: any,
 ): ProfessionalProfileForm => ({
   bio: source?.bio ?? currentProfile?.bio ?? '',
+  signatureImage:
+    source?.signature_image ?? source?.signatureImage ?? currentProfile?.signature_image ?? '',
   hourlyRate:
     source?.hourly_rate != null
       ? String(source.hourly_rate)
@@ -275,10 +280,14 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
   const [availabilityLoading, setAvailabilityLoading] = useState(true);
   const [availabilityRecord, setAvailabilityRecord] = useState<AvailabilityRecord | null>(null);
   const [hasAvailabilityRecord, setHasAvailabilityRecord] = useState(false);
+  const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingSignatureRef = useRef(false);
   const [professionalProfile, setProfessionalProfile] =
     useState<ProfessionalProfileForm>(createProfessionalProfileForm(null));
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [signatureUploading, setSignatureUploading] = useState(false);
+  const [hasDrawnSignature, setHasDrawnSignature] = useState(false);
   const [selectedBooking, setSelectedBooking] =
     useState<DashboardBooking | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -802,6 +811,147 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
     }));
   };
 
+  const getSignatureCanvasContext = () => {
+    const canvas = signatureCanvasRef.current;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return null;
+
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.lineWidth = 4;
+    context.strokeStyle = '#111827';
+
+    return { canvas, context };
+  };
+
+  const getSignaturePointerPosition = (
+    event: React.PointerEvent<HTMLCanvasElement>,
+  ) => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return null;
+
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+    };
+  };
+
+  const handleSignaturePointerDown = (
+    event: React.PointerEvent<HTMLCanvasElement>,
+  ) => {
+    const signatureContext = getSignatureCanvasContext();
+    const position = getSignaturePointerPosition(event);
+    if (!signatureContext || !position) return;
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    isDrawingSignatureRef.current = true;
+    signatureContext.context.beginPath();
+    signatureContext.context.moveTo(position.x, position.y);
+  };
+
+  const handleSignaturePointerMove = (
+    event: React.PointerEvent<HTMLCanvasElement>,
+  ) => {
+    if (!isDrawingSignatureRef.current) return;
+
+    const signatureContext = getSignatureCanvasContext();
+    const position = getSignaturePointerPosition(event);
+    if (!signatureContext || !position) return;
+
+    signatureContext.context.lineTo(position.x, position.y);
+    signatureContext.context.stroke();
+    setHasDrawnSignature(true);
+  };
+
+  const handleSignaturePointerUp = (
+    event: React.PointerEvent<HTMLCanvasElement>,
+  ) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    isDrawingSignatureRef.current = false;
+  };
+
+  const handleClearSignatureCanvas = () => {
+    const signatureContext = getSignatureCanvasContext();
+    if (!signatureContext) return;
+
+    signatureContext.context.clearRect(
+      0,
+      0,
+      signatureContext.canvas.width,
+      signatureContext.canvas.height,
+    );
+    setHasDrawnSignature(false);
+  };
+
+  const handleUploadDrawnSignature = async () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas || !hasDrawnSignature) {
+      toast.error('Draw your signature before uploading it');
+      return;
+    }
+
+    setSignatureUploading(true);
+
+    try {
+      const signatureBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/png');
+      });
+
+      if (!signatureBlob) {
+        throw new Error('Could not create signature image');
+      }
+
+      const startedUpload = await storageApi.start({
+        file_type: 'image',
+        filename: `signature-${Date.now()}.png`,
+        mime_type: 'image/png',
+        create_type: 'post',
+      });
+
+      const uploadFormData = new FormData();
+      Object.entries(startedUpload.fields || {}).forEach(([key, value]) => {
+        uploadFormData.append(key, value);
+      });
+      uploadFormData.append('file', signatureBlob, `signature-${Date.now()}.png`);
+
+      const uploadResponse = await fetch(startedUpload.url, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text().catch(() => '');
+        throw new Error(
+          `Storage upload failed with status ${uploadResponse.status}${errorText ? `: ${errorText}` : ''}`,
+        );
+      }
+
+      const finishedUpload = await storageApi.finish(startedUpload.id);
+      setProfessionalProfile((current) => ({
+        ...current,
+        signatureImage: finishedUpload.url,
+      }));
+      toast.success('Signature uploaded. Click save to keep it on your profile.');
+    } catch (error) {
+      console.error('[PsychologistDashboard] Error uploading signature:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to upload signature',
+      );
+    } finally {
+      setSignatureUploading(false);
+    }
+  };
+
+  const handleRemoveSignatureImage = () => {
+    setProfessionalProfile((current) => ({
+      ...current,
+      signatureImage: '',
+    }));
+  };
+
   const handleSaveProfessionalProfile = async () => {
     const trimmedHourlyRate = professionalProfile.hourlyRate.trim();
     if (trimmedHourlyRate && Number.isNaN(Number(trimmedHourlyRate))) {
@@ -814,6 +964,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
     try {
       await psychologistApi.updateProfile({
         bio: professionalProfile.bio.trim() || undefined,
+        signature_image: professionalProfile.signatureImage.trim() || null,
         hourly_rate: trimmedHourlyRate ? Number(trimmedHourlyRate) : undefined,
         default_session_duration: Number(professionalProfile.defaultSessionDuration),
         default_booking_type: professionalProfile.defaultBookingType,
@@ -2066,6 +2217,95 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                     />
                   </div>
 
+                  <div className='space-y-3'>
+                    <div>
+                      <Label>Signature</Label>
+                      <p className='mt-1 text-sm text-muted-foreground'>
+                        Draw your signature and upload it as an image for certificates and documents.
+                      </p>
+                    </div>
+
+                    <div className='rounded-lg border border-dashed p-4 space-y-4'>
+                      <div className='flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
+                        <div className='space-y-1'>
+                          <p className='text-sm font-medium'>Psychologist Signature</p>
+                          <p className='text-sm text-muted-foreground'>
+                            Use your mouse, trackpad, or touch screen. The signature is saved as a transparent PNG.
+                          </p>
+                        </div>
+
+                        <div className='flex flex-wrap gap-2'>
+                          <Button
+                            type='button'
+                            variant='outline'
+                            onClick={handleClearSignatureCanvas}
+                            disabled={signatureUploading || !hasDrawnSignature}
+                          >
+                            <Eraser className='mr-2 h-4 w-4' />
+                            Clear
+                          </Button>
+
+                          <Button
+                            type='button'
+                            onClick={handleUploadDrawnSignature}
+                            disabled={signatureUploading || !hasDrawnSignature}
+                          >
+                            {signatureUploading ? (
+                              <>
+                                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <PenLine className='mr-2 h-4 w-4' />
+                                {professionalProfile.signatureImage ? 'Replace Signature' : 'Upload Signature'}
+                              </>
+                            )}
+                          </Button>
+
+                          {professionalProfile.signatureImage ? (
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              onClick={handleRemoveSignatureImage}
+                              disabled={signatureUploading}
+                            >
+                              Remove
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <canvas
+                        ref={signatureCanvasRef}
+                        width={900}
+                        height={260}
+                        className='h-44 w-full touch-none rounded-md border bg-white'
+                        onPointerDown={handleSignaturePointerDown}
+                        onPointerMove={handleSignaturePointerMove}
+                        onPointerUp={handleSignaturePointerUp}
+                        onPointerCancel={handleSignaturePointerUp}
+                        onPointerLeave={handleSignaturePointerUp}
+                        aria-label='Draw signature'
+                      />
+
+                      {professionalProfile.signatureImage ? (
+                        <div className='rounded-md border bg-muted/20 p-4 space-y-2'>
+                          <p className='text-sm font-medium'>Saved signature preview</p>
+                          <img
+                            src={professionalProfile.signatureImage}
+                            alt='Psychologist signature preview'
+                            className='h-28 w-full object-contain'
+                          />
+                        </div>
+                      ) : (
+                        <div className='rounded-md border bg-muted/10 px-4 py-6 text-sm text-muted-foreground'>
+                          No signature uploaded yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className='grid gap-4 md:grid-cols-2'>
                     <div className='space-y-2'>
                       <Label htmlFor='professional-hourly-rate'>Hourly Rate</Label>
@@ -2222,7 +2462,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                   </div>
 
                   <div className='flex justify-end'>
-                    <Button onClick={handleSaveProfessionalProfile} disabled={settingsSaving}>
+                    <Button onClick={handleSaveProfessionalProfile} disabled={settingsSaving || signatureUploading}>
                       {settingsSaving ? (
                         <>
                           <Loader2 className='mr-2 h-4 w-4 animate-spin' />

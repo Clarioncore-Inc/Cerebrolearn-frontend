@@ -1296,6 +1296,7 @@ export const psychologistApi = {
     is_approved?: boolean;
     hourly_rate?: number;
     bio?: string;
+    signature_image?: string | null;
     default_session_duration?: number;
     default_booking_type?: 'standard' | 'emergency';
     allow_emergency_bookings?: boolean;

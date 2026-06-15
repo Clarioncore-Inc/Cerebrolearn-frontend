@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowLeft, Calendar, CheckCircle2, Clock, Download, FileText, User, Video } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -46,6 +46,7 @@ export interface IQSessionBooking {
   psychologistName: string;
   psychologistEmail: string;
   psychologistSpecialization?: string;
+  psychologistSignatureImage?: string;
   studentEmail?: string;
   date: string;
   time: string;
@@ -161,6 +162,7 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
   const officialIQScore = certificateProfile
     ? calculateIQScoreFromCognitiveProfile(certificateProfile)
     : null;
+  const [isPreparingCertificate, setIsPreparingCertificate] = useState(false);
   const learnerName =
     profile?.full_name ??
     user?.full_name ??
@@ -173,6 +175,7 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
           psychologistName: booking.psychologistName || 'Psychologist',
           psychologistSpecialization:
             booking.psychologistSpecialization || 'Certified Psychologist',
+          psychologistSignatureImage: booking.psychologistSignatureImage,
           iqScore: officialIQScore,
           certificateId: buildIQCertificateId(booking.id),
           issuedAt: booking.createdAt ?? booking.date,
@@ -180,16 +183,23 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
         }
       : null;
 
-  const handleDownloadCertificate = () => {
-    if (!certificateData) return;
+  const handleDownloadCertificate = async () => {
+    if (!certificateData || isPreparingCertificate) return;
+
+    const loadingToastId = toast.loading('Preparing your certificate...');
+    setIsPreparingCertificate(true);
 
     try {
-      downloadIQCertificate(certificateData);
-      toast.success('Certificate download started');
+      await downloadIQCertificate(certificateData);
+      toast.dismiss(loadingToastId);
+      toast.success('Certificate download started. Check your browser downloads panel.');
     } catch (error) {
+      toast.dismiss(loadingToastId);
       toast.error(
         error instanceof Error ? error.message : 'Unable to download certificate',
       );
+    } finally {
+      setIsPreparingCertificate(false);
     }
   };
 
@@ -318,9 +328,9 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
                 </div>
               </div>
               <div className='mt-4'>
-                <Button onClick={handleDownloadCertificate}>
+                <Button onClick={handleDownloadCertificate} disabled={isPreparingCertificate}>
                   <Download className='mr-2 h-4 w-4' />
-                  Download IQ Certificate
+                  {isPreparingCertificate ? 'Preparing Certificate...' : 'Download IQ Certificate'}
                 </Button>
               </div>
             </div>
