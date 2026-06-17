@@ -409,7 +409,7 @@ export function IQTestPracticeMode({ onNavigate }: IQTestPracticeModeProps) {
 
         {/* Navigation */}
         <div className="mt-6 text-center">
-          <Button variant="ghost" onClick={() => onNavigate('iq-test-landing')}>
+          <Button variant="ghost" onClick={() => onNavigate('/dashboard')}>
             ← Back to IQ Test Home
           </Button>
         </div>

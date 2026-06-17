@@ -177,6 +177,7 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
             booking.psychologistSpecialization || 'Certified Psychologist',
           psychologistSignatureImage: booking.psychologistSignatureImage,
           iqScore: officialIQScore,
+          cognitiveProfile: certificateProfile,
           certificateId: buildIQCertificateId(booking.id),
           issuedAt: booking.createdAt ?? booking.date,
           assessmentDate: booking.date,

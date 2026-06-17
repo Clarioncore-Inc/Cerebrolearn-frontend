@@ -26,6 +26,7 @@ export interface IQCertificateData {
   psychologistSpecialization?: string;
   psychologistSignatureImage?: string;
   iqScore: number;
+  cognitiveProfile?: IQCertificateCognitiveProfile;
   certificateId: string;
   issuedAt: string;
   assessmentDate?: string;
@@ -46,9 +47,9 @@ const CERTIFICATE_EXPORT_STYLES = `
   }
   .iq-certificate-border {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    inset: 22px;
+    width: calc(100% - 44px);
+    height: calc(100% - 44px);
     object-fit: fill;
     pointer-events: none;
     user-select: none;
@@ -136,10 +137,45 @@ const CERTIFICATE_EXPORT_STYLES = `
     font-weight: 700;
     line-height: 1.12;
   }
+  .iq-certificate-kpi-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    align-self: stretch;
+    margin: 16px 0 8px;
+    padding: 0 16px;
+  }
+  .iq-certificate-kpi-col {
+    flex: 1;
+    text-align: center;
+    padding: 0 8px;
+  }
+  .iq-certificate-kpi-label {
+    font-size: 13px;
+    font-family: 'Times New Roman', Times, serif;
+    color: #6b7280;
+    margin-bottom: 6px;
+    font-weight: 400;
+  }
+  .iq-certificate-kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: ${BRAND_COLOR};
+    font-family: 'Times New Roman', Times, serif;
+    line-height: 1.1;
+  }
+  .iq-certificate-kpi-col--highlight .iq-certificate-kpi-label {
+    font-weight: 700;
+    color: ${BRAND_COLOR};
+    font-size: 14px;
+  }
+  .iq-certificate-kpi-col--highlight .iq-certificate-kpi-value {
+    font-size: 44px;
+  }
   .iq-certificate-wrapper {
     display: block;
     width: 100%;
-    max-width: 520px;
+    max-width: 900px;
     height: auto;
     margin: 18px auto 0;
   }
@@ -391,18 +427,44 @@ ${CERTIFICATE_EXPORT_STYLES}`}</style>
                 with a certified Psychologist Cognitive Growth Edition with the
                 following score
               </p>
-              <div className='iq-certificate-score-wrap'>
-                <div className='iq-certificate-score-label'>Official IQ Score</div>
-                <div className='iq-certificate-score-value'>{certificate.iqScore}</div>
-              </div>
-              <img
-                src={CERTIFICATE_WRAPPER_ASSET_PATH}
-                alt=''
-                aria-hidden='true'
-                crossOrigin='anonymous'
-                className='iq-certificate-wrapper'
-              />
+              {!certificate.cognitiveProfile && (
+                <div className='iq-certificate-score-wrap'>
+                  <div className='iq-certificate-score-label'>Official IQ Score</div>
+                  <div className='iq-certificate-score-value'>{certificate.iqScore}</div>
+                </div>
+              )}
             </div>
+            {certificate.cognitiveProfile && (
+              <div className='iq-certificate-kpi-row'>
+                <div className='iq-certificate-kpi-col'>
+                  <div className='iq-certificate-kpi-label'>Pattern Recognition</div>
+                  <div className='iq-certificate-kpi-value'>{certificate.cognitiveProfile.pattern_recognition}</div>
+                </div>
+                <div className='iq-certificate-kpi-col'>
+                  <div className='iq-certificate-kpi-label'>Verbal Intelligence</div>
+                  <div className='iq-certificate-kpi-value'>{certificate.cognitiveProfile.verbal_intelligence}</div>
+                </div>
+                <div className='iq-certificate-kpi-col iq-certificate-kpi-col--highlight'>
+                  <div className='iq-certificate-kpi-label'>IQ Score</div>
+                  <div className='iq-certificate-kpi-value'>{certificate.iqScore}</div>
+                </div>
+                <div className='iq-certificate-kpi-col'>
+                  <div className='iq-certificate-kpi-label'>Spatial Reasoning</div>
+                  <div className='iq-certificate-kpi-value'>{certificate.cognitiveProfile.spatial_reasoning}</div>
+                </div>
+                <div className='iq-certificate-kpi-col'>
+                  <div className='iq-certificate-kpi-label'>Processing Speed</div>
+                  <div className='iq-certificate-kpi-value'>{certificate.cognitiveProfile.processing_speed}</div>
+                </div>
+              </div>
+            )}
+            <img
+              src={CERTIFICATE_WRAPPER_ASSET_PATH}
+              alt=''
+              aria-hidden='true'
+              crossOrigin='anonymous'
+              className='iq-certificate-wrapper'
+            />
           </div>
           <div className='iq-certificate-footer'>
             <div className='iq-certificate-footer-col'>

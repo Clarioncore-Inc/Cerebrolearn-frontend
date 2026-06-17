@@ -972,7 +972,7 @@ export function IQUserDashboard({
                     Complete your first practice test to unlock score growth analytics, percentile tracking,
                     and momentum insights.
                   </p>
-                  <Button className='mt-5' onClick={() => onNavigate('iq-test-landing')}>
+                  <Button className='mt-5' onClick={() => onNavigate('iq-test-practice')}>
                     <Play className='mr-2 h-4 w-4' />
                     Take First Practice Test
                   </Button>
