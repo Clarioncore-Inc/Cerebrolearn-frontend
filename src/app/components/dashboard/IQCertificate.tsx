@@ -28,6 +28,7 @@ export interface IQCertificateData {
   iqScore: number;
   cognitiveProfile?: IQCertificateCognitiveProfile;
   certificateId: string;
+  testType?: string;
   issuedAt: string;
   assessmentDate?: string;
 }
@@ -284,6 +285,17 @@ export const calculateIQScoreFromCognitiveProfile = (
 export const buildIQCertificateId = (bookingId: string) =>
   `IQ-${bookingId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12).toUpperCase()}`;
 
+const formatIQTestType = (testType?: string) => {
+  switch (testType) {
+    case 'weschler_intelligence_test':
+      return 'Weschler Intelligence Test';
+    case 'culture_fair_intelligence_test':
+      return 'Culture Fair Intelligence Test';
+    default:
+      return testType?.trim() || 'Culture Fair Intelligence Test';
+  }
+};
+
 const waitForNextPaint = () =>
   new Promise<void>((resolve) => {
     requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
@@ -420,7 +432,7 @@ ${CERTIFICATE_EXPORT_STYLES}`}</style>
               <p className='iq-certificate-description'>
                 for successfully completing the{' '}
                 <span style={{ color: BRAND_COLOR, fontWeight: 700 }}>
-                  Culture Fair Intelligence Test
+                  {formatIQTestType(certificate.testType)}
                 </span>{' '}
                 -
                 <br />

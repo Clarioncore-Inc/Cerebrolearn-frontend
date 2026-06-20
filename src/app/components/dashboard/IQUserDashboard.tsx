@@ -215,6 +215,8 @@ const normalizeIQSessionBooking = (item: any, index: number, fallbackEmail = '')
   date: item.date ?? item.booking_date ?? item.session_date ?? '',
   time: item.time ?? item.booking_time ?? item.session_time ?? '',
   sessionType: item.session_type ?? item.sessionType ?? 'IQ Session',
+  testType: item.test_type ?? item.testType ?? '',
+  certificateId: item.certificate_id ?? item.certificateId ?? '',
   status: item.status ?? 'pending',
   createdAt: item.created_at ?? item.createdAt ?? '',
   price: Number(item.price ?? item.hourly_rate ?? item.hourlyRate ?? 0),

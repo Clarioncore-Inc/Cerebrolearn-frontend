@@ -1188,6 +1188,7 @@ export const psychologistApi = {
     time: string;
     booking_type: 'standard' | 'emergency';
     session_type: string;
+    test_type?: string;
     notes: string;
     is_recurring: boolean;
     recurring_frequency: string;

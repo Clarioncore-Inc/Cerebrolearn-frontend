@@ -28,7 +28,23 @@ interface BookingPageProps {
 
 type BookingType = 'standard' | 'emergency';
 type Step = 'type-date' | 'time' | 'details' | 'success';
+type IQTestType = 'culture_fair_intelligence_test' | 'weschler_intelligence_test';
 const DEFAULT_BOOKING_TYPE: BookingType = 'standard';
+
+const IQ_TEST_TYPES: Array<{ value: IQTestType; label: string; description: string }> = [
+  {
+    value: 'culture_fair_intelligence_test',
+    label: 'Culture Fair Intelligence Test',
+    description:
+      'A non-verbal assessment focused on pattern recognition, classification, series completion, and matrix reasoning to reduce the influence of language and cultural background.',
+  },
+  {
+    value: 'weschler_intelligence_test',
+    label: 'Weschler Intelligence Test',
+    description:
+      'A broad clinical intelligence assessment that reviews verbal comprehension, working memory, processing speed, and perceptual reasoning through structured psychologist-led tasks.',
+  },
+];
 
 const today = () => {
   const d = new Date();
@@ -80,6 +96,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
 
   // Step 3
   const [sessionType, setSessionType] = useState<string>('');
+  const [testType, setTestType] = useState<IQTestType>('culture_fair_intelligence_test');
   const [notes, setNotes] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<string>('');
@@ -175,6 +192,11 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   };
 
   const handleSubmit = async () => {
+    if (!testType) {
+      toast.error('Please select an IQ test type.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.psychologist.createBooking({
@@ -183,6 +205,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         time: selectedTime,
         booking_type: DEFAULT_BOOKING_TYPE,
         session_type: sessionType || 'General',
+        test_type: testType,
         notes,
         is_recurring: isRecurring,
         recurring_frequency: isRecurring ? recurringFrequency : '',
@@ -207,6 +230,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   };
 
   const availableDateSet = new Set(availableDates);
+  const selectedTestType = IQ_TEST_TYPES.find((test) => test.value === testType);
   const selectedDate = bookingDate ? new Date(`${bookingDate}T00:00:00`) : undefined;
   const availableDateObjects = availableDates.map((dateValue) => new Date(`${dateValue}T00:00:00`));
 
@@ -417,6 +441,28 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                 </Select>
               </div>
             ) : null}
+
+            <div className='space-y-2'>
+              <Label>IQ Test Type</Label>
+              <Select value={testType} onValueChange={(value) => setTestType(value as IQTestType)}>
+                <SelectTrigger>
+                  <SelectValue placeholder='Select an IQ test type' />
+                </SelectTrigger>
+                <SelectContent>
+                  {IQ_TEST_TYPES.map((test) => (
+                    <SelectItem key={test.value} value={test.value}>
+                      {test.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedTestType ? (
+                <div className='rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground'>
+                  <p className='font-medium text-foreground'>{selectedTestType.label}</p>
+                  <p className='mt-1'>{selectedTestType.description}</p>
+                </div>
+              ) : null}
+            </div>
 
             {/* <div className='space-y-2'>
               <Label htmlFor='notes'>Notes <span className='text-muted-foreground text-xs'>(optional)</span></Label>

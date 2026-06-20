@@ -51,6 +51,8 @@ export interface IQSessionBooking {
   date: string;
   time: string;
   sessionType: string;
+  testType?: string;
+  certificateId?: string;
   status: string;
   createdAt?: string;
   price: number;
@@ -71,6 +73,17 @@ const formatDate = (dateString: string) =>
     month: 'long',
     day: 'numeric',
   });
+
+const formatIQTestType = (testType?: string) => {
+  switch (testType) {
+    case 'weschler_intelligence_test':
+      return 'Weschler Intelligence Test';
+    case 'culture_fair_intelligence_test':
+      return 'Culture Fair Intelligence Test';
+    default:
+      return testType?.trim() || '';
+  }
+};
 
 const hasVisibleResults = (notes?: IQSessionNotes | null) =>
   Boolean(
@@ -178,7 +191,8 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
           psychologistSignatureImage: booking.psychologistSignatureImage,
           iqScore: officialIQScore,
           cognitiveProfile: certificateProfile,
-          certificateId: buildIQCertificateId(booking.id),
+          certificateId: booking.certificateId || buildIQCertificateId(booking.id),
+          testType: booking.testType,
           issuedAt: booking.createdAt ?? booking.date,
           assessmentDate: booking.date,
         }
@@ -275,6 +289,12 @@ export function IQSessionDetailPage({ onNavigate, booking, initialSessionTab = '
                 <FileText className='h-4 w-4 text-primary' />
                 <span>{booking.sessionType}</span>
               </div>
+              {booking.testType ? (
+                <div className='flex items-center gap-2'>
+                  <FileText className='h-4 w-4 text-primary' />
+                  <span>{formatIQTestType(booking.testType)}</span>
+                </div>
+              ) : null}
             </div>
           </div>
         </CardContent>
