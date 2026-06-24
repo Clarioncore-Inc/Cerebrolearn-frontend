@@ -1103,6 +1103,114 @@ export const storageApi = {
 };
 
 // ========================================
+// GENIUS PROFILES API (Admin)
+// ========================================
+
+export interface GeniusApiResponse {
+  id: string;
+  slug: string;
+  full_name: string;
+  iq_score: number | null;
+  iq_score_label: string;
+  iq_score_note: string;
+  birth_date: string | null;
+  death_date: string | null;
+  birth_place: string;
+  zodiac_sign: string | null;
+  profile_image_url: string | null;
+  banner_image_url: string | null;
+  image_attribution: string | null;
+  biography: string;
+  short_description: string;
+  era: string;
+  profile_type: string;
+  is_historical: boolean;
+  is_fictional: boolean;
+  source_url: string | null;
+  editorial_note: string;
+  publication_status: 'draft' | 'published' | 'archived';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GeniusListApiResponse {
+  items: GeniusApiResponse[];
+  total: number;
+}
+
+export interface GeniusCreatePayload {
+  id: string;
+  full_name: string;
+  iq_score?: number | null;
+  birth_date?: string | null;
+  death_date?: string | null;
+  birth_place: string;
+  zodiac_sign?: string | null;
+  biography: string;
+  short_description: string;
+  era: string;
+  is_historical: boolean;
+  is_fictional: boolean;
+  profile_type: string;
+  publication_status?: 'draft' | 'published' | 'archived';
+  editorial_note?: string;
+  source_url?: string | null;
+}
+
+export interface GeniusUpdatePayload {
+  full_name?: string;
+  iq_score?: number | null;
+  birth_date?: string | null;
+  death_date?: string | null;
+  birth_place?: string;
+  zodiac_sign?: string | null;
+  biography?: string;
+  short_description?: string;
+  era?: string;
+  is_historical?: boolean;
+  is_fictional?: boolean;
+  profile_type?: string;
+  publication_status?: 'draft' | 'published' | 'archived';
+  editorial_note?: string;
+  source_url?: string | null;
+}
+
+export const geniusProfilesApi = {
+  list: (params?: { query?: string; status?: string; profile_type?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.query)        qs.set('query', params.query);
+    if (params?.status)       qs.set('status', params.status);
+    if (params?.profile_type) qs.set('profile_type', params.profile_type);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return request<GeniusListApiResponse>(`/admin/genius-profiles${suffix}`);
+  },
+
+  getById: (id: string) =>
+    request<GeniusApiResponse>(`/admin/genius-profiles/${id}`),
+
+  create: (data: GeniusCreatePayload) =>
+    request<GeniusApiResponse>('/admin/genius-profiles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: GeniusUpdatePayload) =>
+    request<GeniusApiResponse>(`/admin/genius-profiles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  updateStatus: (id: string, publication_status: string) =>
+    request<GeniusApiResponse>(`/admin/genius-profiles/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ publication_status }),
+    }),
+
+  delete: (id: string) =>
+    request<null>(`/admin/genius-profiles/${id}`, { method: 'DELETE' }),
+};
+
+// ========================================
 // MEETING CONFIG API
 // ========================================
 export interface MeetingConfig {
@@ -1340,6 +1448,7 @@ export const api = {
   organizations: organizationsApi,
   payments: paymentsApi,
   admin: adminApi,
+  geniusProfiles: geniusProfilesApi,
   psychologist: psychologistApi,
   storage: storageApi,
   videoLessons: videoLessonsApi,

@@ -17,6 +17,7 @@ import { ComplianceManager } from './ComplianceManager';
 import { SystemHealthMonitor } from './SystemHealthMonitor';
 import { AdvancedReportGenerator } from './AdvancedReportGenerator';
 import { PlatformSettingsManager } from './PlatformSettingsManager';
+import { GeniusManagementPage } from './GeniusManagementPage';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -61,6 +62,7 @@ const ADMIN_PORTAL_PAGES = new Set([
   'system-health',
   'advanced-reports',
   'platform-settings',
+  'genius-management',
 ]);
 
 const getInitialAdminPortalPage = () => {
@@ -165,6 +167,8 @@ export function AdminPortal() {
         return <AdvancedReportGenerator onNavigate={() => {}} />;
       case 'platform-settings':
         return <PlatformSettingsManager onNavigate={() => {}} />;
+      case 'genius-management':
+        return <GeniusManagementPage />;
       default:
         return <AdminDashboard />;
     }

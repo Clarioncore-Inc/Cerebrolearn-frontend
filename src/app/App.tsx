@@ -51,6 +51,7 @@ import { IQTestCompletion } from './components/iq-test/IQTestCompletion';
 import { IQTestResults } from './components/iq-test/IQTestResults';
 import { EnhancedIQTestResults } from './components/iq-test/EnhancedIQTestResults';
 import { IQTestPracticeMode } from './components/iq-test/IQTestPracticeMode';
+import { GeniusDirectory } from './components/genius/GeniusDirectory';
 
 // Psychologist imports
 import { SignupChoice } from './components/auth/SignupChoice';
@@ -235,6 +236,8 @@ function AppContent() {
       currentPage !== 'auth' &&
       currentPage !== 'catalog' &&
       currentPage !== 'payment' &&
+      currentPage !== 'genius-directory' &&
+      currentPage !== 'geniuses' &&
       currentPage !== 'iq-test-signup' &&
       currentPage !== 'iq-test-payment-success' &&
       currentPage !== 'iq-test-overview' &&
@@ -437,6 +440,10 @@ function AppContent() {
 
       case 'admin':
         return <AdminPortal />;
+
+      case 'genius-directory':
+      case 'geniuses':
+        return <GeniusDirectory onNavigate={handleNavigate} />;
 
       case 'catalog':
         return (

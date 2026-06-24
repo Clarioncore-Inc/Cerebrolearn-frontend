@@ -20,6 +20,7 @@ import {
   Monitor,
   Shield,
   FileCheck,
+  Lightbulb,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -112,6 +113,12 @@ export function AdminSidebar({
       id: 'settings',
       label: 'Platform Settings',
       icon: Settings,
+      isSeparator: false,
+    },
+    {
+      id: 'genius-management',
+      label: 'Genius Profiles',
+      icon: Lightbulb,
       isSeparator: false,
     },
     {
