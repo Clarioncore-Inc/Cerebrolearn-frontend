@@ -17,6 +17,7 @@ import { InstructorDashboard } from './components/dashboard/InstructorDashboard'
 import { CourseCreatorDashboard } from './components/dashboard/CourseCreatorDashboard';
 import { AdminDashboard } from './components/dashboard/AdminDashboard';
 import { AdminPortal } from './components/admin/AdminPortal';
+import { GeniusRankingsPage } from './components/iq-test/GeniusRankingsPage';
 import { CourseCatalog } from './components/courses/CourseCatalog';
 import { CategoryPage } from './components/pages/CategoryPage';
 import { SubcategoryPage } from './components/pages/SubcategoryPage';
@@ -241,6 +242,7 @@ function AppContent() {
       currentPage !== 'iq-test-signup' &&
       currentPage !== 'iq-test-payment-success' &&
       currentPage !== 'iq-test-overview' &&
+      currentPage !== 'genius-rankings' &&
       currentPage !== 'iq-test-landing' &&
       currentPage !== 'iq-test-practice' &&
       currentPage !== 'iq-test-interface' &&
@@ -638,6 +640,9 @@ function AppContent() {
 
       case 'iq-test-overview':
         return <IQTestOverviewPage onNavigate={handleNavigate} />;
+
+      case 'genius-rankings':
+        return <GeniusRankingsPage onNavigate={handleNavigate} />;
 
       case 'iq-test-signup':
         return <IQTestCheckoutSignup onNavigate={handleNavigate} />;

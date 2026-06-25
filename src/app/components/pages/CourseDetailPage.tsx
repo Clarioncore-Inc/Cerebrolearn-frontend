@@ -393,7 +393,9 @@ export function CourseDetailPage({
       setCheckingEnrollment(!!user);
       try {
         const [data, reviews, enrollments] = await Promise.all([
-          coursesApi.getById(courseId),
+          user
+            ? coursesApi.getById(courseId)
+            : coursesApi.getPublishedById(courseId),
           coursesApi.getReviews(courseId).catch(() => []),
           user ? enrollmentsApi.getMy().catch(() => []) : Promise.resolve([]),
         ]);

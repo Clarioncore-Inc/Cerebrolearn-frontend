@@ -4,7 +4,7 @@ import { geniusProfilesApi } from '../../../utils/api-client';
 export type PublicationStatus = 'draft' | 'published' | 'archived';
 
 export interface GeniusCreatePayload {
-  id: string;
+  id?: string | null;
   full_name: string;
   iq_score?: number | null;
   birth_date?: string | null;
@@ -20,6 +20,7 @@ export interface GeniusCreatePayload {
   publication_status?: PublicationStatus;
   editorial_note?: string;
   source_url?: string | null;
+  profile_image_url?: string | null;
 }
 
 export interface GeniusUpdatePayload {
@@ -38,6 +39,7 @@ export interface GeniusUpdatePayload {
   publication_status?: PublicationStatus;
   editorial_note?: string;
   source_url?: string | null;
+  profile_image_url?: string | null;
 }
 
 export interface GeniusListFilters {

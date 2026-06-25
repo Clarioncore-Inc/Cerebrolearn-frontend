@@ -188,7 +188,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       title: 'Testing Center',
       description: `Unlock practice tests and book an official psychologist-proctored IQ assessment for ${formattedIQTestPrice}.`,
       image: imgOnlineTest1,
-      action: () => onNavigate(user ? 'dashboard' : 'auth')
+      action: () => onNavigate(user ? 'dashboard' : 'iq-test-overview')
     },
     {
       icon: BarChart3,
@@ -304,11 +304,11 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               <div className="pt-2 border-t">
                 <p className="text-sm font-semibold text-primary mb-3">Popular Services</p>
                 <div className="grid sm:grid-cols-3 gap-3">
-                  <Button variant="secondary" onClick={() => onNavigate('iq-test-landing')}>
+                  <Button variant="secondary" onClick={() => onNavigate('iq-test-overview')}>
                     <Brain className="w-4 h-4 mr-2" />
                     IQ Assessment
                   </Button>
-                  <Button variant="secondary" onClick={() => onNavigate('browse-psychologists')}>
+                  <Button variant="secondary" onClick={() => onNavigate('auth', { authMode: 'login' })}>
                     <Users className="w-4 h-4 mr-2" />
                     Find Psychologists
                   </Button>
@@ -404,8 +404,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </section>
 
       {/* All-In-One Features with Modern Cards */}
-      <section className="py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#eff3ff] via-white to-[#fffefa]"></div>
+      <section className="py-20 relative overflow-hidden bg-background">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5"></div>
         <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
         <div className="container relative z-10">
           <div className="text-center space-y-4 mb-16">
@@ -413,7 +413,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               <Zap className="w-3 h-3 mr-1" />
               All-In-One Platform
             </Badge>
-            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-[#395192] via-[#4a63a8] to-[#395192] bg-clip-text text-transparent">
+            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-[#395192] via-[#4a63a8] to-[#395192] bg-clip-text text-transparent pb-2">
               Everything You Need to Succeed
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto leading-relaxed">
@@ -425,7 +425,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             {allInOneFeatures.map((feature, index) => (
               <Card
                 key={index}
-                className="group relative overflow-hidden border-2 border-border hover:border-primary transition-all duration-500 hover:shadow-2xl hover:-translate-y-3 bg-gradient-to-br from-card to-card/95"
+  className="group relative overflow-hidden border-2 border-border hover:border-primary transition-all duration-500 hover:shadow-2xl hover:-translate-y-3 bg-gradient-to-br from-card to-card/95"
               >
                 <div className="absolute inset-0 neural-grid opacity-0 group-hover:opacity-[0.05] transition-opacity duration-500"></div>
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-500" style={{ background: feature.color }}></div>
@@ -530,7 +530,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </section>
 
       {/* Platform Features - Alternating Layout */}
-      <section className="py-20 bg-gradient-to-b from-[#f7f8ff] to-white relative overflow-hidden">
+      <section className="py-20 bg-background relative overflow-hidden">
         <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
         <div className="container relative z-10">
           <div className="text-center mb-16 space-y-4">
@@ -538,7 +538,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               <Zap className="w-3 h-3 mr-1" />
               Platform Features
             </Badge>
-            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent">
+            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2">
               Everything You Need in One Platform
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -608,7 +608,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </section>
 
       {/* Why Choose Us Section */}
-      <section className="py-20 relative overflow-hidden bg-gradient-to-br from-[#eff3ff] via-white to-[#fcfcff]">
+      <section className="py-20 relative overflow-hidden bg-gradient-to-br bg-background">
         <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
         <div className="container relative z-10">
           <div className="text-center mb-16 space-y-4">
@@ -616,7 +616,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               <Shield className="w-3 h-3 mr-1" />
               Why Choose CerebroLearn
             </Badge>
-            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent">
+            <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2">
               The Best Learning Experience
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
@@ -658,14 +658,14 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <BrilliantBanner variant="technology" />
 
       {/* IQ Test Promotional Section */}
-      <section className="py-20 bg-gradient-to-br from-[#395192] via-[#4a63a8] to-[#5875be] relative overflow-hidden">
+      <section className="py-20 iq-section-bg relative overflow-hidden">
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 neural-grid opacity-20"></div>
           <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-[#06b6d4]/30 to-transparent rounded-full blur-3xl animate-pulse"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-[#f59e0b]/20 to-transparent rounded-full blur-3xl animate-pulse delay-700"></div>
         </div>
-
+{/* Discover Your True IQ Score Section */}
         <div className="container relative z-10">
           <div className="max-w-6xl mx-auto">
             <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -857,29 +857,29 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <HowItWorksSection />
 
       {/* Newsletter CTA with Glassmorphism */}
-      <section className="relative py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#395192] via-[#6478be] to-[#8ca1eb]"></div>
+      <section className="newsletter-section-bg relative py-24 overflow-hidden">
+        <div className="absolute inset-0"></div>
         <div className="absolute inset-0 neural-grid opacity-20"></div>
         <div className="container relative z-10">
           <div className="max-w-4xl mx-auto">
             <div className="backdrop-blur-xl bg-white/10 rounded-3xl border-2 border-white/20 shadow-2xl p-8 md:p-12 relative overflow-hidden">
               <div className="absolute inset-0 neural-grid opacity-10"></div>
-              <div className="text-center space-y-8 text-white relative z-10">
+              <div className="text-center space-y-8 text-white dark:text-primary relative z-10">
                 <div className="relative inline-block">
-                  <div className="absolute inset-0 bg-white rounded-full blur-2xl opacity-20 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-white dark:bg-primary rounded-full blur-2xl opacity-20 animate-pulse"></div>
                   <Globe className="w-16 h-16 mx-auto relative" />
                 </div>
                 <h2 className="text-3xl md:text-5xl font-bold">
                   Subscribe to our newsletter
                 </h2>
-                <p className="text-xl text-white/90 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-xl text-white/90 dark:text-primary/80 max-w-2xl mx-auto leading-relaxed">
                   Stay updated with the latest courses, learning tips, and exclusive offers delivered straight to your inbox.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
                   <Input
                     type="email"
                     placeholder="Enter your email"
-                    className="backdrop-blur-md bg-white/20 dark:bg-black/20 border-white/30 dark:border-white/20 text-white placeholder:text-white/60 dark:placeholder:text-white/50 focus:bg-white/30 dark:focus:bg-black/30 h-12"
+                    className="backdrop-blur-md bg-white/20 dark:bg-primary/10 border-white/30 dark:border-primary/30 text-white dark:text-primary placeholder:text-white/60 dark:placeholder:text-primary/50 focus:bg-white/30 dark:focus:bg-primary/20 h-12"
                   />
                   <Button
                     size="lg"
@@ -908,7 +908,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 <div className="absolute inset-0 bg-primary rounded-full blur-2xl opacity-30 animate-pulse"></div>
                 <Rocket className="w-16 h-16 mx-auto text-primary relative" />
               </div>
-              <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent">
+              <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2">
                 Ready to Start Learning?
               </h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">

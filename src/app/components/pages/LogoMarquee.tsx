@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { motion, useAnimationFrame, useMotionValue } from 'framer-motion';
 
 interface Logo {
   name: string;
@@ -12,12 +13,58 @@ interface LogoMarqueeProps {
   pauseOnHover?: boolean;
 }
 
-export function LogoMarquee({ logos, speed = 30, pauseOnHover = true }: LogoMarqueeProps) {
+export function LogoMarquee({
+  logos,
+  speed = 30,
+  pauseOnHover = true,
+}: LogoMarqueeProps) {
   const [isPaused, setIsPaused] = useState(false);
-  const marqueeRef = useRef<HTMLDivElement>(null);
+  const marqueeRef = useRef<HTMLDivElement | null>(null);
+  const x = useMotionValue(0);
+  const loopWidthRef = useRef(0);
 
   // Duplicate logos for seamless loop
   const duplicatedLogos = [...logos, ...logos];
+
+  useEffect(() => {
+    const updateLoopWidth = () => {
+      if (!marqueeRef.current) return;
+      loopWidthRef.current = marqueeRef.current.scrollWidth / 2;
+    };
+
+    updateLoopWidth();
+
+    if (!marqueeRef.current || typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateLoopWidth);
+      return () => window.removeEventListener('resize', updateLoopWidth);
+    }
+
+    const observer = new ResizeObserver(updateLoopWidth);
+    observer.observe(marqueeRef.current);
+    window.addEventListener('resize', updateLoopWidth);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateLoopWidth);
+    };
+  }, [duplicatedLogos.length]);
+
+  useAnimationFrame((_, delta) => {
+    if (isPaused) return;
+
+    const loopWidth = loopWidthRef.current;
+    if (!loopWidth) return;
+
+    const pixelsPerSecond = loopWidth / speed;
+    const nextX = x.get() - pixelsPerSecond * (delta / 1000);
+
+    if (nextX <= -loopWidth) {
+      x.set(nextX + loopWidth);
+      return;
+    }
+
+    x.set(nextX);
+  });
 
   return (
     <div className="relative overflow-hidden">
@@ -26,18 +73,10 @@ export function LogoMarquee({ logos, speed = 30, pauseOnHover = true }: LogoMarq
       <div className="absolute right-0 top-0 bottom-0 w-24 md:w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none"></div>
 
       {/* Scrolling container */}
-      <div
+      <motion.div
         ref={marqueeRef}
-        className="flex gap-12 md:gap-16 py-6"
-        style={{
-          animationName: 'marquee-scroll',
-          animationDuration: `${speed}s`,
-          animationTimingFunction: 'linear',
-          animationIterationCount: 'infinite',
-          animationDirection: 'reverse',
-          animationPlayState: isPaused ? 'paused' : 'running',
-          willChange: 'transform'
-        }}
+        className="flex w-max gap-12 md:gap-16 py-6"
+        style={{ x }}
         onMouseEnter={() => pauseOnHover && setIsPaused(true)}
         onMouseLeave={() => pauseOnHover && setIsPaused(false)}
       >
@@ -74,7 +113,7 @@ export function LogoMarquee({ logos, speed = 30, pauseOnHover = true }: LogoMarq
             )}
           </div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

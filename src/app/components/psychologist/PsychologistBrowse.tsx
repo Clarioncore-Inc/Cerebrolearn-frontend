@@ -6,6 +6,7 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Skeleton } from '../ui/skeleton';
 import { 
 	ArrowLeft,
   Search, 
@@ -49,7 +50,7 @@ export function PsychologistBrowse({ onNavigate, backPage, backData }: Psycholog
   const [specializationFilter, setSpecializationFilter] = useState('all');
   const [locationFilter, setLocationFilter] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
@@ -178,6 +179,52 @@ export function PsychologistBrowse({ onNavigate, backPage, backData }: Psycholog
     new Set(psychologists.map((psychologist) => psychologist.location).filter(Boolean)),
   );
 
+  const PsychologistCardSkeleton = () => (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start gap-4">
+          <Skeleton className="w-16 h-16 rounded-full flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="space-y-2 flex-1">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-36" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+                <div className="flex items-center gap-1">
+                  <Skeleton className="h-3 w-3 rounded-full" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <div className="space-y-1 flex-shrink-0 text-right">
+                <Skeleton className="h-4 w-10 ml-auto" />
+                <Skeleton className="h-3 w-16 ml-auto" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Skeleton className="h-6 w-32 rounded-full" />
+          <Skeleton className="h-6 w-24 rounded-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-5/6" />
+          <Skeleton className="h-3 w-4/6" />
+        </div>
+        <div className="pt-2 border-t">
+          <Skeleton className="h-3 w-28" />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <Skeleton className="h-10 flex-1 rounded-md" />
+          <Skeleton className="h-10 flex-1 rounded-md" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   const handleGoBack = () => {
     if (backPage) {
       onNavigate(backPage, backData);
@@ -272,19 +319,18 @@ export function PsychologistBrowse({ onNavigate, backPage, backData }: Psycholog
 
       {/* Results Count */}
       <div className="mb-4 text-sm text-muted-foreground">
-        {loading
-          ? 'Loading psychologists...'
-          : null}
-        {!loading ? (
-          <>
-        Showing {filteredPsychologists.length} psychologist{filteredPsychologists.length !== 1 ? 's' : ''}
-          </>
-        ) : null}
+        {loading ? (
+          <Skeleton className="h-4 w-48" />
+        ) : (
+          <>Showing {filteredPsychologists.length} psychologist{filteredPsychologists.length !== 1 ? 's' : ''}</>
+        )}
       </div>
 
       {/* Psychologist Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredPsychologists.map((psychologist) => (
+        {loading
+          ? Array.from({ length: 6 }).map((_, i) => <PsychologistCardSkeleton key={i} />)
+          : filteredPsychologists.map((psychologist) => (
           <Card key={psychologist.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start gap-4">
@@ -385,7 +431,7 @@ export function PsychologistBrowse({ onNavigate, backPage, backData }: Psycholog
       </div>
 
       {/* Empty State */}
-      {filteredPsychologists.length === 0 && (
+      {!loading && filteredPsychologists.length === 0 && (
         <Card className="p-12">
           <div className="text-center">
             <Filter className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />

@@ -1,5 +1,6 @@
 import {
   Genius,
+  GeniusEra,
   GeniusProfileType,
   GeniusProfile,
   GeniusSearchFilters,
@@ -12,6 +13,37 @@ import {
   getGeniusAchievements,
   getGeniusContributions
 } from '../data/geniusData';
+import { publicGeniusApi } from '../../../utils/api-client';
+
+export async function fetchPublishedGeniuses(): Promise<Genius[]> {
+  const res = await publicGeniusApi.list();
+  return res.items.map(r => ({
+    id: r.id,
+    slug: r.slug,
+    full_name: r.full_name,
+    iq_score: r.iq_score,
+    iq_score_label: r.iq_score_label,
+    iq_score_note: r.iq_score_note,
+    birth_date: r.birth_date,
+    death_date: r.death_date,
+    birth_place: r.birth_place,
+    zodiac_sign: r.zodiac_sign,
+    profile_image_url: r.profile_image_url ?? null,
+    banner_image_url: r.banner_image_url ?? null,
+    image_attribution: r.image_attribution ?? null,
+    biography: r.biography,
+    short_description: r.short_description,
+    era: r.era as GeniusEra,
+    profile_type: r.profile_type as GeniusProfileType,
+    is_historical: r.is_historical,
+    is_fictional: r.is_fictional,
+    source_url: r.source_url,
+    editorial_note: r.editorial_note,
+    publication_status: r.publication_status,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+  }));
+}
 
 export const GENIUS_PROFILE_DRAFTS_KEY = 'cerebrolearn.genius.profileDrafts';
 

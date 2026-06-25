@@ -16,7 +16,7 @@ export function BrilliantBanner({ variant = 'partners', className = '' }: Brilli
       subtitle: 'Our content is crafted by award-winning professionals from top universities and companies',
       icon: Shield,
       logos: [
-        { name: 'MIT', url: 'https://upload.wikimedia.org/wikipedia/commons/0/0c/MIT_logo.svg' },
+        { name: 'MIT', text: 'MIT' },
         { name: 'Stanford', url: 'https://upload.wikimedia.org/wikipedia/commons/b/b5/Seal_of_Leland_Stanford_Junior_University.svg' },
         { name: 'Harvard', url: 'https://upload.wikimedia.org/wikipedia/commons/c/cc/Harvard_University_coat_of_arms.svg' },
         { name: 'Google', url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg' },

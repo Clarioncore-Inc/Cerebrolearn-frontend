@@ -45,6 +45,7 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Input } from '../ui/input';
+import { Skeleton } from '../ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import {
   DropdownMenu,
@@ -140,6 +141,7 @@ export function MyCoursesPage({
   }, []);
 
   const loadCourses = async () => {
+    setLoading(true);
     try {
       // Fetch creator's courses (both published and draft)
       const data = await creatorApi.getCourses();
@@ -277,6 +279,127 @@ export function MyCoursesPage({
     totalStudents: courses.reduce((sum, c) => sum + (c.enrollments || 0), 0),
     totalRevenue: courses.reduce((sum, c) => sum + (c.revenue || 0), 0),
   };
+
+  const renderGridSkeletonCard = (key: number) => (
+    <Card
+      key={key}
+      className='overflow-hidden border border-border/70 bg-card shadow-sm dark:border-white/10 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950'
+    >
+      <Skeleton className='h-[200px] w-full rounded-none' />
+      <div className='p-4 space-y-4'>
+        <div className='flex items-center justify-between'>
+          <Skeleton className='h-6 w-24 rounded-full' />
+          <Skeleton className='h-5 w-16' />
+        </div>
+        <div className='space-y-2'>
+          <Skeleton className='h-6 w-5/6' />
+          <Skeleton className='h-4 w-full' />
+          <Skeleton className='h-4 w-2/3' />
+        </div>
+        <div className='flex flex-wrap gap-2 border-b border-border/60 pb-3 dark:border-white/10'>
+          <Skeleton className='h-7 w-24 rounded-md' />
+          <Skeleton className='h-7 w-20 rounded-md' />
+          <Skeleton className='h-7 w-24 rounded-md' />
+        </div>
+        <Skeleton className='h-16 w-full rounded-lg' />
+        <div className='grid grid-cols-2 gap-2'>
+          <Skeleton className='h-8 w-full rounded-md' />
+          <Skeleton className='h-8 w-full rounded-md' />
+        </div>
+      </div>
+    </Card>
+  );
+
+  const renderListSkeletonCard = (key: number) => (
+    <Card
+      key={key}
+      className='border border-border/70 bg-card shadow-sm dark:border-white/10 dark:bg-gradient-to-r dark:from-slate-900 dark:to-slate-950'
+    >
+      <CardContent className='p-6'>
+        <div className='flex items-center gap-6'>
+          <Skeleton className='h-32 w-32 rounded-lg flex-shrink-0' />
+          <div className='flex-1 space-y-4'>
+            <div className='space-y-2'>
+              <Skeleton className='h-7 w-1/2' />
+              <Skeleton className='h-4 w-full' />
+              <Skeleton className='h-4 w-2/3' />
+            </div>
+            <div className='flex gap-3'>
+              <Skeleton className='h-6 w-20 rounded-full' />
+              <Skeleton className='h-6 w-24 rounded-full' />
+              <Skeleton className='h-6 w-24 rounded-full' />
+            </div>
+            <div className='flex gap-2'>
+              <Skeleton className='h-9 w-24 rounded-md' />
+              <Skeleton className='h-9 w-24 rounded-md' />
+              <Skeleton className='h-9 w-9 rounded-md' />
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (loading) {
+    return (
+      <div className='space-y-6'>
+        <div className='flex flex-col gap-4 md:flex-row md:items-center md:justify-between'>
+          <div className='space-y-3'>
+            <Skeleton className='h-10 w-56' />
+            <Skeleton className='h-5 w-80 max-w-full' />
+          </div>
+          <Skeleton className='h-11 w-44' />
+        </div>
+
+        <div className='grid gap-4 md:grid-cols-5'>
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Card
+              key={index}
+              className='border border-border/70 bg-card dark:border-white/10 dark:bg-slate-950'
+            >
+              <CardContent className='p-6'>
+                <div className='space-y-3'>
+                  <Skeleton className='h-4 w-24' />
+                  <Skeleton className='h-8 w-16' />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card className='border-2 shadow-none dark:border-white/10 dark:bg-slate-950/90'>
+          <CardContent className='p-6'>
+            <div className='flex flex-col gap-4 md:flex-row md:items-center'>
+              <Skeleton className='h-10 w-full flex-1' />
+              <Skeleton className='h-10 w-full md:w-36' />
+              <div className='flex gap-2 md:ml-auto'>
+                <Skeleton className='h-10 w-10' />
+                <Skeleton className='h-10 w-10' />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className='space-y-6'>
+          <div className='flex gap-2'>
+            <Skeleton className='h-10 w-32 rounded-md' />
+            <Skeleton className='h-10 w-32 rounded-md' />
+            <Skeleton className='h-10 w-28 rounded-md' />
+          </div>
+
+          {viewMode === 'grid' ? (
+            <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+              {Array.from({ length: 6 }).map((_, index) => renderGridSkeletonCard(index))}
+            </div>
+          ) : (
+            <div className='space-y-4'>
+              {Array.from({ length: 4 }).map((_, index) => renderListSkeletonCard(index))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>
@@ -446,7 +569,7 @@ export function MyCoursesPage({
               {filteredCourses.map((course) => (
                 <Card
                   key={course.id}
-                  className='group overflow-hidden hover:shadow-xl hover:shadow-primary/10 hover:border-primary/40 transition-all duration-300 bg-white border hover:-translate-y-1 cursor-pointer'
+                  className='group cursor-pointer overflow-hidden border border-border/70 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 dark:border-white/10 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 dark:hover:border-primary/30 dark:hover:shadow-[0_20px_40px_rgba(2,6,23,0.6)]'
                   onClick={() =>
                     onNavigate('course-detail', {
                       category: course.category,
@@ -495,16 +618,16 @@ export function MyCoursesPage({
 
                     {/* Engagement Stats - Top Right */}
                     <div className='absolute top-3 right-3 flex flex-col gap-1.5'>
-                      <div className='backdrop-blur-md bg-white/95 rounded-lg px-2 py-1 flex items-center gap-1 border border-white/50 shadow-md'>
+                      <div className='flex items-center gap-1 rounded-lg border border-white/50 bg-white/95 px-2 py-1 shadow-md backdrop-blur-md dark:border-white/10 dark:bg-slate-950/85'>
                         <Users className='w-3.5 h-3.5 text-primary' />
-                        <span className='text-xs font-bold text-gray-900'>
+                        <span className='text-xs font-bold text-gray-900 dark:text-slate-100'>
                           {course.enrollments || 0}
                         </span>
                       </div>
                       {course.rating > 0 && (
-                        <div className='backdrop-blur-md bg-white/95 rounded-lg px-2 py-1 flex items-center gap-1 border border-white/50 shadow-md'>
+                        <div className='flex items-center gap-1 rounded-lg border border-white/50 bg-white/95 px-2 py-1 shadow-md backdrop-blur-md dark:border-white/10 dark:bg-slate-950/85'>
                           <Star className='w-3.5 h-3.5 fill-amber-400 text-amber-400' />
-                          <span className='text-xs font-bold text-gray-900'>
+                          <span className='text-xs font-bold text-gray-900 dark:text-slate-100'>
                             {course.rating.toFixed(1)}
                           </span>
                         </div>
@@ -530,7 +653,7 @@ export function MyCoursesPage({
                         ) : course.discount ? (
                           <>
                             <DollarSign className='w-3.5 h-3.5 text-emerald-600' />
-                            <span className='font-bold text-gray-900'>
+                            <span className='font-bold text-gray-900 dark:text-slate-100'>
                               {course.discount}
                             </span>
                             <span className='text-sm text-muted-foreground line-through ml-1'>
@@ -540,7 +663,7 @@ export function MyCoursesPage({
                         ) : (
                           <>
                             <DollarSign className='w-3.5 h-3.5 text-emerald-600' />
-                            <span className='font-bold text-gray-900'>
+                            <span className='font-bold text-gray-900 dark:text-slate-100'>
                               {course.price}
                             </span>
                           </>
@@ -556,7 +679,7 @@ export function MyCoursesPage({
                         handleEditCourse(course);
                       }}
                     >
-                      <h3 className='flex-1 font-bold text-lg text-gray-900 truncate group-hover/title:text-primary transition-colors leading-snug'>
+                      <h3 className='flex-1 truncate text-lg font-bold leading-snug text-gray-900 transition-colors group-hover/title:text-primary dark:text-slate-50'>
                         {course.title}
                       </h3>
                       <div className='pt-1 opacity-0 group-hover/title:opacity-100 group-hover/title:translate-x-0.5 transition-all duration-200'>
@@ -577,26 +700,26 @@ export function MyCoursesPage({
                     </div>
 
                     {/* Description */}
-                    <p className='text-sm text-gray-600 line-clamp-2 mb-3 leading-relaxed'>
+                    <p className='mb-3 line-clamp-2 text-sm leading-relaxed text-gray-600 dark:text-slate-400'>
                       {course.description}
                     </p>
 
                     {/* Stats Row */}
-                    <div className='flex items-center flex-wrap gap-3 text-xs text-muted-foreground mb-3 pb-3 border-b border-gray-200'>
-                      <div className='flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1'>
+                    <div className='mb-3 flex flex-wrap items-center gap-3 border-b border-gray-200 pb-3 text-xs text-muted-foreground dark:border-white/10 dark:text-slate-300'>
+                      <div className='flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 dark:bg-white/[0.05]'>
                         <BookOpen className='w-3.5 h-3.5 text-primary' />
                         <span className='font-medium'>
                           {course.total_lessons || 0} lessons
                         </span>
                       </div>
-                      <div className='flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1'>
+                      <div className='flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 dark:bg-white/[0.05]'>
                         <Clock className='w-3.5 h-3.5 text-primary' />
                         <span className='font-medium'>
                           {course.total_duration_text || '0h'}
                         </span>
                       </div>
                       {course.reviews > 0 && (
-                        <div className='flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1'>
+                        <div className='flex items-center gap-1 rounded-md bg-gray-50 px-2 py-1 dark:bg-white/[0.05]'>
                           <UserCheck className='w-3.5 h-3.5 text-primary' />
                           <span className='font-medium'>
                             {course.reviews} reviews
@@ -607,12 +730,12 @@ export function MyCoursesPage({
 
                     {/* Progress (Draft courses) */}
                     {course.status === 'draft' && (
-                      <div className='mb-3 bg-amber-50 rounded-lg p-3 border border-amber-200'>
+                      <div className='mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/30'>
                         <div className='flex items-center justify-between text-xs mb-1.5'>
-                          <span className='font-medium text-amber-700'>
+                          <span className='font-medium text-amber-700 dark:text-amber-300'>
                             Course Setup Progress
                           </span>
-                          <span className='font-bold text-amber-900'>
+                          <span className='font-bold text-amber-900 dark:text-amber-100'>
                             {course.completion || 0}%
                           </span>
                         </div>
@@ -625,17 +748,17 @@ export function MyCoursesPage({
 
                     {/* Revenue (Published courses) */}
                     {course.status === 'published' && course.revenue > 0 && (
-                      <div className='bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-lg p-3 mb-3 border border-emerald-200 shadow-sm'>
+                      <div className='mb-3 rounded-lg border border-emerald-200 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-3 shadow-sm dark:border-emerald-800/60 dark:from-emerald-950/50 dark:to-emerald-900/20'>
                         <div className='flex items-center justify-between'>
                           <div className='flex items-center gap-2'>
                             <div className='w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center'>
                               <TrendingUp className='w-4 h-4 text-white' />
                             </div>
                             <div>
-                              <p className='text-xs font-medium text-emerald-600'>
+                              <p className='text-xs font-medium text-emerald-600 dark:text-emerald-300'>
                                 Total Revenue
                               </p>
-                              <p className='text-xl font-bold text-emerald-700'>
+                              <p className='text-xl font-bold text-emerald-700 dark:text-emerald-100'>
                                 ${(course.revenue || 0).toLocaleString()}
                               </p>
                             </div>
@@ -649,7 +772,7 @@ export function MyCoursesPage({
                       <Button
                         variant='outline'
                         size='sm'
-                        className='w-full h-8 text-xs font-medium border-2 hover:border-primary hover:bg-primary/5'
+                        className='h-8 w-full border-2 text-xs font-medium hover:border-primary hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
                         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           handleEditCourse(course);
@@ -662,7 +785,7 @@ export function MyCoursesPage({
                       {course.status === 'draft' ? (
                         <Button
                           size='sm'
-                          className='w-full h-8 text-xs font-medium bg-primary hover:bg-primary/90 shadow-sm'
+                          className='h-8 w-full bg-primary text-xs font-medium shadow-sm hover:bg-primary/90'
                           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
                             handlePublishCourse(course.id);
@@ -675,7 +798,7 @@ export function MyCoursesPage({
                         <Button
                           size='sm'
                           variant='secondary'
-                          className='w-full h-8 text-xs font-medium bg-secondary hover:bg-secondary/80'
+                          className='h-8 w-full bg-secondary text-xs font-medium hover:bg-secondary/80 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
                           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
                             onNavigate('creator-analytics', course);
@@ -692,7 +815,7 @@ export function MyCoursesPage({
                       <Button
                         variant='outline'
                         size='sm'
-                        className='w-full h-8 text-xs font-medium mt-2 border-2 hover:border-primary hover:bg-primary/5'
+                        className='mt-2 h-8 w-full border-2 text-xs font-medium hover:border-primary hover:bg-primary/5 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
                         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                           e.stopPropagation();
                           setSelectedCourseForShare(course);
@@ -715,7 +838,7 @@ export function MyCoursesPage({
               {filteredCourses.map((course) => (
                 <Card
                   key={course.id}
-                  className='border-2 hover:border-primary/50 transition-all'
+                  className='border-2 bg-card transition-all hover:border-primary/50 dark:border-white/10 dark:bg-gradient-to-r dark:from-slate-900 dark:to-slate-950 dark:hover:border-primary/30'
                 >
                   <CardContent className='p-6'>
                     <div className='flex items-center gap-6'>
@@ -736,13 +859,13 @@ export function MyCoursesPage({
                       <div className='flex-1 min-w-0'>
                         <div className='flex items-start justify-between mb-2'>
                           <div className='flex-1'>
-                            <h3 className='text-xl font-bold mb-1'>
+                            <h3 className='mb-1 text-xl font-bold dark:text-slate-50'>
                               {course.title}
                             </h3>
-                            <p className='text-sm text-muted-foreground line-clamp-1 mb-3'>
+                            <p className='mb-3 line-clamp-1 text-sm text-muted-foreground dark:text-slate-400'>
                               {course.description}
                             </p>
-                            <div className='flex items-center gap-4 text-sm text-muted-foreground'>
+                            <div className='flex items-center gap-4 text-sm text-muted-foreground dark:text-slate-300'>
                               <Badge
                                 className={
                                   course.status === 'published'
@@ -773,6 +896,7 @@ export function MyCoursesPage({
                             <Button
                               variant='outline'
                               size='sm'
+                              className='dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.05]'
                               onClick={() => handleEditCourse(course)}
                             >
                               <Edit className='mr-2 h-4 w-4' />
@@ -791,6 +915,7 @@ export function MyCoursesPage({
                               <Button
                                 size='sm'
                                 variant='secondary'
+                                className='dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
                                 onClick={() =>
                                   onNavigate('creator-analytics', course)
                                 }
@@ -850,10 +975,10 @@ export function MyCoursesPage({
                           course.revenue > 0 && (
                             <div className='flex items-center gap-6 mt-4 pt-4 border-t'>
                               <div>
-                                <p className='text-xs text-muted-foreground'>
+                                <p className='text-xs text-muted-foreground dark:text-slate-400'>
                                   Revenue
                                 </p>
-                                <p className='text-lg font-bold text-emerald-600'>
+                                <p className='text-lg font-bold text-emerald-600 dark:text-emerald-300'>
                                   ${(course.revenue || 0).toLocaleString()}
                                 </p>
                               </div>

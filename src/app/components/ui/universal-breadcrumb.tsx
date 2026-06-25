@@ -144,9 +144,9 @@ export function UniversalBreadcrumb({
     // }
 
     // Leaderboard
-    else if (currentPage === 'leaderboard') {
-      crumbs.push({ label: 'Leaderboard', page: currentPage });
-    }
+    // else if (currentPage === 'leaderboard') {
+    //   crumbs.push({ label: 'Leaderboard', page: currentPage });
+    // }
 
     // Payment
     // else if (currentPage === 'payment') {
@@ -160,17 +160,18 @@ export function UniversalBreadcrumb({
     //   crumbs.push({ label: 'Payment History', page: currentPage });
     // }
 
-    // Creator/Instructor breadcrumbs
-    else if (currentPage.startsWith('creator-')) {
-      const pageName = currentPage.replace('creator-', '').replace(/-/g, ' ');
-      crumbs.push({ label: 'Creator Studio', page: 'creator-dashboard' });
-      if (currentPage !== 'creator-dashboard') {
-        crumbs.push({
-          label: pageName.charAt(0).toUpperCase() + pageName.slice(1),
-          page: currentPage,
-        });
-      }
-    } else if (currentPage.startsWith('instructor-')) {
+    // // Creator/Instructor breadcrumbs
+    // else if (currentPage.startsWith('creator-')) {
+    //   const pageName = currentPage.replace('creator-', '').replace(/-/g, ' ');
+    //   crumbs.push({ label: 'Creator Studio', page: 'creator-dashboard' });
+    //   if (currentPage !== 'creator-dashboard') {
+    //     crumbs.push({
+    //       label: pageName.charAt(0).toUpperCase() + pageName.slice(1),
+    //       page: currentPage,
+    //     });
+    //   }
+    // } 
+    else if (currentPage.startsWith('instructor-')) {
       const pageName = currentPage
         .replace('instructor-', '')
         .replace(/-/g, ' ');

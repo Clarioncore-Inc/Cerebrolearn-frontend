@@ -88,6 +88,7 @@ interface DashboardBooking {
   sessionNotes: Record<string, any> | null;
   createdAt: string;
   updatedAt: string;
+  test_type: string | null;
   price: number;
   rating: number | null;
   isRecurring: boolean;
@@ -369,6 +370,16 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
     spatialReasoningNote: source?.cognitive_profile_notes?.spatial_reasoning ?? '',
   });
 
+  const formatTestTypeLabel = (value?: string | null) => {
+    if (!value) return null;
+
+    return value
+      .split('_')
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  };
+
   const normalizeDashboardBooking = (
     item: any,
     index: number,
@@ -397,6 +408,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
     rejectionReason: item.rejection_reason ?? item.rejectionReason ?? '',
     sessionNotes: item.session_notes ?? item.sessionNotes ?? null,
     createdAt: item.created_at ?? item.createdAt ?? '',
+    test_type: formatTestTypeLabel(item.test_type ?? item.testType ?? null),
     updatedAt: item.updated_at ?? item.updatedAt ?? '',
     price: Number(item.price ?? item.hourly_rate ?? item.hourlyRate ?? 0),
     rating:
@@ -1664,7 +1676,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
               <div>
                 <CardTitle>Upcoming Consultations</CardTitle>
                 <CardDescription>
-                  Your scheduled sessions with students
+                  Your scheduled sessions with clients
                 </CardDescription>
               </div>
               <Button
@@ -1729,7 +1741,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                           </span>
                           <span className='flex items-center gap-1'>
                             <FileText className='h-4 w-4' />
-                            {booking.sessionType}
+                            {[booking.sessionType, booking.test_type].filter(Boolean).join(' • ')}
                           </span>
                         </div>
                         {/* {booking.status === 'cancelled' && booking.rejectionReason ? (

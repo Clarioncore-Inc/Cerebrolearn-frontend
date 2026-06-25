@@ -395,8 +395,16 @@ export const coursesApi = {
       `/courses/?page=${page}&size=${size}`,
     ),
 
+  getPublished: (page = 1, size = 100) =>
+    request<{ items: Course[]; total: number; page: number; pages: number }>(
+      `/courses/public/?page=${page}&size=${size}`,
+    ),
+
   getById: (courseId: string) =>
     request<Course & { lessons: Lesson[] }>(`/courses/${courseId}`),
+
+  getPublishedById: (courseId: string) =>
+    request<Course & { lessons: Lesson[] }>(`/courses/public/${courseId}`),
 
   getActivity: (courseId: string) =>
     request<CourseActivity>(`/courses/activity?course_id=${courseId}`),
@@ -1139,7 +1147,7 @@ export interface GeniusListApiResponse {
 }
 
 export interface GeniusCreatePayload {
-  id: string;
+  id?: string | null;
   full_name: string;
   iq_score?: number | null;
   birth_date?: string | null;
@@ -1155,6 +1163,7 @@ export interface GeniusCreatePayload {
   publication_status?: 'draft' | 'published' | 'archived';
   editorial_note?: string;
   source_url?: string | null;
+  profile_image_url?: string | null;
 }
 
 export interface GeniusUpdatePayload {
@@ -1173,7 +1182,22 @@ export interface GeniusUpdatePayload {
   publication_status?: 'draft' | 'published' | 'archived';
   editorial_note?: string;
   source_url?: string | null;
+  profile_image_url?: string | null;
 }
+
+export const publicGeniusApi = {
+  list: (params?: { query?: string; era?: string; profile_type?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.query)        qs.set('query', params.query);
+    if (params?.era)          qs.set('era', params.era);
+    if (params?.profile_type) qs.set('profile_type', params.profile_type);
+    const suffix = qs.toString() ? `?${qs}` : '';
+    return request<GeniusListApiResponse>(`/genius-profiles${suffix}`);
+  },
+
+  getById: (id: string) =>
+    request<GeniusApiResponse>(`/genius-profiles/${id}`),
+};
 
 export const geniusProfilesApi = {
   list: (params?: { query?: string; status?: string; profile_type?: string }) => {
@@ -1448,6 +1472,7 @@ export const api = {
   organizations: organizationsApi,
   payments: paymentsApi,
   admin: adminApi,
+  genius: publicGeniusApi,
   geniusProfiles: geniusProfilesApi,
   psychologist: psychologistApi,
   storage: storageApi,

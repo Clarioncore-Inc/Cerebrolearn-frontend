@@ -58,7 +58,7 @@ export function HowItWorksSection({
               <Sparkles className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium text-primary">{badgeText}</span>
             </div>
-            <h2 className="text-4xl md:text-5xl font-bold gradient-text">
+            <h2 className="text-4xl md:text-5xl font-bold gradient-text pb-2">
               {title}
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">

@@ -348,14 +348,14 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                       Payment History
                     </DropdownMenuItem>
                   )}
-                  {profile.role === 'psychologist' && (
+                  {/* {profile.role === 'psychologist' && (
                     <DropdownMenuItem
                       onClick={() => onNavigate('psychologist-earnings')}
                     >
                       <DollarSign className='mr-2 h-4 w-4' />
                       Earnings
                     </DropdownMenuItem>
-                  )}
+                  )} */}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className='mr-2 h-4 w-4' />

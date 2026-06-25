@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Brain, 
   Award, 
@@ -26,19 +26,33 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
+import { publicGeniusApi, type GeniusApiResponse } from '../../utils/api-client';
 
 interface IQTestOverviewPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
 
-// Top geniuses preview data
-const topGeniuses = [
-  { name: 'William James Sidis', iq: 250, field: 'Mathematics' },
-  { name: 'Terence Tao', iq: 230, field: 'Mathematics' },
-  { name: 'Marilyn vos Savant', iq: 228, field: 'Writing' },
-  { name: 'Christopher Hirata', iq: 225, field: 'Physics' },
-  { name: 'Kim Ung-Yong', iq: 210, field: 'Physics' }
-];
+interface TopGeniusPreview {
+  id: string;
+  name: string;
+  iq: number | null;
+  field: string;
+}
+
+const formatGeniusProfileType = (value?: string) => {
+  if (!value) return 'Profile';
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const mapTopGeniusPreview = (profile: GeniusApiResponse): TopGeniusPreview => ({
+  id: profile.id,
+  name: profile.full_name,
+  iq: profile.iq_score,
+  field: formatGeniusProfileType(profile.profile_type),
+});
 
 const benefits = [
   {
@@ -144,8 +158,41 @@ const psychologistBookingProcess = [
 
 export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
   const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
+  const [topGeniuses, setTopGeniuses] = useState<TopGeniusPreview[]>([]);
+  const [isLoadingTopGeniuses, setIsLoadingTopGeniuses] = useState(true);
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTopGeniuses = async () => {
+      setIsLoadingTopGeniuses(true);
+
+      try {
+        const response = await publicGeniusApi.list();
+        if (!isMounted) return;
+
+        const rankedProfiles = (response.items || [])
+          .map(mapTopGeniusPreview)
+          .sort((a, b) => (b.iq ?? -1) - (a.iq ?? -1))
+          .slice(0, 5);
+
+        setTopGeniuses(rankedProfiles);
+      } catch (error) {
+        console.error('[IQTestOverviewPage] Failed to load top genius profiles:', error);
+        if (isMounted) setTopGeniuses([]);
+      } finally {
+        if (isMounted) setIsLoadingTopGeniuses(false);
+      }
+    };
+
+    loadTopGeniuses();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,9 +263,14 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {topGeniuses.map((genius, index) => (
+                  {isLoadingTopGeniuses ? (
+                    <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-primary-foreground/80">
+                      Loading genius profiles…
+                    </div>
+                  ) : topGeniuses.length > 0 ? (
+                    topGeniuses.map((genius, index) => (
                     <div 
-                      key={genius.name}
+                      key={genius.id}
                       className="flex items-center gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
                     >
                       <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
@@ -234,11 +286,16 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                         <p className="text-sm text-primary-foreground/70">{genius.field}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary-foreground">{genius.iq}</p>
+                        <p className="text-2xl font-bold text-primary-foreground">{genius.iq ?? '—'}</p>
                         <p className="text-xs text-primary-foreground/70">IQ Score</p>
                       </div>
                     </div>
-                  ))}
+                    ))
+                  ) : (
+                    <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-primary-foreground/80">
+                      Genius profiles are not available yet.
+                    </div>
+                  )}
                   <Button 
                     variant="outline" 
                     className="w-full mt-4 bg-transparent border-white/30 text-primary-foreground hover:bg-white/10"

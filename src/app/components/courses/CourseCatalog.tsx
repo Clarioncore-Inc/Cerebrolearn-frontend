@@ -71,7 +71,7 @@ export function CourseCatalog({
 
   useEffect(() => {
     loadCourses();
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const loadBookmarks = async () => {
@@ -173,6 +173,15 @@ export function CourseCatalog({
     }
   };
 
+  const handleOpenCourse = (course: any) => {
+    if (!user) {
+      onNavigate('auth');
+      return;
+    }
+
+    onNavigate('course', course);
+  };
+
   const formatCategoryLabel = (value: string = '') =>
     value
       .replace(/[-_]+/g, ' ')
@@ -225,7 +234,9 @@ export function CourseCatalog({
       let totalPages = 1;
 
       do {
-        const data = await coursesApi.getAll(page, 100);
+        const data = user
+          ? await coursesApi.getAll(page, 100)
+          : await coursesApi.getPublished(page, 100);
         allCourses.push(...(data.items || []));
         totalPages = data.pages || 1;
         page += 1;
@@ -277,14 +288,82 @@ export function CourseCatalog({
     advanced: 'from-rose-500 to-pink-500',
   };
 
+  const renderCourseSkeletonCard = (key: number) => (
+    <Card
+      key={key}
+      className='overflow-hidden border border-border/70 bg-card/95 shadow-sm dark:border-white/10 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950'
+    >
+      <Skeleton className='h-48 w-full rounded-none' />
+      <CardHeader className='space-y-3 pb-4'>
+        <div className='flex items-start justify-between gap-2'>
+          <Skeleton className='h-6 w-20 rounded-full' />
+          <Skeleton className='h-6 w-24 rounded-full' />
+        </div>
+        <Skeleton className='h-6 w-5/6' />
+        <Skeleton className='h-4 w-full' />
+        <Skeleton className='h-4 w-4/5' />
+      </CardHeader>
+      <CardContent className='space-y-4'>
+        <div className='rounded-xl border border-border/60 bg-muted/40 px-3 py-3 dark:border-white/8 dark:bg-white/[0.04]'>
+          <div className='flex items-center justify-between gap-3'>
+            <Skeleton className='h-4 w-14' />
+            <Skeleton className='h-4 w-12' />
+            <Skeleton className='h-4 w-10' />
+          </div>
+        </div>
+        <div className='flex items-center justify-between rounded-xl border border-border/60 bg-background/70 px-3 py-3 dark:border-white/8 dark:bg-slate-900/60'>
+          <div className='flex items-center gap-3'>
+            <Skeleton className='h-9 w-9 rounded-full' />
+            <div className='space-y-2'>
+              <Skeleton className='h-3 w-14' />
+              <Skeleton className='h-3 w-18' />
+            </div>
+          </div>
+          <Skeleton className='h-9 w-24 rounded-md' />
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
-      <div className='container py-8 space-y-8'>
-        <Skeleton className='h-32' />
-        <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className='h-96' />
-          ))}
+      <div className='min-h-screen'>
+        <div className='relative overflow-hidden bg-gradient-to-br from-primary via-primary to-secondary text-white'>
+          <div className='container py-16 md:py-24'>
+            <div className='mx-auto max-w-3xl space-y-6 text-center'>
+              <div className='flex justify-center'>
+                <Skeleton className='h-8 w-48 rounded-full bg-white/20' />
+              </div>
+              <div className='space-y-3'>
+                <Skeleton className='mx-auto h-12 w-3/4 bg-white/20' />
+                <Skeleton className='mx-auto h-5 w-2/3 bg-white/15' />
+                <Skeleton className='mx-auto h-5 w-1/2 bg-white/15' />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className='container py-8 space-y-8'>
+          <div className='max-w-4xl mx-auto -mt-16 relative z-20'>
+            <Card className='border-0 bg-card/95 shadow-2xl backdrop-blur-sm dark:bg-slate-950/90'>
+              <CardContent className='p-6 md:p-8'>
+                <div className='grid gap-4 md:grid-cols-3'>
+                  <Skeleton className='h-11 w-full' />
+                  <Skeleton className='h-11 w-full' />
+                  <Skeleton className='h-11 w-full' />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className='flex items-center justify-between'>
+            <Skeleton className='h-5 w-44' />
+            <Skeleton className='h-6 w-24 rounded-full' />
+          </div>
+
+          <div className='grid gap-6 md:grid-cols-2 lg:grid-cols-3'>
+            {[1, 2, 3, 4, 5, 6].map((i) => renderCourseSkeletonCard(i))}
+          </div>
         </div>
       </div>
     );
@@ -324,7 +403,7 @@ export function CourseCatalog({
         <div className='max-w-4xl mx-auto -mt-16 relative z-20'>
           <SmartSearchBar
             onSearch={(query) => setSearchQuery(query)}
-            onCourseSelect={(course) => onNavigate('course', course)}
+            onCourseSelect={handleOpenCourse}
             courses={courses}
           />
         </div>
@@ -491,13 +570,13 @@ export function CourseCatalog({
                 return (
               <Card
                 key={course.id}
-                className='group overflow-hidden hover-lift card-glow cursor-pointer transition-all duration-300'
-                onClick={() => onNavigate('course', course)}
+                className='group cursor-pointer overflow-hidden border border-border/70 bg-card/95 shadow-sm transition-all duration-300 hover-lift card-glow hover:border-primary/30 hover:shadow-xl dark:border-white/10 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 dark:shadow-[0_10px_30px_rgba(0,0,0,0.35)] dark:hover:border-primary/40 dark:hover:shadow-[0_20px_40px_rgba(2,6,23,0.6)]'
+                onClick={() => handleOpenCourse(course)}
               >
                 <div
                   className={`h-48 bg-gradient-to-br ${levelGradients[course.level as keyof typeof levelGradients] || 'from-indigo-500 to-purple-500'} flex items-center justify-center relative overflow-hidden`}
                 >
-                  <div className='absolute inset-0 bg-black/20'></div>
+                  <div className='absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-black/30 dark:from-slate-950/85 dark:via-slate-950/20 dark:to-slate-900/45'></div>
                   {getImageUrl(course) ? (
                     <img
                       src={getImageUrl(course)}
@@ -512,7 +591,7 @@ export function CourseCatalog({
                     type='button'
                     variant='secondary'
                     size='icon'
-                    className='absolute right-4 top-4 z-30 h-9 w-9 bg-background/90 hover:bg-background'
+                    className='absolute right-4 top-4 z-30 h-9 w-9 border border-white/25 bg-background/90 backdrop-blur-sm hover:bg-background dark:border-white/10 dark:bg-slate-950/85 dark:text-slate-100 dark:hover:bg-slate-900'
                     title={
                       isBookmarked
                         ? 'Remove course bookmark'
@@ -528,10 +607,10 @@ export function CourseCatalog({
                   </Button>
 
                   {/* Overlay on hover */}
-                  <div className='absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-end p-6'>
+                  <div className='absolute inset-0 z-20 flex items-end bg-gradient-to-t from-black/70 via-black/20 to-transparent p-6 opacity-0 transition-opacity group-hover:opacity-100 dark:from-slate-950/90 dark:via-slate-950/25'>
                     <Button
                       size='sm'
-                      className='w-full bg-white text-primary hover:bg-white/90'
+                      className='w-full bg-background/95 text-foreground shadow-lg hover:bg-background dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-white'
                     >
                       <Play className='mr-2 h-4 w-4' />
                       View Course
@@ -539,32 +618,32 @@ export function CourseCatalog({
                   </div>
                 </div>
 
-                <CardHeader>
+                <CardHeader className='space-y-3 pb-4'>
                   <div className='flex items-start justify-between gap-2 mb-2'>
                     <Badge
                       variant={
                         course.level === 'beginner' ? 'secondary' : 'default'
                       }
-                      className={`text-xs bg-gradient-to-r ${levelGradients[course.level as keyof typeof levelGradients]} text-white border-0`}
+                      className={`border-0 text-xs shadow-sm bg-gradient-to-r ${levelGradients[course.level as keyof typeof levelGradients]} text-white`}
                     >
                       {course.level}
                     </Badge>
-                    <Badge variant='outline' className='text-xs'>
+                    <Badge variant='outline' className='text-xs border-border/70 bg-background/70 dark:border-white/10 dark:bg-white/5'>
                       {course.category}
                     </Badge>
                   </div>
 
-                  <CardTitle className='line-clamp-2 group-hover:text-primary transition-colors'>
+                  <CardTitle className='line-clamp-2 text-lg leading-snug transition-colors group-hover:text-primary dark:text-slate-50'>
                     {course.title}
                   </CardTitle>
-                  <CardDescription className='line-clamp-2'>
+                  <CardDescription className='line-clamp-2 leading-6 text-muted-foreground dark:text-slate-400/95'>
                     {course.description}
                   </CardDescription>
                 </CardHeader>
 
                 <CardContent className='space-y-4'>
                   {/* Course Meta */}
-                  <div className='flex items-center justify-between text-sm text-muted-foreground'>
+                  <div className='flex items-center justify-between rounded-xl border border-border/60 bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground dark:border-white/8 dark:bg-white/[0.04] dark:text-slate-300'>
                     <div className='flex items-center gap-1'>
                       <Users className='h-4 w-4' />
                       <span>{Math.floor(Math.random() * 10000)}+</span>
@@ -582,17 +661,17 @@ export function CourseCatalog({
                   </div>
 
                   {/* Instructor & Price */}
-                  <div className='flex items-center justify-between pt-3 border-t'>
-                    <div className='flex items-center gap-2'>
-                      <div className='h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center'>
+                  <div className='flex items-center justify-between rounded-xl border border-border/60 bg-background/70 px-3 py-3 dark:border-white/8 dark:bg-slate-900/60'>
+                    <div className='flex items-center gap-3'>
+                      <div className='h-9 w-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-sm'>
                         <Award className='h-4 w-4 text-white' />
                       </div>
                       <div className='text-xs'>
-                        <p className='font-medium'>Expert</p>
-                        <p className='text-muted-foreground'>Instructor</p>
+                        <p className='font-semibold text-foreground dark:text-slate-100'>Expert</p>
+                        <p className='text-muted-foreground dark:text-slate-400'>Instructor</p>
                       </div>
                     </div>
-                    <Button size='sm' variant='outline' className='group/btn'>
+                    <Button size='sm' variant='outline' className='group/btn border-border/70 bg-background/80 hover:bg-muted dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]'>
                       {isEnrolled ? 'Continue' : 'View Course'}
                       <Play className='ml-1 h-3 w-3 group-hover/btn:translate-x-0.5 transition-transform' />
                     </Button>
