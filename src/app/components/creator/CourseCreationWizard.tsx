@@ -723,10 +723,10 @@ export function CourseCreationWizard({
         {/* Header */}
         <div className='mb-8 flex items-start justify-between'>
           <div>
-            <h1 className='text-4xl font-extrabold text-gray-900 mb-2'>
+            <h1 className='mb-2 text-4xl font-extrabold text-foreground'>
               Create New Course
             </h1>
-            <p className='text-gray-600'>
+            <p className='text-muted-foreground'>
               Follow the steps below to create your course
             </p>
           </div>
@@ -735,14 +735,14 @@ export function CourseCreationWizard({
               type='button'
               onClick={() => handleSubmitCourse('draft')}
               disabled={isSavingDraft}
-              className='px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer'
+              className='cursor-pointer rounded-lg border border-border px-4 py-2 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
             >
               {isSavingDraft ? 'Saving...' : 'Save as Draft'}
             </button>
             <button
               type='button'
               onClick={onCancel}
-              className='p-3 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors'
+              className='rounded-lg p-3 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
               title='Close wizard'
             >
               <X className='w-6 h-6' />
@@ -751,7 +751,7 @@ export function CourseCreationWizard({
         </div>
 
         {/* Progress Steps */}
-        <div className='bg-white rounded-lg border border-gray-200 p-6 mb-6'>
+        <div className='mb-6 rounded-lg border border-border bg-card p-6 shadow-sm'>
           <div className='flex items-center justify-between'>
             {steps.map((step, index) => (
               <React.Fragment key={step.id}>
@@ -762,7 +762,7 @@ export function CourseCreationWizard({
                         ? 'bg-[#395192] text-white'
                         : currentStep > step.id
                           ? 'bg-green-500 text-white'
-                          : 'bg-gray-200 text-gray-500'
+                          : 'bg-muted text-muted-foreground'
                     }`}
                   >
                     {currentStep > step.id ? (
@@ -771,13 +771,13 @@ export function CourseCreationWizard({
                       <step.icon className='w-6 h-6' />
                     )}
                   </div>
-                  <span className='text-sm font-medium text-gray-700 text-center'>
+                  <span className='text-center text-sm font-medium text-foreground/80'>
                     {step.name}
                   </span>
                 </div>
                 {index < steps.length - 1 && (
                   <div
-                    className={`flex-1 h-1 mx-4 rounded ${currentStep > step.id ? 'bg-green-500' : 'bg-gray-200'}`}
+                    className={`mx-4 h-1 flex-1 rounded ${currentStep > step.id ? 'bg-green-500' : 'bg-border'}`}
                   />
                 )}
               </React.Fragment>
@@ -786,17 +786,17 @@ export function CourseCreationWizard({
         </div>
 
         {/* Step Content */}
-        <div className='bg-white rounded-lg border border-gray-200 p-6 mb-6'>
+        <div className='mb-6 rounded-lg border border-border bg-card p-6 shadow-sm'>
           {/* Step 1: Basic Info */}
           {currentStep === 1 && (
             <div className='space-y-6'>
-              <h2 className='text-2xl font-bold text-gray-900 mb-6'>
+              <h2 className='mb-6 text-2xl font-bold text-foreground'>
                 Basic Information
               </h2>
 
               {/* Course Title */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Course Title *
                 </Label>
                 <Input
@@ -814,7 +814,7 @@ export function CourseCreationWizard({
 
               {/* Subtitle */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Subtitle
                 </Label>
                 <Input
@@ -827,13 +827,13 @@ export function CourseCreationWizard({
                     }))
                   }
                   placeholder='Brief tagline for your course'
-                  className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#395192] focus:border-transparent'
+                  className='w-full rounded-lg border border-border bg-input-background px-4 py-3 text-foreground focus:border-transparent focus:ring-2 focus:ring-[#395192]'
                 />
               </div>
 
               {/* Description */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Course Description *
                 </Label>
                 <textarea
@@ -846,14 +846,14 @@ export function CourseCreationWizard({
                   }
                   rows={6}
                   placeholder='Describe what students will learn in this course...'
-                  className='w-full px-4 py-3 border border-gray-300 rounded-[8px] focus:ring-2 focus:ring-[#395192] focus:border-transparent resize-none'
+                  className='w-full resize-none rounded-[8px] border border-border bg-input-background px-4 py-3 text-foreground focus:border-transparent focus:ring-2 focus:ring-[#395192]'
                 />
               </div>
 
               {/* Category & Subcategory */}
               <div className='grid grid-cols-2 gap-4'>
                 <div>
-                  <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                     Category *
                   </Label>
                   <Select
@@ -879,7 +879,7 @@ export function CourseCreationWizard({
                   </Select>
                 </div>
                 <div>
-                  <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                     Subcategory *
                   </Label>
                   <Select
@@ -908,7 +908,7 @@ export function CourseCreationWizard({
               {/* Level & Language */}
               <div className='grid grid-cols-2 gap-4'>
                 <div>
-                  <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                     Level *
                   </Label>
                   <Select
@@ -929,7 +929,7 @@ export function CourseCreationWizard({
                   </Select>
                 </div>
                 <div>
-                  <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                  <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                     Language
                   </Label>
                   <Select
@@ -953,13 +953,13 @@ export function CourseCreationWizard({
 
               {/* Thumbnail Upload */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Course Thumbnail
                 </Label>
 
                 {/* Preview: show selected image before upload */}
                 {thumbnailPreview && (
-                  <div className='relative mb-3 rounded-[8px] overflow-hidden border border-gray-200 w-full max-w-sm'>
+                  <div className='relative mb-3 w-full max-w-sm overflow-hidden rounded-[8px] border border-border'>
                     <img
                       src={thumbnailPreview}
                       alt='Course thumbnail preview'
@@ -987,7 +987,7 @@ export function CourseCreationWizard({
                   className={`border-2 border-dashed rounded-[8px] p-8 text-center transition-colors ${
                     isDraggingThumbnail
                       ? 'border-[#395192] bg-[#395192]/5'
-                      : 'border-gray-300 hover:border-[#395192]'
+                      : 'border-border hover:border-[#395192]'
                   } ${isUploadingThumbnail ? 'opacity-60 pointer-events-none' : ''}`}
                   onDragOver={(e) => {
                     e.preventDefault();
@@ -1011,13 +1011,13 @@ export function CourseCreationWizard({
                   {isUploadingThumbnail ? (
                     <div className='flex flex-col items-center gap-2'>
                       <div className='animate-spin rounded-full h-10 w-10 border-b-2 border-[#395192]' />
-                      <p className='text-sm text-gray-500'>
+                      <p className='text-sm text-muted-foreground'>
                         Preparing thumbnail…
                       </p>
                     </div>
                   ) : (
                     <>
-                      <ImageIcon className='w-12 h-12 text-gray-400 mx-auto mb-3' />
+                      <ImageIcon className='mx-auto mb-3 h-12 w-12 text-muted-foreground' />
                       <input
                         type='file'
                         accept='image/jpeg,image/png,image/webp,image/avif'
@@ -1032,7 +1032,7 @@ export function CourseCreationWizard({
                         htmlFor='thumbnail-upload'
                         className='cursor-pointer'
                       >
-                        <p className='text-gray-700 mb-1'>
+                        <p className='mb-1 text-foreground/80'>
                           <span className='text-[#395192] hover:underline'>
                             {thumbnailPreview
                               ? 'Replace image'
@@ -1040,7 +1040,7 @@ export function CourseCreationWizard({
                           </span>{' '}
                           or drag and drop
                         </p>
-                        <p className='text-sm text-gray-500'>
+                        <p className='text-sm text-muted-foreground'>
                           JPEG, PNG, WebP or AVIF · max 5 MB · recommended
                           1280×720
                         </p>
@@ -1060,16 +1060,16 @@ export function CourseCreationWizard({
           {/* Step 2: Content Details */}
           {currentStep === 2 && (
             <div className='space-y-6'>
-              <h2 className='text-2xl font-bold text-gray-900 mb-6'>
+              <h2 className='mb-6 text-2xl font-bold text-foreground'>
                 Content Details
               </h2>
 
               {/* Course Goals */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Course Goals (High-Level Outcomes) *
                 </Label>
-                <p className='text-sm text-gray-500 mb-3'>
+                <p className='mb-3 text-sm text-muted-foreground'>
                   What will learners be able to do by the end of this course?
                 </p>
                 {courseData.courseGoals.map((goal, index) => (
@@ -1098,7 +1098,7 @@ export function CourseCreationWizard({
                             ),
                           }));
                         }}
-                        className='p-2 text-red-600 hover:bg-red-50 rounded'
+                        className='rounded p-2 text-red-600 transition-colors hover:bg-red-500/10'
                       >
                         <X className='w-5 h-5' />
                       </button>
@@ -1112,7 +1112,7 @@ export function CourseCreationWizard({
                       courseGoals: [...prev.courseGoals, ''],
                     }));
                   }}
-                  className='text-[#395192] hover:underline text-sm'
+                  className='text-sm text-primary hover:underline'
                 >
                   + Add more course goals
                 </button>
@@ -1120,10 +1120,10 @@ export function CourseCreationWizard({
 
               {/* Learning Objectives */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Learning Objectives *
                 </Label>
-                <p className='text-sm text-gray-500 mb-3'>
+                <p className='mb-3 text-sm text-muted-foreground'>
                   Specific skills and knowledge students will gain
                 </p>
                 {courseData.learningObjectives.map((obj, index) => (
@@ -1152,7 +1152,7 @@ export function CourseCreationWizard({
                             ),
                           }));
                         }}
-                        className='p-2 text-red-600 hover:bg-red-50 rounded'
+                        className='rounded p-2 text-red-600 transition-colors hover:bg-red-500/10'
                       >
                         <X className='w-5 h-5' />
                       </button>
@@ -1166,7 +1166,7 @@ export function CourseCreationWizard({
                       learningObjectives: [...prev.learningObjectives, ''],
                     }));
                   }}
-                  className='text-[#395192] hover:underline text-sm'
+                  className='text-sm text-primary hover:underline'
                 >
                   + Add more objectives
                 </button>
@@ -1174,7 +1174,7 @@ export function CourseCreationWizard({
 
               {/* Requirements */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Prerequisites/Requirements
                 </Label>
                 {courseData.requirements.map((req, index) => (
@@ -1203,7 +1203,7 @@ export function CourseCreationWizard({
                             ),
                           }));
                         }}
-                        className='p-2 text-red-600 hover:bg-red-50 rounded'
+                        className='rounded p-2 text-red-600 transition-colors hover:bg-red-500/10'
                       >
                         <X className='w-5 h-5' />
                       </button>
@@ -1217,7 +1217,7 @@ export function CourseCreationWizard({
                       requirements: [...prev.requirements, ''],
                     }));
                   }}
-                  className='text-[#395192] hover:underline text-sm'
+                  className='text-sm text-primary hover:underline'
                 >
                   + Add more requirements
                 </button>
@@ -1225,7 +1225,7 @@ export function CourseCreationWizard({
 
               {/* Target Audience */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Who is this course for?
                 </Label>
                 <textarea
@@ -1238,7 +1238,7 @@ export function CourseCreationWizard({
                   }
                   rows={4}
                   placeholder='Describe your ideal student...'
-                  className='w-full px-4 py-3 border border-gray-300 rounded-[8px] focus:ring-2 focus:ring-[#395192] resize-none'
+                  className='w-full resize-none rounded-[8px] border border-border bg-input-background px-4 py-3 text-foreground focus:ring-2 focus:ring-[#395192]'
                 />
               </div>
             </div>
@@ -1249,10 +1249,10 @@ export function CourseCreationWizard({
             <div className='space-y-6'>
               <div className='flex items-center justify-between mb-6'>
                 <div>
-                  <h2 className='text-2xl font-bold text-gray-900'>
+                  <h2 className='text-2xl font-bold text-foreground'>
                     Course Curriculum
                   </h2>
-                  <p className='text-gray-600'>
+                  <p className='text-muted-foreground'>
                     Structure your course into sections and lessons
                   </p>
                 </div>
@@ -1268,10 +1268,10 @@ export function CourseCreationWizard({
               {courseData.sections.map((section, sectionIndex) => (
                 <div
                   key={section.id}
-                  className='border border-gray-200 rounded-[8px] p-6'
+                  className='rounded-[8px] border border-border bg-card p-6 shadow-sm'
                 >
                   <div className='flex items-start gap-4 mb-4'>
-                    <GripVertical className='w-5 h-5 text-gray-400 mt-3 cursor-move' />
+                    <GripVertical className='mt-3 h-5 w-5 cursor-move text-muted-foreground' />
                     <div className='flex-1'>
                       <Input
                         type='text'
@@ -1291,7 +1291,7 @@ export function CourseCreationWizard({
                     </div>
                     <button
                       onClick={() => removeSection(section.id)}
-                      className='p-2 text-red-600 hover:bg-red-50 rounded'
+                      className='rounded p-2 text-red-600 transition-colors hover:bg-red-500/10'
                     >
                       <X className='w-5 h-5' />
                     </button>
@@ -1305,11 +1305,11 @@ export function CourseCreationWizard({
                       return (
                         <div
                           key={lesson.id}
-                          className='rounded-lg border border-gray-200 bg-white'
+                          className='rounded-lg border border-border bg-card/80'
                         >
                           {/* Compact lesson row */}
                           <div className='flex items-center gap-3 p-3 group'>
-                            <GripVertical className='w-4 h-4 text-gray-400 cursor-move' />
+                            <GripVertical className='h-4 w-4 cursor-move text-muted-foreground' />
                             <div className='w-8 h-8 rounded-lg flex items-center justify-center bg-[#395192]/10 text-[#395192]'>
                               <BookOpen className='w-4 h-4' />
                             </div>
@@ -1318,7 +1318,7 @@ export function CourseCreationWizard({
                                 {lesson.title || 'Untitled Lesson'}
                               </p>
                               {lesson.duration && (
-                                <p className='text-xs text-gray-500'>
+                                <p className='text-xs text-muted-foreground'>
                                   {lesson.duration}
                                 </p>
                               )}
@@ -1332,7 +1332,7 @@ export function CourseCreationWizard({
                                     lesson,
                                   })
                                 }
-                                className='p-1.5 rounded hover:bg-gray-100 text-gray-500'
+                                className='rounded p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
                                 title='Edit lesson'
                               >
                                 <Edit className='w-4 h-4' />
@@ -1342,7 +1342,7 @@ export function CourseCreationWizard({
                                 onClick={() =>
                                   removeLesson(section.id, lesson.id)
                                 }
-                                className='p-1.5 rounded hover:bg-red-50 text-red-500'
+                                className='rounded p-1.5 text-red-500 transition-colors hover:bg-red-500/10'
                                 title='Delete'
                               >
                                 <Trash2 className='w-4 h-4' />
@@ -1457,7 +1457,7 @@ export function CourseCreationWizard({
                                       }
                                       placeholder='Write your content…'
                                       rows={3}
-                                      className='flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                                      className='flex-1 rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
                                     />
                                   ) : block.type === 'video' ? (
                                     <Input
@@ -1486,7 +1486,7 @@ export function CourseCreationWizard({
                                       }
                                       placeholder='// Enter your code…'
                                       rows={4}
-                                      className='flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm font-mono resize-y bg-gray-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                                      className='flex-1 resize-y rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#395192]'
                                     />
                                   ) : null}
                                   <button
@@ -1498,7 +1498,7 @@ export function CourseCreationWizard({
                                         block.id,
                                       )
                                     }
-                                    className='mt-2 p-1 text-gray-400 hover:text-red-500 rounded'
+                                    className='mt-2 rounded p-1 text-muted-foreground hover:text-red-500'
                                   >
                                     <Trash2 className='w-3.5 h-3.5' />
                                   </button>
@@ -1507,7 +1507,7 @@ export function CourseCreationWizard({
 
                               {/* Add block buttons */}
                               <div className='flex items-center gap-2 pt-1'>
-                                <span className='text-xs text-gray-400 mr-1'>
+                                <span className='mr-1 text-xs text-muted-foreground'>
                                   Add:
                                 </span>
                                 {[
@@ -1534,7 +1534,7 @@ export function CourseCreationWizard({
                                         b.type,
                                       )
                                     }
-                                    className='flex items-center gap-1 px-2 py-1 text-xs border border-gray-300 rounded hover:bg-gray-100 transition-colors'
+                                    className='flex items-center gap-1 rounded border border-border px-2 py-1 text-xs transition-colors hover:bg-accent'
                                   >
                                     <b.icon className='w-3 h-3' />
                                     {b.label}
@@ -1563,7 +1563,7 @@ export function CourseCreationWizard({
                           },
                         });
                       }}
-                      className='flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors'
+                      className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-accent'
                     >
                       <Plus className='w-4 h-4' />
                       Add Lesson
@@ -1573,9 +1573,9 @@ export function CourseCreationWizard({
               ))}
 
               {courseData.sections.length === 0 && (
-                <div className='text-center py-12 bg-gray-50 rounded-[8px]'>
-                  <FileText className='w-12 h-12 text-gray-400 mx-auto mb-3' />
-                  <p className='text-gray-600 mb-4'>
+                <div className='rounded-[8px] bg-muted/40 py-12 text-center'>
+                  <FileText className='mx-auto mb-3 h-12 w-12 text-muted-foreground' />
+                  <p className='mb-4 text-muted-foreground'>
                     No sections yet. Add your first section to get started.
                   </p>
                   <button
@@ -1592,11 +1592,11 @@ export function CourseCreationWizard({
           {/* Step 4: Pricing */}
           {currentStep === 4 && (
             <div className='space-y-6'>
-              <h2 className='text-2xl font-bold text-gray-900 mb-6'>Pricing</h2>
+              <h2 className='mb-6 text-2xl font-bold text-foreground'>Pricing</h2>
 
               {/* Price Type */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-3'>
+                <Label className='mb-3 block text-sm font-medium text-foreground/80'>
                   Course Type *
                 </Label>
                 <div className='grid grid-cols-2 gap-4'>
@@ -1604,14 +1604,14 @@ export function CourseCreationWizard({
                     onClick={() =>
                       setCourseData((prev) => ({ ...prev, priceType: 'free' }))
                     }
-                    className={`p-4 border-2 rounded-[8px] text-left transition-all ${
+                    className={`rounded-[8px] border-2 p-4 text-left transition-all ${
                       courseData.priceType === 'free'
-                        ? 'border-[#395192] bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#395192] bg-primary/10 dark:bg-primary/15'
+                        : 'border-border hover:border-primary/40'
                     }`}
                   >
-                    <h3 className='font-semibold text-gray-900 mb-1'>Free</h3>
-                    <p className='text-sm text-gray-600'>
+                    <h3 className='mb-1 font-semibold text-foreground'>Free</h3>
+                    <p className='text-sm text-muted-foreground'>
                       Anyone can enroll for free
                     </p>
                   </button>
@@ -1619,14 +1619,14 @@ export function CourseCreationWizard({
                     onClick={() =>
                       setCourseData((prev) => ({ ...prev, priceType: 'paid' }))
                     }
-                    className={`p-4 border-2 rounded-[8px] text-left transition-all ${
+                    className={`rounded-[8px] border-2 p-4 text-left transition-all ${
                       courseData.priceType === 'paid'
-                        ? 'border-[#395192] bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-[#395192] bg-primary/10 dark:bg-primary/15'
+                        : 'border-border hover:border-primary/40'
                     }`}
                   >
-                    <h3 className='font-semibold text-gray-900 mb-1'>Paid</h3>
-                    <p className='text-sm text-gray-600'>
+                    <h3 className='mb-1 font-semibold text-foreground'>Paid</h3>
+                    <p className='text-sm text-muted-foreground'>
                       Students must pay to enroll
                     </p>
                   </button>
@@ -1638,7 +1638,7 @@ export function CourseCreationWizard({
                 <>
                   <div className='grid grid-cols-2 gap-4'>
                     <div>
-                      <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                      <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                         Price
                       </Label>
                       <div className='flex gap-2'>
@@ -1675,7 +1675,7 @@ export function CourseCreationWizard({
                       </div>
                     </div>
                     <div>
-                      <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                      <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                         Discount Price (Optional)
                       </Label>
                       <Input
@@ -1695,17 +1695,17 @@ export function CourseCreationWizard({
 
                   {/* Pricing Preview */}
                   {courseData.price && (
-                    <div className='bg-green-50 border border-green-200 rounded-[8px] p-4'>
-                      <p className='text-sm text-green-800 mb-2'>
+                    <div className='rounded-[8px] border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800/50 dark:bg-emerald-950/30'>
+                      <p className='mb-2 text-sm text-emerald-800 dark:text-emerald-200'>
                         Pricing Preview
                       </p>
                       <div className='flex items-center gap-3'>
                         {courseData.discountPrice && (
-                          <span className='text-gray-500 line-through'>
+                          <span className='text-muted-foreground line-through'>
                             {courseData.currency} {courseData.price}
                           </span>
                         )}
-                        <span className='text-2xl font-bold text-gray-900'>
+                        <span className='text-2xl font-bold text-foreground'>
                           {courseData.currency}{' '}
                           {courseData.discountPrice || courseData.price}
                         </span>
@@ -1731,7 +1731,7 @@ export function CourseCreationWizard({
           {/* Step 5: Publish */}
           {currentStep === 5 && (
             <div className='space-y-6'>
-              <h2 className='text-2xl font-bold text-gray-900 mb-6'>
+              <h2 className='mb-6 text-2xl font-bold text-foreground'>
                 Publish Settings
               </h2>
 
@@ -1753,10 +1753,10 @@ export function CourseCreationWizard({
 
               {/* Course Settings */}
               <div className='space-y-4'>
-                <label className='flex items-center justify-between p-4 border border-gray-200 rounded-[8px] cursor-pointer hover:bg-gray-50'>
+                <label className='flex cursor-pointer items-center justify-between rounded-[8px] border border-border bg-card p-4 transition-colors hover:bg-accent/40'>
                   <div>
-                    <p className='font-medium text-gray-900'>Enable Reviews</p>
-                    <p className='text-sm text-gray-600'>
+                    <p className='font-medium text-foreground'>Enable Reviews</p>
+                    <p className='text-sm text-muted-foreground'>
                       Allow students to leave reviews
                     </p>
                   </div>
@@ -1773,12 +1773,12 @@ export function CourseCreationWizard({
                   />
                 </label>
 
-                <label className='flex items-center justify-between p-4 border border-gray-200 rounded-[8px] cursor-pointer hover:bg-gray-50'>
+                <label className='flex cursor-pointer items-center justify-between rounded-[8px] border border-border bg-card p-4 transition-colors hover:bg-accent/40'>
                   <div>
-                    <p className='font-medium text-gray-900'>
+                    <p className='font-medium text-foreground'>
                       Enable Certificate
                     </p>
-                    <p className='text-sm text-gray-600'>
+                    <p className='text-sm text-muted-foreground'>
                       Award certificates upon completion
                     </p>
                   </div>
@@ -1795,12 +1795,12 @@ export function CourseCreationWizard({
                   />
                 </label>
 
-                <label className='flex items-center justify-between p-4 border border-gray-200 rounded-[8px] cursor-pointer hover:bg-gray-50'>
+                <label className='flex cursor-pointer items-center justify-between rounded-[8px] border border-border bg-card p-4 transition-colors hover:bg-accent/40'>
                   <div>
-                    <p className='font-medium text-gray-900'>
+                    <p className='font-medium text-foreground'>
                       Enable Discussions
                     </p>
-                    <p className='text-sm text-gray-600'>
+                    <p className='text-sm text-muted-foreground'>
                       Allow course discussions and Q&A
                     </p>
                   </div>
@@ -1820,7 +1820,7 @@ export function CourseCreationWizard({
 
               {/* Max Students */}
               <div>
-                <Label className='block text-sm font-medium text-gray-700 mb-2'>
+                <Label className='mb-2 block text-sm font-medium text-foreground/80'>
                   Maximum Students (Optional)
                 </Label>
                 <Input
@@ -1833,43 +1833,43 @@ export function CourseCreationWizard({
                     }))
                   }
                   placeholder='Leave empty for unlimited'
-                  className='w-full px-4 py-3 border border-gray-300 rounded-[8px] focus:ring-2 focus:ring-[#395192]'
+                  className='w-full rounded-[8px] border border-border bg-input-background px-4 py-3 text-foreground focus:ring-2 focus:ring-[#395192]'
                 />
               </div>
 
               {/* Course Summary */}
-              <div className='bg-blue-50 border border-blue-200 rounded-[8px] p-6'>
-                <h3 className='font-semibold text-blue-900 mb-4'>
+              <div className='rounded-[8px] border border-blue-200 bg-blue-50 p-6 dark:border-blue-800/50 dark:bg-blue-950/30'>
+                <h3 className='mb-4 font-semibold text-blue-900 dark:text-blue-100'>
                   Course Summary
                 </h3>
                 <div className='grid grid-cols-2 gap-4 text-sm'>
                   <div>
-                    <p className='text-blue-600 mb-1'>Title</p>
-                    <p className='text-blue-900 font-medium'>
+                    <p className='mb-1 text-blue-600 dark:text-blue-300'>Title</p>
+                    <p className='font-medium text-blue-900 dark:text-blue-100'>
                       {courseData.title || 'Not set'}
                     </p>
                   </div>
                   <div>
-                    <p className='text-blue-600 mb-1'>Category</p>
-                    <p className='text-blue-900 font-medium'>
+                    <p className='mb-1 text-blue-600 dark:text-blue-300'>Category</p>
+                    <p className='font-medium text-blue-900 dark:text-blue-100'>
                       {courseData.category || 'Not set'}
                     </p>
                   </div>
                   <div>
-                    <p className='text-blue-600 mb-1'>Level</p>
-                    <p className='text-blue-900 font-medium'>
+                    <p className='mb-1 text-blue-600 dark:text-blue-300'>Level</p>
+                    <p className='font-medium text-blue-900 dark:text-blue-100'>
                       {courseData.level || 'Not set'}
                     </p>
                   </div>
                   <div>
-                    <p className='text-blue-600 mb-1'>Sections</p>
-                    <p className='text-blue-900 font-medium'>
+                    <p className='mb-1 text-blue-600 dark:text-blue-300'>Sections</p>
+                    <p className='font-medium text-blue-900 dark:text-blue-100'>
                       {courseData.sections.length}
                     </p>
                   </div>
                   <div>
-                    <p className='text-blue-600 mb-1'>Total Lessons</p>
-                    <p className='text-blue-900 font-medium'>
+                    <p className='mb-1 text-blue-600 dark:text-blue-300'>Total Lessons</p>
+                    <p className='font-medium text-blue-900 dark:text-blue-100'>
                       {courseData.sections.reduce(
                         (sum, s) => sum + s.lessons.length,
                         0,
@@ -1877,8 +1877,8 @@ export function CourseCreationWizard({
                     </p>
                   </div>
                   <div>
-                    <p className='text-blue-600 mb-1'>Price</p>
-                    <p className='text-blue-900 font-medium'>
+                    <p className='mb-1 text-blue-600 dark:text-blue-300'>Price</p>
+                    <p className='font-medium text-blue-900 dark:text-blue-100'>
                       {courseData.priceType === 'free'
                         ? 'Free'
                         : `${courseData.currency} ${courseData.price}`}
@@ -1894,13 +1894,13 @@ export function CourseCreationWizard({
         <div className='flex items-center justify-between'>
           <button
             onClick={onCancel}
-            className='px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2'
+            className='flex items-center gap-2 rounded-lg border border-border px-6 py-3 text-foreground transition-colors hover:bg-accent'
           >
             <X className='w-5 h-5' />
             Close Wizard
           </button>
 
-          <div className='text-sm text-gray-600'>
+          <div className='text-sm text-muted-foreground'>
             Step {currentStep} of {steps.length}
           </div>
 
@@ -1908,7 +1908,7 @@ export function CourseCreationWizard({
             <button
               onClick={handlePrevious}
               disabled={currentStep === 1}
-              className='px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed'
+              className='rounded-lg border border-border px-6 py-3 text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
             >
               Previous
             </button>
@@ -2274,7 +2274,7 @@ function WizardLessonModal({
                   onClick={() =>
                     updateBlock(block.id, { ...block.content, level: lvl })
                   }
-                  className={`px-3 py-1 rounded border text-sm font-bold ${block.content.level === lvl ? 'bg-[#395192] text-white border-[#395192]' : 'border-gray-300 hover:bg-gray-50'}`}
+                  className={`rounded border px-3 py-1 text-sm font-bold ${block.content.level === lvl ? 'border-[#395192] bg-[#395192] text-white' : 'border-border text-foreground hover:bg-accent'}`}
                 >
                   H{lvl}
                 </button>
@@ -2288,7 +2288,7 @@ function WizardLessonModal({
                   text: e.target.value,
                 })
               }
-              className='w-full px-3 py-2 border rounded-md text-xl font-bold focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-xl font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
               placeholder='Heading text'
             />
           </div>
@@ -2302,7 +2302,7 @@ function WizardLessonModal({
               updateBlock(block.id, { ...block.content, text: e.target.value })
             }
             rows={5}
-            className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+            className='w-full resize-y rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
             placeholder='Write your content here…'
           />
         );
@@ -2320,13 +2320,13 @@ function WizardLessonModal({
                     className='w-full object-cover'
                   />
                 </div>
-                <div className='flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg'>
+                <div className='flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800/50 dark:bg-green-950/30'>
                   <ImageIcon className='w-5 h-5 text-green-600 shrink-0' />
                   <div className='flex-1 min-w-0'>
-                    <p className='text-sm text-green-700 truncate'>
+                    <p className='truncate text-sm text-green-700 dark:text-green-200'>
                       {block.content.imageFileName}
                     </p>
-                    <p className='text-xs text-green-600 mt-0.5'>
+                    <p className='mt-0.5 text-xs text-green-600 dark:text-green-300'>
                       ✓ Ready to upload
                     </p>
                   </div>
@@ -2343,7 +2343,7 @@ function WizardLessonModal({
                         imageFileName: '',
                       });
                     }}
-                    className='text-gray-400 hover:text-gray-600'
+                    className='text-muted-foreground transition-colors hover:text-foreground'
                   >
                     <X className='w-4 h-4' />
                   </button>
@@ -2354,7 +2354,7 @@ function WizardLessonModal({
             {/* Upload button */}
             {!block.content.uploadedImageUrl && (
               <div
-                className='border-2 border-dashed rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer'
+                className='cursor-pointer rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:bg-accent/40'
                 onClick={() =>
                   document.getElementById(`image-upload-${block.id}`)?.click()
                 }
@@ -2368,11 +2368,11 @@ function WizardLessonModal({
                   </div>
                 ) : (
                   <>
-                    <Upload className='w-8 h-8 mx-auto mb-1 text-gray-400' />
-                    <p className='text-sm text-gray-600'>
+                    <Upload className='mx-auto mb-1 h-8 w-8 text-muted-foreground' />
+                    <p className='text-sm text-muted-foreground'>
                       Click to upload image
                     </p>
-                    <p className='text-xs text-gray-400 mt-1'>
+                    <p className='mt-1 text-xs text-muted-foreground/80'>
                       PNG, JPG, GIF, WebP up to 10MB
                     </p>
                   </>
@@ -2399,7 +2399,7 @@ function WizardLessonModal({
                   <div className='w-full border-t' />
                 </div>
                 <div className='relative flex justify-center text-xs uppercase'>
-                  <span className='bg-white px-2 text-gray-400'>or</span>
+                  <span className='bg-card px-2 text-muted-foreground'>or</span>
                 </div>
               </div>
             )}
@@ -2414,7 +2414,7 @@ function WizardLessonModal({
                     url: e.target.value,
                   })
                 }
-                className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 placeholder='https://example.com/image.jpg'
               />
             )}
@@ -2425,7 +2425,7 @@ function WizardLessonModal({
               onChange={(e) =>
                 updateBlock(block.id, { ...block.content, alt: e.target.value })
               }
-              className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
               placeholder='Alt text (for accessibility)'
             />
             <input
@@ -2436,7 +2436,7 @@ function WizardLessonModal({
                   caption: e.target.value,
                 })
               }
-              className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
               placeholder='Caption'
             />
           </div>
@@ -2448,13 +2448,13 @@ function WizardLessonModal({
             {/* Uploaded video preview */}
             {block.content.videoFileName ? (
               <div className='space-y-3'>
-                <div className='flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg'>
+                <div className='flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3 dark:border-green-800/50 dark:bg-green-950/30'>
                   <Video className='w-5 h-5 text-green-600 shrink-0' />
                   <div className='flex-1 min-w-0'>
-                    <p className='text-sm text-green-700 truncate'>
+                    <p className='truncate text-sm text-green-700 dark:text-green-200'>
                       {block.content.videoFileName}
                     </p>
-                    <p className='text-xs text-green-600 mt-0.5'>
+                    <p className='mt-0.5 text-xs text-green-600 dark:text-green-300'>
                       ✓ Ready to upload
                     </p>
                   </div>
@@ -2479,7 +2479,7 @@ function WizardLessonModal({
                         uploadedVideoUrl: '',
                       });
                     }}
-                    className='text-gray-400 hover:text-gray-600'
+                    className='text-muted-foreground transition-colors hover:text-foreground'
                   >
                     <X className='w-4 h-4' />
                   </button>
@@ -2500,14 +2500,14 @@ function WizardLessonModal({
               </div>
             ) : (
               <div
-                className='border-2 border-dashed rounded-lg p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer'
+                className='cursor-pointer rounded-lg border-2 border-dashed border-border p-6 text-center transition-colors hover:bg-accent/40'
                 onClick={() =>
                   document.getElementById(`video-upload-${block.id}`)?.click()
                 }
               >
-                <Upload className='w-8 h-8 mx-auto mb-1 text-gray-400' />
-                <p className='text-sm text-gray-600'>Click to upload a video</p>
-                <p className='text-xs text-gray-400 mt-1'>
+                <Upload className='mx-auto mb-1 h-8 w-8 text-muted-foreground' />
+                <p className='text-sm text-muted-foreground'>Click to upload a video</p>
+                <p className='mt-1 text-xs text-muted-foreground/80'>
                   MP4, WebM, MOV, AVI
                 </p>
                 <input
@@ -2531,13 +2531,13 @@ function WizardLessonModal({
                 <div className='w-full border-t' />
               </div>
               <div className='relative flex justify-center text-xs uppercase'>
-                <span className='bg-white px-2 text-gray-400'>or</span>
+                <span className='bg-card px-2 text-muted-foreground'>or</span>
               </div>
             </div>
 
             {/* External URL */}
             <div className='flex items-center gap-2'>
-              <Link2 className='w-4 h-4 text-gray-400 shrink-0' />
+              <Link2 className='h-4 w-4 shrink-0 text-muted-foreground' />
               <input
                 value={block.content.url}
                 onChange={(e) =>
@@ -2546,7 +2546,7 @@ function WizardLessonModal({
                     url: e.target.value,
                   })
                 }
-                className='flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                className='flex-1 rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 placeholder='YouTube, Vimeo, or direct video URL'
               />
             </div>
@@ -2564,7 +2564,7 @@ function WizardLessonModal({
                   language: e.target.value,
                 })
               }
-              className='px-3 py-2 rounded-md border bg-white text-sm'
+              className='rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground'
             >
               {['javascript', 'python', 'java', 'cpp', 'html', 'css'].map(
                 (lang) => (
@@ -2583,7 +2583,7 @@ function WizardLessonModal({
                 })
               }
               rows={8}
-              className='w-full px-3 py-2 border rounded-md text-sm font-mono resize-y bg-gray-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              className='w-full resize-y rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#395192]'
               placeholder='// Write your code here'
             />
           </div>
@@ -2620,13 +2620,13 @@ function WizardLessonModal({
           <div className='space-y-4'>
             {/* Header with question type label and mandatory toggle */}
             <div className='flex items-center justify-between'>
-              <h4 className='text-sm font-medium text-gray-700'>
+              <h4 className='text-sm font-medium text-foreground/80'>
                 {questionType === 'single_choice' &&
                   'Single choice (Radio button)'}
                 {questionType === 'multiple_choice' &&
                   'Multiple choice (Checkboxes)'}
               </h4>
-              <label className='flex items-center gap-2 text-sm text-gray-600'>
+              <label className='flex items-center gap-2 text-sm text-muted-foreground'>
                 <span>Mandatory</span>
                 <button
                   type='button'
@@ -2637,11 +2637,11 @@ function WizardLessonModal({
                     })
                   }
                   className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                    block.content.mandatory ? 'bg-[#395192]' : 'bg-gray-300'
+                    block.content.mandatory ? 'bg-[#395192]' : 'bg-muted'
                   }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-4 w-4 transform rounded-full bg-slate-50 transition-transform dark:bg-slate-100 ${
                       block.content.mandatory
                         ? 'translate-x-5'
                         : 'translate-x-0.5'
@@ -2654,7 +2654,7 @@ function WizardLessonModal({
             {/* Question type and points selectors */}
             <div className='grid grid-cols-2 gap-3'>
               <div>
-                <label className='block text-xs font-medium text-gray-600 mb-1'>
+                <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                   Question type
                 </label>
                 <select
@@ -2667,7 +2667,7 @@ function WizardLessonModal({
                       correctAnswers: [],
                     })
                   }
-                  className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192] bg-white'
+                  className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 >
                   <option value='single_choice'>
                     Single choice (Radio button)
@@ -2678,7 +2678,7 @@ function WizardLessonModal({
                 </select>
               </div>
               <div>
-                <label className='block text-xs font-medium text-gray-600 mb-1'>
+                <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                   Points
                 </label>
                 <select
@@ -2689,7 +2689,7 @@ function WizardLessonModal({
                       points: parseInt(e.target.value),
                     })
                   }
-                  className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192] bg-white'
+                  className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 >
                   <option value='1'>1 point</option>
                   <option value='2'>2 points</option>
@@ -2711,7 +2711,7 @@ function WizardLessonModal({
                   })
                 }
                 rows={3}
-                className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                className='w-full resize-y rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 placeholder='Enter your question here...'
               />
             </div>
@@ -2721,7 +2721,7 @@ function WizardLessonModal({
               <div className='space-y-2'>
                 {block.content.options.map((opt: string, i: number) => (
                   <div key={i}>
-                    <label className='block text-xs font-medium text-gray-600 mb-1'>
+                    <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                       Option {i + 1}
                     </label>
                     <div className='flex items-center gap-3'>
@@ -2744,7 +2744,7 @@ function WizardLessonModal({
                             options: opts,
                           });
                         }}
-                        className='flex-1 px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                        className='flex-1 rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                         placeholder={`Option ${i + 1}`}
                       />
                     </div>
@@ -2763,7 +2763,7 @@ function WizardLessonModal({
                       ],
                     })
                   }
-                  className='text-sm text-[#395192] hover:underline flex items-center gap-1 font-medium'
+                  className='flex items-center gap-1 text-sm font-medium text-primary hover:underline'
                 >
                   Add another option
                 </button>
@@ -2772,7 +2772,7 @@ function WizardLessonModal({
 
             {/* Explanation */}
             <div>
-              <label className='block text-xs font-medium text-gray-600 mb-1'>
+              <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                 Explanation (optional)
               </label>
               <textarea
@@ -2784,7 +2784,7 @@ function WizardLessonModal({
                   })
                 }
                 rows={2}
-                className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                className='w-full resize-y rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 placeholder='Explanation shown after answering (optional)'
               />
             </div>
@@ -2793,7 +2793,7 @@ function WizardLessonModal({
 
       case 'hint':
         return (
-          <div className='p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded'>
+          <div className='rounded border-l-4 border-yellow-400 bg-yellow-50 p-4 dark:bg-yellow-950/25'>
             <div className='flex items-start gap-2'>
               <Lightbulb className='w-4 h-4 text-yellow-600 shrink-0 mt-1' />
               <textarea
@@ -2823,7 +2823,7 @@ function WizardLessonModal({
                   type: e.target.value,
                 })
               }
-              className='px-3 py-2 rounded-md border bg-white text-sm'
+              className='rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground'
             >
               {['info', 'warning', 'success', 'error'].map((t) => (
                 <option key={t} value={t}>
@@ -2832,7 +2832,7 @@ function WizardLessonModal({
               ))}
             </select>
             <div
-              className={`p-4 border-l-4 rounded ${block.content.type === 'info' ? 'bg-blue-50 border-blue-400' : block.content.type === 'warning' ? 'bg-yellow-50 border-yellow-400' : block.content.type === 'success' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}
+              className={`rounded border-l-4 p-4 ${block.content.type === 'info' ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/25' : block.content.type === 'warning' ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/25' : block.content.type === 'success' ? 'border-green-400 bg-green-50 dark:bg-green-950/25' : 'border-red-400 bg-red-50 dark:bg-red-950/25'}`}
             >
               <textarea
                 value={block.content.text}
@@ -2861,7 +2861,7 @@ function WizardLessonModal({
                   question: e.target.value,
                 })
               }
-              className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
               placeholder='Problem statement'
             />
             {block.content.steps.map((step: string, i: number) => (
@@ -2873,7 +2873,7 @@ function WizardLessonModal({
                   steps[i] = e.target.value;
                   updateBlock(block.id, { ...block.content, steps });
                 }}
-                className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                 placeholder={`Step ${i + 1}`}
               />
             ))}
@@ -2888,7 +2888,7 @@ function WizardLessonModal({
                   ],
                 })
               }
-              className='text-xs text-[#395192] hover:underline flex items-center gap-1'
+              className='flex items-center gap-1 text-xs text-primary hover:underline'
             >
               <Plus className='w-3 h-3' /> Add step
             </button>
@@ -2901,14 +2901,14 @@ function WizardLessonModal({
                 })
               }
               rows={4}
-              className='w-full px-3 py-2 border rounded-md text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#395192]'
+              className='w-full resize-y rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
               placeholder='Final solution'
             />
           </div>
         );
 
       default:
-        return <p className='text-gray-400 text-sm'>Unknown block type</p>;
+        return <p className='text-sm text-muted-foreground'>Unknown block type</p>;
     }
   };
 
@@ -2939,7 +2939,7 @@ function WizardLessonModal({
             className='rounded-lg w-full'
           />
         ) : (
-          <div className='border-2 border-dashed rounded-lg p-8 text-center text-gray-400'>
+          <div className='rounded-lg border-2 border-dashed border-border p-8 text-center text-muted-foreground'>
             <ImageIcon className='w-8 h-8 mx-auto mb-1' />
             <p className='text-sm'>Image</p>
           </div>
@@ -2950,7 +2950,7 @@ function WizardLessonModal({
             <Play className='w-12 h-12 text-white' />
           </div>
         ) : (
-          <div className='aspect-video border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400'>
+          <div className='aspect-video flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border text-muted-foreground'>
             <Video className='w-8 h-8 mb-1' />
             <p className='text-sm'>Video</p>
           </div>
@@ -2958,7 +2958,7 @@ function WizardLessonModal({
       case 'code':
         return (
           <div className='bg-gray-900 text-gray-100 p-4 rounded-lg font-mono text-sm overflow-x-auto'>
-            <div className='text-gray-400 text-xs mb-2'>
+            <div className='mb-2 text-xs text-slate-400'>
               {block.content.language}
             </div>
             <pre>{block.content.code}</pre>
@@ -2968,12 +2968,12 @@ function WizardLessonModal({
         const previewCorrectAnswers: number[] =
           block.content.correctAnswers || [];
         return (
-          <div className='border rounded-lg p-4 space-y-2'>
+          <div className='space-y-2 rounded-lg border border-border p-4'>
             <p className='font-semibold text-sm'>{block.content.question}</p>
             {block.content.options.map((opt: string, i: number) => (
               <div
                 key={i}
-                className={`p-2 rounded border text-sm ${previewCorrectAnswers.includes(i) ? 'border-green-500 bg-green-50' : ''}`}
+                className={`rounded border p-2 text-sm ${previewCorrectAnswers.includes(i) ? 'border-green-500 bg-green-50 dark:bg-green-950/25' : 'border-border'}`}
               >
                 {opt}
               </div>
@@ -2982,7 +2982,7 @@ function WizardLessonModal({
         );
       case 'hint':
         return (
-          <div className='p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded flex gap-2'>
+          <div className='flex gap-2 rounded border-l-4 border-yellow-400 bg-yellow-50 p-4 dark:bg-yellow-950/25'>
             <Lightbulb className='w-4 h-4 text-yellow-600 shrink-0 mt-0.5' />
             <p className='text-sm'>{block.content.text}</p>
           </div>
@@ -2990,17 +2990,17 @@ function WizardLessonModal({
       case 'callout':
         return (
           <div
-            className={`p-4 border-l-4 rounded text-sm ${block.content.type === 'info' ? 'bg-blue-50 border-blue-400' : block.content.type === 'warning' ? 'bg-yellow-50 border-yellow-400' : block.content.type === 'success' ? 'bg-green-50 border-green-400' : 'bg-red-50 border-red-400'}`}
+            className={`rounded border-l-4 p-4 text-sm ${block.content.type === 'info' ? 'border-blue-400 bg-blue-50 dark:bg-blue-950/25' : block.content.type === 'warning' ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/25' : block.content.type === 'success' ? 'border-green-400 bg-green-50 dark:bg-green-950/25' : 'border-red-400 bg-red-50 dark:bg-red-950/25'}`}
           >
             {block.content.text}
           </div>
         );
       case 'problem':
         return (
-          <div className='border rounded-lg p-4 space-y-1'>
+          <div className='space-y-1 rounded-lg border border-border p-4'>
             <p className='font-semibold text-sm'>{block.content.question}</p>
             {block.content.steps.map((s: string, i: number) => (
-              <p key={i} className='text-sm text-gray-600'>
+              <p key={i} className='text-sm text-muted-foreground'>
                 • {s}
               </p>
             ))}
@@ -3031,9 +3031,9 @@ function WizardLessonModal({
   /* ── render ─────────────────────────────────────────────────────── */
   return (
     <div className='fixed inset-0 z-50 flex items-start justify-center bg-black/50 overflow-y-auto p-4'>
-      <div className='bg-white rounded-xl shadow-2xl w-full max-w-5xl my-8'>
+      <div className='my-8 w-full max-w-5xl rounded-xl border border-border bg-background text-foreground shadow-2xl'>
         {/* Modal header */}
-        <div className='flex items-center justify-between px-6 py-4 border-b'>
+        <div className='flex items-center justify-between border-b border-border px-6 py-4'>
           <div className='flex items-center gap-3'>
             <h2 className='text-lg font-semibold'>
               {isNew ? 'Add Lesson' : 'Edit Lesson'}
@@ -3045,7 +3045,7 @@ function WizardLessonModal({
               onClick={() =>
                 setActiveView(activeView === 'edit' ? 'preview' : 'edit')
               }
-              className='flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-lg hover:bg-gray-50'
+              className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm transition-colors hover:bg-accent'
             >
               <Eye className='w-4 h-4' />
               {activeView === 'edit' ? 'Preview' : 'Edit'}
@@ -3064,7 +3064,7 @@ function WizardLessonModal({
             <button
               type='button'
               onClick={onClose}
-              className='p-1.5 rounded-lg hover:bg-gray-100'
+              className='rounded-lg p-1.5 transition-colors hover:bg-accent'
             >
               <X className='w-5 h-5' />
             </button>
@@ -3073,12 +3073,12 @@ function WizardLessonModal({
 
         <div className='grid lg:grid-cols-12 gap-0'>
           {/* ── Main content ───────────────────────────────────── */}
-          <div className='lg:col-span-8 p-6 space-y-4 border-r'>
+          <div className='space-y-4 border-r border-border p-6 lg:col-span-8'>
             {/* Title row */}
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className='w-full text-2xl font-bold border-0 border-b border-gray-200 pb-2 focus:outline-none focus:border-[#395192]'
+              className='w-full border-0 border-b border-border bg-transparent pb-2 text-2xl font-bold text-foreground placeholder:text-muted-foreground focus:border-[#395192] focus:outline-none'
               placeholder='Lesson Title'
             />
 
@@ -3088,13 +3088,13 @@ function WizardLessonModal({
                 {blocks.map((block) => (
                   <div
                     key={block.id}
-                    className='border rounded-xl bg-white group'
+                    className='group rounded-xl border border-border bg-card'
                   >
                     {/* Block header */}
-                    <div className='flex items-center justify-between px-4 py-2 border-b bg-gray-50 rounded-t-xl'>
+                    <div className='flex items-center justify-between rounded-t-xl border-b border-border bg-muted/40 px-4 py-2'>
                       <div className='flex items-center gap-2'>
                         <div
-                          className={`w-7 h-7 rounded-lg flex items-center justify-center ${block.type === 'heading' ? 'bg-blue-500/10 text-blue-500' : block.type === 'quiz' ? 'bg-purple-500/10 text-purple-500' : block.type === 'code' ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'}`}
+                          className={`w-7 h-7 rounded-lg flex items-center justify-center ${block.type === 'heading' ? 'bg-blue-500/10 text-blue-500' : block.type === 'quiz' ? 'bg-purple-500/10 text-purple-500' : block.type === 'code' ? 'bg-green-500/10 text-green-500' : 'bg-muted text-muted-foreground'}`}
                         >
                           {getBlockIcon(block.type, block.content?.level)}
                         </div>
@@ -3106,21 +3106,21 @@ function WizardLessonModal({
                         <button
                           type='button'
                           onClick={() => moveBlock(block.id, 'up')}
-                          className='p-1 rounded hover:bg-gray-200'
+                          className='rounded p-1 transition-colors hover:bg-accent'
                         >
                           <ChevronUp className='w-3.5 h-3.5' />
                         </button>
                         <button
                           type='button'
                           onClick={() => moveBlock(block.id, 'down')}
-                          className='p-1 rounded hover:bg-gray-200'
+                          className='rounded p-1 transition-colors hover:bg-accent'
                         >
                           <ChevronDown className='w-3.5 h-3.5' />
                         </button>
                         <button
                           type='button'
                           onClick={() => duplicateBlock(block.id)}
-                          className='p-1 rounded hover:bg-gray-200'
+                          className='rounded p-1 transition-colors hover:bg-accent'
                         >
                           <Copy className='w-3.5 h-3.5' />
                         </button>
@@ -3139,8 +3139,8 @@ function WizardLessonModal({
                 ))}
 
                 {/* Add block toolbar */}
-                <div className='border-2 border-dashed rounded-xl p-4'>
-                  <p className='text-xs font-medium text-gray-500 mb-3'>
+                <div className='rounded-xl border-2 border-dashed border-border p-4'>
+                  <p className='mb-3 text-xs font-medium text-muted-foreground'>
                     Add Content Block:
                   </p>
                   <div className='flex flex-wrap gap-2'>
@@ -3169,7 +3169,7 @@ function WizardLessonModal({
                         key={b.type}
                         type='button'
                         onClick={() => addBlock(b.type)}
-                        className='flex items-center gap-1.5 px-3 py-1.5 text-xs border rounded-lg hover:bg-gray-50 transition-colors'
+                        className='flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs transition-colors hover:bg-accent'
                       >
                         <b.icon className='w-3.5 h-3.5' />
                         {b.label}
@@ -3195,38 +3195,38 @@ function WizardLessonModal({
               <h3 className='text-sm font-semibold mb-3'>Lesson Settings</h3>
               <div className='space-y-4'>
                 <div>
-                  <label className='text-xs font-medium text-gray-600 mb-1 block'>
+                  <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                     Duration
                   </label>
                   <input
                     type='text'
                     value={duration}
                     onChange={(e) => setDuration(e.target.value)}
-                    className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                    className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                     placeholder='e.g. 15 min'
                   />
                 </div>
                 <div>
-                  <label className='text-xs font-medium text-gray-600 mb-1 block'>
+                  <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                     XP Reward
                   </label>
                   <input
                     type='number'
                     value={xp}
                     onChange={(e) => setXp(Number(e.target.value))}
-                    className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192]'
+                    className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                     placeholder='100'
                     min={0}
                   />
                 </div>
                 <div>
-                  <label className='text-xs font-medium text-gray-600 mb-1 block'>
+                  <label className='mb-1 block text-xs font-medium text-muted-foreground'>
                     Difficulty
                   </label>
                   <select
                     value={difficulty}
                     onChange={(e) => setDifficulty(e.target.value)}
-                    className='w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#395192] bg-white'
+                    className='w-full rounded-md border border-border bg-input-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#395192]'
                   >
                     <option>Beginner</option>
                     <option>Intermediate</option>
@@ -3238,7 +3238,7 @@ function WizardLessonModal({
 
             <div>
               <h3 className='text-sm font-semibold mb-3'>Quick Tips</h3>
-              <div className='space-y-2 text-xs text-gray-500'>
+              <div className='space-y-2 text-xs text-muted-foreground'>
                 <div className='flex gap-2'>
                   <Lightbulb className='w-4 h-4 text-yellow-500 shrink-0' />
                   <p>Add hints for challenging problems</p>

@@ -220,11 +220,8 @@ export interface ProgressDashboardRecord {
   recent_activity: RecentActivityRecord[];
 }
 
-const DEFAULT_API_BASE_URL = import.meta.env.PROD
-  ? 'https://backened-core.onrender.com/api'
-  : 'http://127.0.0.1:8000/api';
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE_URL).replace(/\/+$/, '');
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 // Helper to get auth token from localStorage
 function getAuthToken(): string | null {
@@ -320,6 +317,30 @@ export const authApi = {
 
   login: (data: { email: string; password: string }) =>
     request<{ access_token: string; token_type: string; user: User; is_first_login: boolean }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  googleLogin: (data: { credential: string; role?: string }) =>
+    request<{ access_token: string; token_type: string; user: User; is_first_login: boolean }>('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  googleLookup: (data: { credential: string }) =>
+    request<{ exists: boolean; role?: string | null }>('/auth/google/lookup', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  facebookLogin: (data: { access_token: string; role?: string }) =>
+    request<{ access_token: string; token_type: string; user: User; is_first_login: boolean }>('/auth/facebook', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  facebookLookup: (data: { access_token: string }) =>
+    request<{ exists: boolean; role?: string | null }>('/auth/facebook/lookup', {
       method: 'POST',
       body: JSON.stringify(data),
     }),

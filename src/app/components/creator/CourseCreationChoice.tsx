@@ -85,19 +85,19 @@ export function CourseCreationChoice({
             {/* Manual Creation Option */}
             <div
               onClick={() => setCreationMode('manual')}
-              className='group cursor-pointer bg-gradient-to-br from-gray-50 to-white border-2 border-gray-300 hover:border-[#395192] rounded-2xl p-8 transition-all hover:shadow-xl hover:scale-105'
+              className='group cursor-pointer rounded-2xl border-2 border-border bg-gradient-to-br from-muted/40 to-card p-8 transition-all hover:scale-105 hover:border-primary hover:shadow-xl dark:from-slate-900 dark:to-slate-950'
             >
               <div className='bg-[#395192] text-white rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6'>
                 <BookOpen className='w-10 h-10' />
               </div>
-              <h2 className='text-2xl font-bold text-gray-900 mb-3'>
+              <h2 className='mb-3 text-2xl font-bold text-foreground'>
                 Create Manually
               </h2>
-              <p className='text-gray-600 mb-6'>
+              <p className='mb-6 text-muted-foreground'>
                 Build your course from scratch with full control over every
                 detail. Best for experienced creators.
               </p>
-              <ul className='text-left space-y-2 text-sm text-gray-700'>
+              <ul className='space-y-2 text-left text-sm text-foreground/80'>
                 <li className='flex items-start gap-2'>
                   <CheckCircle className='w-5 h-5 text-[#395192] flex-shrink-0 mt-0.5' />
                   <span>Complete creative control</span>
@@ -116,7 +116,7 @@ export function CourseCreationChoice({
                 </li>
               </ul>
               <div className='mt-8'>
-                <div className='inline-flex items-center gap-2 text-[#395192] font-semibold group-hover:gap-3 transition-all'>
+                <div className='inline-flex items-center gap-2 font-semibold text-primary transition-all group-hover:gap-3'>
                   Create Manually
                   <ArrowRight className='w-5 h-5' />
                 </div>

@@ -30,6 +30,7 @@ type BookingType = 'standard' | 'emergency';
 type Step = 'type-date' | 'time' | 'details' | 'success';
 type IQTestType = 'culture_fair_intelligence_test' | 'weschler_intelligence_test';
 const DEFAULT_BOOKING_TYPE: BookingType = 'standard';
+const DEFAULT_IQ_SESSION_TYPE = 'IQ Test';
 
 const IQ_TEST_TYPES: Array<{ value: IQTestType; label: string; description: string }> = [
   {
@@ -78,6 +79,18 @@ const formatDisplayDate = (dateStr: string) => {
   return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
 
+const isPastSameDaySlot = (dateStr: string, slot: string) => {
+  if (!dateStr) return false;
+  if (dateStr !== toIsoDate(today())) return false;
+
+  const [hours, minutes] = slot.split(':').map(Number);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return false;
+
+  const slotDateTime = new Date(`${dateStr}T00:00:00`);
+  slotDateTime.setHours(hours, minutes, 0, 0);
+  return slotDateTime <= new Date();
+};
+
 export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageProps) {
   const [step, setStep] = useState<Step>('type-date');
   const [calendarMonth, setCalendarMonth] = useState<Date>(today());
@@ -95,7 +108,6 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   const [selectedTime, setSelectedTime] = useState<string>('');
 
   // Step 3
-  const [sessionType, setSessionType] = useState<string>('');
   const [testType, setTestType] = useState<IQTestType>('culture_fair_intelligence_test');
   const [notes, setNotes] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
@@ -112,7 +124,6 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
         setSessionTypesList(list);
-        setSessionType((current) => current || list[0]?.name || '');
       })
       .catch(() => {})
       .finally(() => setSessionTypesLoading(false));
@@ -204,13 +215,13 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         date: bookingDate,
         time: selectedTime,
         booking_type: DEFAULT_BOOKING_TYPE,
-        session_type: sessionType || 'General',
+        session_type: selectedSessionType?.name ?? DEFAULT_IQ_SESSION_TYPE,
         test_type: testType,
         notes,
         is_recurring: isRecurring,
         recurring_frequency: isRecurring ? recurringFrequency : '',
         reminder_preferences: '',
-        price: sessionTypesList.find((s) => s.name === sessionType)?.price ?? 0,
+        price: selectedSessionType?.price ?? 0,
       });
       setStep('success');
     } catch (err: any) {
@@ -231,8 +242,18 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
 
   const availableDateSet = new Set(availableDates);
   const selectedTestType = IQ_TEST_TYPES.find((test) => test.value === testType);
+  const selectedSessionType =
+    sessionTypesList.find(
+      (item) => item.name?.trim().toLowerCase() === DEFAULT_IQ_SESSION_TYPE.toLowerCase(),
+    ) ?? null;
   const selectedDate = bookingDate ? new Date(`${bookingDate}T00:00:00`) : undefined;
   const availableDateObjects = availableDates.map((dateValue) => new Date(`${dateValue}T00:00:00`));
+  const selectableSlots = availableSlots.filter((slot) => !isPastSameDaySlot(bookingDate, slot));
+  const displayedSlotsError =
+    slotsError ||
+    (!slotsLoading && bookingDate && availableSlots.length > 0 && selectableSlots.length === 0
+      ? 'No remaining time slots are available for today. Please choose another date.'
+      : null);
 
   const isUnavailableDate = (date: Date) => {
     const normalizedDate = new Date(date);
@@ -351,18 +372,18 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
               </div>
             )}
 
-            {!slotsLoading && slotsError && (
+            {!slotsLoading && displayedSlotsError && (
               <Alert variant='destructive'>
                 <AlertTriangle className='h-4 w-4' />
-                <AlertDescription>{slotsError}</AlertDescription>
+                <AlertDescription>{displayedSlotsError}</AlertDescription>
               </Alert>
             )}
 
-            {!slotsLoading && availableSlots.length > 0 && (
+            {!slotsLoading && selectableSlots.length > 0 && (
               <div className='space-y-2'>
                 <Label>Select a Time</Label>
                 <div className='grid grid-cols-3 gap-2'>
-                  {availableSlots.map((slot) => (
+                  {selectableSlots.map((slot) => (
                     <button
                       key={slot}
                       type='button'
@@ -423,24 +444,15 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
               </p>
             </div>
 
-            {sessionTypesList.length > 1 ? (
-              <div className='space-y-2'>
-                <Label>Session Type <span className='text-muted-foreground text-xs'>(optional)</span></Label>
-                <Select value={sessionType} onValueChange={setSessionType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={sessionTypesLoading ? 'Loading…' : 'Select a session type'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {sessionTypesList.map((s) => (
-                      <SelectItem key={s.id} value={s.name}>
-                        {s.name}
-                        {s.price ? ` — $${s.price}` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* <div className='space-y-2'>
+              <Label>Session Type</Label>
+              <div className='rounded-xl border border-border/60 bg-muted/20 px-4 py-3 text-sm text-muted-foreground'>
+                <p className='font-medium text-foreground'>
+                  {selectedSessionType?.name ?? DEFAULT_IQ_SESSION_TYPE}
+                </p>
+                <p className='mt-1'>This booking flow is reserved for psychologist-led IQ test sessions.</p>
               </div>
-            ) : null}
+            </div> */}
 
             <div className='space-y-2'>
               <Label>IQ Test Type</Label>

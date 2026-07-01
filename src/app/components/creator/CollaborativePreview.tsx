@@ -101,20 +101,20 @@ export function CollaborativePreview({
   const issueConfig = {
     incomplete: {
       icon: AlertCircle,
-      color: 'text-red-600',
-      bgColor: 'bg-red-50',
+      color: 'text-red-600 dark:text-red-300',
+      bgColor: 'border-l-4 border-red-500 bg-background',
       label: 'Incomplete',
     },
     unverified: {
       icon: AlertCircle,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-50',
+      color: 'text-amber-600 dark:text-amber-300',
+      bgColor: 'border-l-4 border-amber-500 bg-background',
       label: 'Unverified',
     },
     draft: {
       icon: AlertCircle,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50',
+      color: 'text-blue-600 dark:text-blue-300',
+      bgColor: 'border-l-4 border-blue-500 bg-background',
       label: 'Draft',
     },
   };
@@ -151,10 +151,10 @@ export function CollaborativePreview({
 
           {/* Issues Summary */}
           {issues.length > 0 && (
-            <Card className='border-amber-200 bg-amber-50/50'>
+            <Card className='border-amber-500/40 bg-card'>
               <CardHeader className='pb-3'>
-                <CardTitle className='text-sm flex items-center gap-2'>
-                  <AlertCircle className='w-4 h-4' />
+                <CardTitle className='flex items-center gap-2 text-sm text-foreground'>
+                  <AlertCircle className='w-4 h-4 text-amber-500' />
                   Preview Highlights
                 </CardTitle>
               </CardHeader>
@@ -166,18 +166,21 @@ export function CollaborativePreview({
                   return (
                     <div
                       key={issue.id}
-                      className={`flex items-center gap-2 p-2 rounded-lg ${config.bgColor}`}
+                      className={`flex items-center gap-2 rounded-lg border border-border p-3 ${config.bgColor}`}
                     >
                       <Icon className={`w-4 h-4 ${config.color}`} />
                       <div className='flex-1'>
-                        <p className='text-sm font-medium'>
+                        <p className='text-sm font-medium text-foreground'>
                           {issue.description}
                         </p>
                         <p className='text-xs text-muted-foreground'>
                           {issue.location}
                         </p>
                       </div>
-                      <Badge variant='secondary' className='text-xs'>
+                      <Badge
+                        variant='secondary'
+                        className='text-xs'
+                      >
                         {config.label}
                       </Badge>
                     </div>
@@ -210,13 +213,13 @@ export function CollaborativePreview({
               <h2 className='text-xl font-semibold'>Course Content</h2>
 
               {!courseData.sections || courseData.sections.length === 0 ? (
-                <Card className='border-amber-200 bg-amber-50/50'>
+                <Card className='border-amber-500/40 bg-card'>
                   <CardContent className='p-6 text-center'>
-                    <AlertCircle className='w-8 h-8 mx-auto mb-2 text-amber-600' />
-                    <p className='font-medium text-amber-700'>
+                    <AlertCircle className='mx-auto mb-2 h-8 w-8 text-amber-500' />
+                    <p className='font-medium text-foreground'>
                       No content added yet
                     </p>
-                    <p className='text-sm text-amber-600'>
+                    <p className='text-sm text-muted-foreground'>
                       Add sections and lessons to get started
                     </p>
                   </CardContent>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,6 +13,14 @@ import {
 } from '../ui/card';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../ui/dialog';
 
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -29,16 +37,103 @@ export function LoginForm({
   description = 'Sign in to your account to continue learning',
   submitLabel = 'Sign In',
 }: LoginFormProps) {
-  const { signIn, signInWithGoogle, signInWithFacebook } = useAuth();
+  const {
+    signIn,
+    renderGoogleButton,
+    getFacebookAccessToken,
+    lookupGoogleAccount,
+    lookupFacebookAccount,
+    completeGoogleSignIn,
+    completeFacebookSignIn,
+  } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [pendingSocialCredential, setPendingSocialCredential] = useState<string | null>(null);
+  const [pendingSocialProvider, setPendingSocialProvider] = useState<'google' | 'facebook' | null>(null);
+  const [socialRoleDialogOpen, setSocialRoleDialogOpen] = useState(false);
+  const [googleButtonReady, setGoogleButtonReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const googleButtonRef = useRef<HTMLDivElement | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
   }>({});
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const handleGoogleCredential = async (credential: string) => {
+      setError('');
+      setLoading(true);
+      try {
+        const isIqOnlyFlow =
+          typeof window !== 'undefined' &&
+          window.sessionStorage.getItem('cerebrolearn.user.intent') === 'iq-only';
+
+        if (isIqOnlyFlow) {
+          await completeGoogleSignIn(credential);
+          if (onSignedIn) {
+            await onSignedIn();
+          }
+          return;
+        }
+
+        const lookup = await lookupGoogleAccount(credential);
+        if (lookup.exists) {
+          await completeGoogleSignIn(credential);
+          if (onSignedIn) {
+            await onSignedIn();
+          }
+        } else if (isMounted) {
+          setPendingSocialCredential(credential);
+          setPendingSocialProvider('google');
+          setSocialRoleDialogOpen(true);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Google sign-in failed. Please try again.',
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const initializeGoogleButton = async () => {
+      if (!googleButtonRef.current) return;
+      try {
+        setGoogleButtonReady(false);
+        await renderGoogleButton(googleButtonRef.current, (credential) => {
+          void handleGoogleCredential(credential);
+        });
+        if (isMounted) {
+          setGoogleButtonReady(true);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setGoogleButtonReady(false);
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Google sign-in is unavailable right now.',
+          );
+        }
+      }
+    };
+
+    void initializeGoogleButton();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [completeGoogleSignIn, lookupGoogleAccount, onSignedIn, renderGoogleButton]);
 
   const validate = (): boolean => {
     const errs: { email?: string; password?: string } = {};
@@ -95,34 +190,83 @@ export function LoginForm({
     }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleSocialRoleChoice = async (role: 'learner' | 'instructor') => {
+    if (!pendingSocialCredential || !pendingSocialProvider) return;
+
     setError('');
     setLoading(true);
     try {
-      await signInWithGoogle();
+      if (pendingSocialProvider === 'google') {
+        await completeGoogleSignIn(pendingSocialCredential, role);
+      } else {
+        await completeFacebookSignIn(pendingSocialCredential, role);
+      }
+      setSocialRoleDialogOpen(false);
+      setPendingSocialCredential(null);
+      setPendingSocialProvider(null);
+      if (onSignedIn) {
+        await onSignedIn();
+      }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Google sign-in failed. Please try again.',
+          : 'Social sign-in failed. Please try again.',
       );
     } finally {
       setLoading(false);
     }
   };
 
+  const handleSocialRoleDialogChange = (open: boolean) => {
+    if (loading) return;
+    setSocialRoleDialogOpen(open);
+    if (!open) {
+      setPendingSocialCredential(null);
+      setPendingSocialProvider(null);
+    }
+  };
+
   const handleFacebookSignIn = async () => {
     setError('');
+    setLoading(true);
     try {
-      await signInWithFacebook();
+      const accessToken = await getFacebookAccessToken();
+      const isIqOnlyFlow =
+        typeof window !== 'undefined' &&
+        window.sessionStorage.getItem('cerebrolearn.user.intent') === 'iq-only';
+
+      if (isIqOnlyFlow) {
+        await completeFacebookSignIn(accessToken);
+        if (onSignedIn) {
+          await onSignedIn();
+        }
+        return;
+      }
+
+      const lookup = await lookupFacebookAccount(accessToken);
+      if (lookup.exists) {
+        await completeFacebookSignIn(accessToken);
+        if (onSignedIn) {
+          await onSignedIn();
+        }
+      } else {
+        setPendingSocialCredential(accessToken);
+        setPendingSocialProvider('facebook');
+        setSocialRoleDialogOpen(true);
+      }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Facebook sign-in is not yet available.',
+          : 'Facebook sign-in failed. Please try again.',
       );
+    } finally {
+      setLoading(false);
     }
   };
+
+  const isGoogleButtonDisabled = loading || !googleButtonReady;
 
   return (
     <Card className='w-full max-w-md mx-auto'>
@@ -220,29 +364,52 @@ export function LoginForm({
           </div>
         </div>
 
-        <div className='grid grid-cols-2 gap-4'>
-          <Button variant='outline' onClick={handleGoogleSignIn}>
-            <svg className='mr-2 h-4 w-4' viewBox='0 0 24 24'>
-              <path
-                fill='currentColor'
-                d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'
+        <div className='space-y-3'>
+          <div className='mx-auto w-full max-w-sm'>
+            <div
+              className={`relative overflow-hidden rounded-xl border border-input bg-background shadow-sm transition-all ${
+                isGoogleButtonDisabled ? 'opacity-60' : 'hover:border-primary/40 hover:shadow-md'
+              }`}
+            >
+              <div className='flex min-h-11 w-full items-center justify-center gap-3 px-4 text-sm font-medium text-foreground'>
+                <svg className='h-4 w-4 shrink-0' viewBox='0 0 24 24' aria-hidden='true'>
+                  <path
+                    fill='#4285F4'
+                    d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'
+                  />
+                  <path
+                    fill='#34A853'
+                    d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'
+                  />
+                  <path
+                    fill='#FBBC05'
+                    d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'
+                  />
+                  <path
+                    fill='#EA4335'
+                    d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </div>
+
+              <div
+                ref={googleButtonRef}
+                className='absolute inset-0 z-10 h-full w-full opacity-0'
+                aria-hidden='true'
               />
-              <path
-                fill='currentColor'
-                d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'
-              />
-              <path
-                fill='currentColor'
-                d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'
-              />
-              <path
-                fill='currentColor'
-                d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'
-              />
-            </svg>
-            Google
-          </Button>
-          <Button variant='outline' onClick={handleFacebookSignIn}>
+
+              {isGoogleButtonDisabled ? (
+                <div className='absolute inset-0 z-20 cursor-not-allowed bg-background/50' />
+              ) : null}
+            </div>
+          </div>
+          <Button
+            type='button'
+            onClick={handleFacebookSignIn}
+            disabled={loading}
+            className='w-full !bg-[#1877F2] !text-white shadow-sm hover:!bg-[#166fe5]'
+          >
             <svg
               className='mr-2 h-4 w-4'
               fill='currentColor'
@@ -291,12 +458,53 @@ export function LoginForm({
           Don't have an account?{' '}
           <button
             onClick={onToggleMode}
+            disabled={loading}
             className='text-primary hover:underline'
           >
             Sign up
           </button>
         </p>
       </CardFooter>
+
+      <Dialog open={socialRoleDialogOpen} onOpenChange={handleSocialRoleDialogChange}>
+        <DialogContent className='sm:max-w-md'>
+          <DialogHeader>
+            <DialogTitle>Choose your role</DialogTitle>
+            <DialogDescription>
+              How would you like to use this social account on CerebroLearn?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className='grid gap-3'>
+            <Button onClick={() => handleSocialRoleChoice('learner')} disabled={loading}>
+              Continue as Learner
+            </Button>
+            <Button
+              variant='outline'
+              onClick={() => handleSocialRoleChoice('instructor')}
+              disabled={loading}
+            >
+              Continue as Instructor
+            </Button>
+          </div>
+
+          <p className='text-xs text-muted-foreground'>
+            This applies when the social account is created here for the first time.
+            Existing accounts keep their current role.
+          </p>
+
+          <DialogFooter>
+            <Button
+              type='button'
+              variant='ghost'
+              onClick={() => handleSocialRoleDialogChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

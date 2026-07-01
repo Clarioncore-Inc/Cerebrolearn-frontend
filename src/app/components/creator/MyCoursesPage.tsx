@@ -71,6 +71,8 @@ interface MyCoursesPageProps {
   onCreateCourse?: () => void;
 }
 
+type CourseStatusFilter = 'all' | 'published' | 'draft' | 'archived';
+
 function hasFilledText(value: any) {
   return typeof value === 'string' && value.trim().length > 0;
 }
@@ -118,6 +120,42 @@ function calculateCourseSetupCompletion(course: any) {
   return Math.round((completedChecks / checks.length) * 100);
 }
 
+function getCourseStatusBadgeClass(status: string) {
+  switch (status) {
+    case 'published':
+      return 'bg-emerald-500/90 text-white border-0 backdrop-blur-sm shadow-lg font-medium px-2.5 py-0.5';
+    case 'archived':
+      return 'bg-slate-500/90 text-white border-0 backdrop-blur-sm shadow-lg font-medium px-2.5 py-0.5';
+    case 'draft':
+    default:
+      return 'bg-amber-500/90 text-white border-0 backdrop-blur-sm shadow-lg font-medium px-2.5 py-0.5';
+  }
+}
+
+function getCourseStatusLabel(status: string) {
+  switch (status) {
+    case 'published':
+      return 'Live';
+    case 'archived':
+      return 'Archived';
+    case 'draft':
+    default:
+      return 'Draft';
+  }
+}
+
+function getCourseListStatusBadgeClass(status: string) {
+  switch (status) {
+    case 'published':
+      return 'bg-green-500';
+    case 'archived':
+      return 'bg-slate-500';
+    case 'draft':
+    default:
+      return 'bg-yellow-500';
+  }
+}
+
 export function MyCoursesPage({
   onNavigate,
   onCreateCourse,
@@ -129,9 +167,7 @@ export function MyCoursesPage({
     'recent',
   );
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [filterStatus, setFilterStatus] = useState<
-    'all' | 'published' | 'draft'
-  >('all');
+  const [filterStatus, setFilterStatus] = useState<CourseStatusFilter>('all');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedCourseForShare, setSelectedCourseForShare] =
     useState<any>(null);
@@ -143,7 +179,7 @@ export function MyCoursesPage({
   const loadCourses = async () => {
     setLoading(true);
     try {
-      // Fetch creator's courses (both published and draft)
+      // Fetch creator's courses across all statuses, including archived
       const data = await creatorApi.getCourses();
       // Normalise API field names to what the UI expects
       const normalised = (data || []).map((c: any) => {
@@ -276,6 +312,7 @@ export function MyCoursesPage({
     total: courses.length,
     published: courses.filter((c) => c.status === 'published').length,
     draft: courses.filter((c) => c.status === 'draft').length,
+    archived: courses.filter((c) => c.status === 'archived').length,
     totalStudents: courses.reduce((sum, c) => sum + (c.enrollments || 0), 0),
     totalRevenue: courses.reduce((sum, c) => sum + (c.revenue || 0), 0),
   };
@@ -552,7 +589,7 @@ export function MyCoursesPage({
       {/* Courses List */}
       <Tabs
         value={filterStatus}
-        onValueChange={(v) => setFilterStatus(v as any)}
+        onValueChange={(v) => setFilterStatus(v as CourseStatusFilter)}
       >
         <TabsList>
           <TabsTrigger value='all'>All Courses ({stats.total})</TabsTrigger>
@@ -560,6 +597,9 @@ export function MyCoursesPage({
             Published ({stats.published})
           </TabsTrigger>
           <TabsTrigger value='draft'>Drafts ({stats.draft})</TabsTrigger>
+          <TabsTrigger value='archived'>
+            Archived ({stats.archived})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={filterStatus} className='mt-6'>
@@ -600,11 +640,7 @@ export function MyCoursesPage({
                     <div className='absolute top-3 left-3'>
                       <Badge
                         variant='secondary'
-                        className={
-                          course.status === 'published'
-                            ? 'bg-emerald-500/90 text-white border-0 backdrop-blur-sm shadow-lg font-medium px-2.5 py-0.5'
-                            : 'bg-amber-500/90 text-white border-0 backdrop-blur-sm shadow-lg font-medium px-2.5 py-0.5'
-                        }
+                        className={getCourseStatusBadgeClass(course.status)}
                       >
                         <CheckCircle2
                           className={`w-3 h-3 mr-1 ${course.status === 'published' ? 'block' : 'hidden'}`}
@@ -612,7 +648,10 @@ export function MyCoursesPage({
                         <Clock
                           className={`w-3 h-3 mr-1 ${course.status === 'draft' ? 'block' : 'hidden'}`}
                         />
-                        {course.status === 'published' ? 'Live' : 'Draft'}
+                        <Bookmark
+                          className={`w-3 h-3 mr-1 ${course.status === 'archived' ? 'block' : 'hidden'}`}
+                        />
+                        {getCourseStatusLabel(course.status)}
                       </Badge>
                     </div>
 
@@ -867,11 +906,9 @@ export function MyCoursesPage({
                             </p>
                             <div className='flex items-center gap-4 text-sm text-muted-foreground dark:text-slate-300'>
                               <Badge
-                                className={
-                                  course.status === 'published'
-                                    ? 'bg-green-500'
-                                    : 'bg-yellow-500'
-                                }
+                                className={getCourseListStatusBadgeClass(
+                                  course.status,
+                                )}
                               >
                                 {course.status}
                               </Badge>
@@ -1031,8 +1068,8 @@ export function MyCoursesPage({
           </DialogHeader>
           <div className='space-y-4'>
             {/* Copy Link Section */}
-            <div className='p-4 bg-gray-50 rounded-lg border border-gray-200'>
-              <label className='text-sm font-medium mb-2 block'>
+            <div className='rounded-lg border border-border bg-muted/40 p-4'>
+              <label className='mb-2 block text-sm font-medium text-foreground'>
                 Course Link
               </label>
               <div className='flex items-center gap-2'>
@@ -1044,7 +1081,7 @@ export function MyCoursesPage({
                       : ''
                   }
                   readOnly
-                  className='flex-1 bg-white'
+                  className='flex-1 text-foreground'
                 />
                 <Button
                   size='sm'

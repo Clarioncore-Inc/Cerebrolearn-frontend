@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import {authApi} from '../../../utils/api-client'
+import { authApi } from '../../../utils/api-client';
 import type { User } from '../types/database';
+
+let googleIdentityScriptPromise: Promise<any> | null = null;
+let facebookSdkPromise: Promise<any> | null = null;
 
 interface UserProfile {
   id: string;
@@ -40,8 +43,21 @@ interface AuthContextType {
     orgId?: string,
   ) => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
-  signInWithFacebook: () => Promise<void>;
+  renderGoogleButton: (
+    container: HTMLElement,
+    onCredential: (credential: string) => void,
+  ) => Promise<void>;
+  getFacebookAccessToken: () => Promise<string>;
+  lookupGoogleAccount: (credential: string) => Promise<{
+    exists: boolean;
+    role?: string | null;
+  }>;
+  lookupFacebookAccount: (accessToken: string) => Promise<{
+    exists: boolean;
+    role?: string | null;
+  }>;
+  completeGoogleSignIn: (credential: string, role?: string) => Promise<void>;
+  completeFacebookSignIn: (accessToken: string, role?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -64,6 +80,13 @@ const writeFirstLoginFlag = (value: boolean) => {
 const clearFirstLoginFlag = () => {
   if (typeof window === 'undefined') return;
   window.sessionStorage.removeItem(AUTH_FIRST_LOGIN_KEY);
+};
+
+const getSocialSignupRole = (selectedRole = 'learner') => {
+  if (typeof window === 'undefined') return selectedRole;
+  return window.sessionStorage.getItem(USER_INTENT_KEY) === 'iq-only'
+    ? 'iq_user'
+    : selectedRole;
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -132,6 +155,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     const result = await authApi.login({ email, password });
+    applyAuthResult(result);
+  };
+
+  const applyAuthResult = (result: {
+    access_token: string;
+    user: User;
+    is_first_login: boolean;
+  }) => {
     localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
     writeFirstLoginFlag(result.is_first_login);
     setUser(result.user);
@@ -164,110 +195,225 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsFirstLogin(false);
   };
 
-  const signInWithGoogle = (): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-        | string
-        | undefined;
-      if (!clientId) {
-        reject(
-          new Error(
-            'Google sign-in is not configured. Please set VITE_GOOGLE_CLIENT_ID.',
-          ),
-        );
-        return;
-      }
+  const loadGoogleIdentityServices = async (): Promise<any> => {
+    if (typeof window === 'undefined') {
+      throw new Error('Google sign-in is only available in the browser.');
+    }
 
-      const handleCredential = async (response: { credential: string }) => {
-        try {
-          // Decode the Google ID token (JWT) to get user info — no secret needed for decoding
-          const payload = JSON.parse(atob(response.credential.split('.')[1]));
-          const { email, name, sub } = payload as {
-            email: string;
-            name: string;
-            sub: string;
-          };
-          const derivedPassword = `google_${sub}`;
-
-          try {
-            // Returning user — try login first
-            const result = await authApi.login({
-              email,
-              password: derivedPassword,
-            });
-            localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
-            writeFirstLoginFlag(result.is_first_login);
-            setUser(result.user);
-            setProfile(result.user as unknown as UserProfile);
-            setIsFirstLogin(result.is_first_login);
-          } catch {
-            // New user — create account then login
-            await authApi.signup({
-              email,
-              password: derivedPassword,
-              full_name: name,
-              role: 'learner',
-            });
-            const result = await authApi.login({
-              email,
-              password: derivedPassword,
-            });
-            localStorage.setItem(AUTH_TOKEN_KEY, result.access_token);
-            writeFirstLoginFlag(result.is_first_login);
-            setUser(result.user);
-            setProfile(result.user as unknown as UserProfile);
-            setIsFirstLogin(result.is_first_login);
-          }
-          resolve();
-        } catch (err) {
-          reject(err);
-        }
-      };
-
-      const init = () => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const google = (window as any).google;
-        google.accounts.id.initialize({
-          client_id: clientId,
-          callback: handleCredential,
-        });
-        google.accounts.id.prompt(
-          (notification: {
-            isNotDisplayed: () => boolean;
-            isSkippedMoment: () => boolean;
-          }) => {
-            if (
-              notification.isNotDisplayed() ||
-              notification.isSkippedMoment()
-            ) {
-              // Fallback: render a popup manually
-              google.accounts.id.renderButton(
-                document.createElement('div'),
-                {},
-              );
-            }
-          },
-        );
-      };
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).google?.accounts?.id) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if ((window as any).google?.accounts) {
-        init();
-      } else {
+      return (window as any).google;
+    }
+
+    if (!googleIdentityScriptPromise) {
+      googleIdentityScriptPromise = new Promise((resolve, reject) => {
+        const existingScript = document.querySelector(
+          'script[src="https://accounts.google.com/gsi/client"]',
+        ) as HTMLScriptElement | null;
+
+        const handleLoad = () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const google = (window as any).google;
+          if (google?.accounts?.id) {
+            resolve(google);
+          } else {
+            googleIdentityScriptPromise = null;
+            reject(new Error('Failed to initialize Google Identity Services.'));
+          }
+        };
+
+        const handleError = () => {
+          googleIdentityScriptPromise = null;
+          reject(new Error('Failed to load Google Identity Services.'));
+        };
+
+        if (existingScript) {
+          existingScript.addEventListener('load', handleLoad, { once: true });
+          existingScript.addEventListener('error', handleError, { once: true });
+          return;
+        }
+
         const script = document.createElement('script');
         script.src = 'https://accounts.google.com/gsi/client';
         script.async = true;
         script.defer = true;
-        script.onload = init;
-        script.onerror = () =>
-          reject(new Error('Failed to load Google Identity Services.'));
+        script.onload = handleLoad;
+        script.onerror = handleError;
         document.head.appendChild(script);
-      }
+      });
+    }
+
+    return googleIdentityScriptPromise;
+  };
+
+  const loadFacebookSdk = async (): Promise<any> => {
+    if (typeof window === 'undefined') {
+      throw new Error('Facebook sign-in is only available in the browser.');
+    }
+
+    const appId = import.meta.env.VITE_FACEBOOK_APP_ID as string | undefined;
+    if (!appId) {
+      throw new Error(
+        'Facebook sign-in is not configured. Please set VITE_FACEBOOK_APP_ID.',
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).FB) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (window as any).FB;
+    }
+
+    if (!facebookSdkPromise) {
+      facebookSdkPromise = new Promise((resolve, reject) => {
+        const initialize = () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const FB = (window as any).FB;
+          if (!FB) {
+            facebookSdkPromise = null;
+            reject(new Error('Failed to initialize Facebook SDK.'));
+            return;
+          }
+
+          FB.init({
+            appId,
+            cookie: false,
+            xfbml: false,
+            version: 'v20.0',
+          });
+          resolve(FB);
+        };
+
+        const existingScript = document.getElementById('facebook-jssdk') as
+          | HTMLScriptElement
+          | null;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const previousInit = (window as any).fbAsyncInit;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (window as any).fbAsyncInit = () => {
+          if (typeof previousInit === 'function') {
+            previousInit();
+          }
+          initialize();
+        };
+
+        const handleError = () => {
+          facebookSdkPromise = null;
+          reject(new Error('Failed to load Facebook SDK.'));
+        };
+
+        if (existingScript) {
+          existingScript.addEventListener(
+            'load',
+            () => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (window as any).fbAsyncInit?.();
+            },
+            { once: true },
+          );
+          existingScript.addEventListener('error', handleError, { once: true });
+          return;
+        }
+
+        const script = document.createElement('script');
+        script.id = 'facebook-jssdk';
+        script.async = true;
+        script.defer = true;
+        script.src = 'https://connect.facebook.net/en_US/sdk.js';
+        script.onerror = handleError;
+        document.head.appendChild(script);
+      });
+    }
+
+    return facebookSdkPromise;
+  };
+
+  const renderGoogleButton = async (
+    container: HTMLElement,
+    onCredential: (credential: string) => void,
+  ): Promise<void> => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined;
+    if (!clientId) {
+      throw new Error(
+        'Google sign-in is not configured. Please set VITE_GOOGLE_CLIENT_ID.',
+      );
+    }
+
+    const google = await loadGoogleIdentityServices();
+    google.accounts.id.initialize({
+      client_id: clientId,
+      callback: (response: { credential?: string }) => {
+        if (!response.credential) {
+          return;
+        }
+        onCredential(response.credential);
+      },
+    });
+
+    container.replaceChildren();
+    google.accounts.id.renderButton(container, {
+      theme: 'filled_blue',
+      size: 'large',
+      text: 'continue_with',
+      shape: 'pill',
+      logo_alignment: 'left',
+      width: Math.max(Math.min(Math.round(container.getBoundingClientRect().width || 320), 400), 240),
     });
   };
 
-  const signInWithFacebook = async () => {
-    throw new Error('Facebook sign-in is not yet available.');
+  const lookupGoogleAccount = async (credential: string) => {
+    return authApi.googleLookup({ credential });
+  };
+
+  const getFacebookAccessToken = async (): Promise<string> => {
+    const FB = await loadFacebookSdk();
+    return new Promise((resolve, reject) => {
+      FB.login(
+        (response: { authResponse?: { accessToken?: string } }) => {
+          const token = response.authResponse?.accessToken;
+          if (!token) {
+            reject(
+              new Error(
+                'Facebook sign-in was cancelled or could not be completed.',
+              ),
+            );
+            return;
+          }
+          resolve(token);
+        },
+        { scope: 'email,public_profile' },
+      );
+    });
+  };
+
+  const lookupFacebookAccount = async (accessToken: string) => {
+    return authApi.facebookLookup({ access_token: accessToken });
+  };
+
+  const completeGoogleSignIn = async (
+    credential: string,
+    role = 'learner',
+  ): Promise<void> => {
+    const result = await authApi.googleLogin({
+      credential,
+      role: getSocialSignupRole(role),
+    });
+    applyAuthResult(result);
+  };
+
+  const completeFacebookSignIn = async (
+    accessToken: string,
+    role = 'learner',
+  ): Promise<void> => {
+    const result = await authApi.facebookLogin({
+      access_token: accessToken,
+      role: getSocialSignupRole(role),
+    });
+    applyAuthResult(result);
   };
 
   const refreshProfile = async () => {
@@ -286,8 +432,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
-        signInWithGoogle,
-        signInWithFacebook,
+        renderGoogleButton,
+        getFacebookAccessToken,
+        lookupGoogleAccount,
+        lookupFacebookAccount,
+        completeGoogleSignIn,
+        completeFacebookSignIn,
         refreshProfile,
       }}
     >

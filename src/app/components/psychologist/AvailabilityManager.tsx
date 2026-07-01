@@ -438,7 +438,7 @@ export function AvailabilityManager({ onNavigate }: AvailabilityManagerProps) {
               </p>
               <p className="text-sm text-muted-foreground">
                 {hasAvailabilityRecord
-                  ? 'Students can only book sessions during your available hours. Toggle days on/off and set your preferred working hours. Changes take effect immediately after saving.'
+                  ? 'Clients can only book sessions during your available hours. Toggle days on/off and set your preferred working hours. Changes take effect immediately after saving.'
                   : 'You have not configured any availability yet. Enable the days you want to work, set your hours, and save when you are ready.'}
               </p>
             </div>

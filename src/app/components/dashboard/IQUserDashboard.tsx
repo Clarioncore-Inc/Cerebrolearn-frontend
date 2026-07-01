@@ -22,7 +22,6 @@ import {
   Clock,
   CreditCard,
   Flame,
-  Loader2,
   Play,
   Shield,
   Sparkles,
@@ -36,7 +35,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
-import { psychologistApi } from '../../utils/api-client';
+import { psychologistApi, publicGeniusApi, type GeniusApiResponse } from '../../utils/api-client';
+import { calculateIQScoreFromCognitiveProfile } from './IQCertificate';
 import type {
   IQSessionBooking,
   IQSessionCognitiveProfile,
@@ -46,6 +46,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
+import { Skeleton } from '../ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 
 interface IQUserDashboardProps {
@@ -77,6 +78,20 @@ interface ResumeState {
   totalQuestions: number;
   currentQuestion: number;
   lastSavedAt?: string;
+}
+
+interface DashboardGeniusProfile {
+  id: string;
+  name: string;
+  iqScore: number | null;
+  field: string;
+  era: string;
+  notableWork: string;
+  description: string;
+}
+
+interface BenchmarkGeniusProfile extends DashboardGeniusProfile {
+  benchmarkPercent: number;
 }
 
 const glassCardClassName =
@@ -114,17 +129,23 @@ const comparisonRows = [
   },
 ];
 
-const challengeCards = [
-  {
-    title: 'Genius Benchmark',
-    description: 'See how your latest performance compares with the greatest minds in history.',
-    badge: 'Compare',
-    cta: 'View Rankings',
-    action: 'rankings',
-    icon: Trophy,
-    accent: 'from-amber-500/15 to-primary/10',
-  },
-];
+const formatProfileType = (value?: string) => {
+  if (!value) return 'Profile';
+  return value
+    .split('_')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const mapDashboardGeniusProfile = (profile: GeniusApiResponse): DashboardGeniusProfile => ({
+  id: profile.id,
+  name: profile.full_name,
+  iqScore: profile.iq_score,
+  field: formatProfileType(profile.profile_type),
+  era: profile.era,
+  notableWork: profile.short_description,
+  description: profile.iq_score_note || profile.editorial_note || profile.short_description,
+});
 
 const hasVisibleResults = (notes?: IQSessionNotes | null) =>
   Boolean(
@@ -168,6 +189,42 @@ const buildRadarDataFromCognitiveProfile = (
     metric: item.metric,
     score: scoreByMetric[item.metric] ?? item.score,
   }));
+};
+
+const getCertificateEligibleProfile = (profile?: IQSessionCognitiveProfile | null) => {
+  if (
+    typeof profile?.pattern_recognition !== 'number' ||
+    typeof profile?.working_memory !== 'number' ||
+    typeof profile?.processing_speed !== 'number' ||
+    typeof profile?.verbal_intelligence !== 'number' ||
+    typeof profile?.spatial_reasoning !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    pattern_recognition: profile.pattern_recognition,
+    working_memory: profile.working_memory,
+    processing_speed: profile.processing_speed,
+    verbal_intelligence: profile.verbal_intelligence,
+    spatial_reasoning: profile.spatial_reasoning,
+  };
+};
+
+const getOfficialIQScoreFromSession = (session?: IQSessionBooking | null) => {
+  const profile = getCertificateEligibleProfile(session?.sessionNotes?.cognitive_profile);
+  return profile ? calculateIQScoreFromCognitiveProfile(profile) : null;
+};
+
+const formatIQTestType = (testType?: string) => {
+  switch (testType) {
+    case 'weschler_intelligence_test':
+      return 'Wechsler Intelligence Test';
+    case 'culture_fair_intelligence_test':
+      return 'Culture Fair Intelligence Test';
+    default:
+      return testType?.trim() || 'Official IQ Test';
+  }
 };
 
 const formatSessionDate = (dateString: string) =>
@@ -243,6 +300,15 @@ const calculateIQScore = (percentageScore: number) => Math.round(100 + (percenta
 const calculatePercentile = (iqScore: number) =>
   clamp(Math.round((1 - Math.exp(-(iqScore - 100) / 15)) * 50 + 50), 1, 99);
 
+const OFFICIAL_IQ_MIN = calculateIQScore(0);
+const OFFICIAL_IQ_MAX = calculateIQScore(100);
+
+const getScalePositionPercent = (value: number, min: number, max: number) => {
+  if (!Number.isFinite(value)) return 0;
+  if (max <= min) return 50;
+  return clamp(Math.round(((value - min) / (max - min)) * 100), 0, 100);
+};
+
 const formatShortDate = (date: string) =>
   new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -281,6 +347,9 @@ export function IQUserDashboard({
   const [iqSessions, setIqSessions] = useState<IQSessionBooking[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [geniusProfiles, setGeniusProfiles] = useState<DashboardGeniusProfile[]>([]);
+  const [geniusLoading, setGeniusLoading] = useState(true);
+  const [geniusError, setGeniusError] = useState<string | null>(null);
   const [activeSessionTab, setActiveSessionTab] = useState<'upcoming' | 'past'>(initialSessionTab);
   const [visibleSessionCounts, setVisibleSessionCounts] = useState<Record<'upcoming' | 'past', number>>({
     upcoming: SESSIONS_PAGE_SIZE,
@@ -350,6 +419,129 @@ export function IQUserDashboard({
   const previousIQScore = previousResult ? calculateIQScore(previousResult.score) : null;
   const estimatedPercentile = latestIQScore ? calculatePercentile(latestIQScore) : null;
   const iqDelta = latestIQScore && previousIQScore ? latestIQScore - previousIQScore : 0;
+  const latestCompletedOfficialSessionResult = useMemo(
+    () =>
+      [...iqSessions]
+        .filter((session) => session.status === 'completed')
+        .map((session) => ({
+          session,
+          iqScore: getOfficialIQScoreFromSession(session),
+        }))
+        .filter(
+          (item): item is { session: IQSessionBooking; iqScore: number } =>
+            typeof item.iqScore === 'number' && !Number.isNaN(item.iqScore),
+        )
+        .sort((a, b) => getSessionLatestTimestamp(b.session) - getSessionLatestTimestamp(a.session))[0] ?? null,
+    [iqSessions],
+  );
+  const latestOfficialIQScore = latestCompletedOfficialSessionResult?.iqScore ?? null;
+  const rankedGeniusProfiles = useMemo(
+    () =>
+      [...geniusProfiles]
+        .filter((profile) => typeof profile.iqScore === 'number')
+        .sort((a, b) => (b.iqScore ?? 0) - (a.iqScore ?? 0)),
+    [geniusProfiles],
+  );
+  const geniusScoreBounds = useMemo(() => {
+    const scores = rankedGeniusProfiles
+      .map((profile) => profile.iqScore)
+      .filter((score): score is number => typeof score === 'number' && !Number.isNaN(score));
+
+    if (!scores.length) return null;
+    return {
+      min: Math.min(...scores),
+      max: Math.max(...scores),
+    };
+  }, [rankedGeniusProfiles]);
+  const latestOfficialBenchmarkPercent = useMemo(
+    () =>
+      latestOfficialIQScore == null
+        ? null
+        : getScalePositionPercent(latestOfficialIQScore, OFFICIAL_IQ_MIN, OFFICIAL_IQ_MAX),
+    [latestOfficialIQScore],
+  );
+  const benchmarkGeniusProfiles = useMemo<BenchmarkGeniusProfile[]>(() => {
+    if (!geniusScoreBounds) return [];
+
+    return rankedGeniusProfiles.map((profile) => ({
+      ...profile,
+      benchmarkPercent: getScalePositionPercent(
+        profile.iqScore ?? geniusScoreBounds.min,
+        geniusScoreBounds.min,
+        geniusScoreBounds.max,
+      ),
+    }));
+  }, [geniusScoreBounds, rankedGeniusProfiles]);
+
+  const closestGeniusProfile = useMemo(() => {
+    if (latestOfficialBenchmarkPercent == null || !benchmarkGeniusProfiles.length) return null;
+
+    return benchmarkGeniusProfiles.reduce((closest, profile) => {
+      const currentGap = Math.abs(profile.benchmarkPercent - latestOfficialBenchmarkPercent);
+      const bestGap = Math.abs(closest.benchmarkPercent - latestOfficialBenchmarkPercent);
+      return currentGap < bestGap ? profile : closest;
+    });
+  }, [benchmarkGeniusProfiles, latestOfficialBenchmarkPercent]);
+
+  const geniusProfilesAscending = useMemo(
+    () => [...benchmarkGeniusProfiles].sort((a, b) => a.benchmarkPercent - b.benchmarkPercent),
+    [benchmarkGeniusProfiles],
+  );
+
+  const nextGeniusAbove = useMemo(() => {
+    if (latestOfficialBenchmarkPercent == null) return null;
+    return (
+      geniusProfilesAscending.find(
+        (profile) => profile.benchmarkPercent >= latestOfficialBenchmarkPercent,
+      ) ?? null
+    );
+  }, [geniusProfilesAscending, latestOfficialBenchmarkPercent]);
+
+  const nextGeniusBelow = useMemo(() => {
+    if (latestOfficialBenchmarkPercent == null) return null;
+    return (
+      [...geniusProfilesAscending]
+        .reverse()
+        .find((profile) => profile.benchmarkPercent <= latestOfficialBenchmarkPercent) ?? null
+    );
+  }, [geniusProfilesAscending, latestOfficialBenchmarkPercent]);
+
+  const geniusProfilesBelowUser = useMemo(() => {
+    if (latestOfficialBenchmarkPercent == null) return 0;
+    return benchmarkGeniusProfiles.filter(
+      (profile) => latestOfficialBenchmarkPercent >= profile.benchmarkPercent,
+    ).length;
+  }, [benchmarkGeniusProfiles, latestOfficialBenchmarkPercent]);
+
+  const geniusStandingPercent = rankedGeniusProfiles.length
+    ? Math.round((geniusProfilesBelowUser / rankedGeniusProfiles.length) * 100)
+    : null;
+
+  const geniusComparisonCards = useMemo(() => {
+    const cards: Array<{
+      key: string;
+      label: string;
+      profile: DashboardGeniusProfile;
+    }> = [];
+    const seen = new Set<string>();
+
+    const addCard = (label: string, profile: DashboardGeniusProfile | null) => {
+      if (!profile || seen.has(profile.id)) return;
+      seen.add(profile.id);
+      cards.push({ key: `${label}-${profile.id}`, label, profile });
+    };
+
+    addCard('Closest profile', closestGeniusProfile);
+    addCard('Next target', nextGeniusAbove);
+    addCard('Already ahead of', nextGeniusBelow);
+
+    return cards;
+  }, [closestGeniusProfile, nextGeniusAbove, nextGeniusBelow]);
+
+  const completedIQSessionCount = useMemo(
+    () => iqSessions.filter((session) => session.status === 'completed').length,
+    [iqSessions],
+  );
 
   const categoryTotals = useMemo(() => {
     const totals = {
@@ -547,8 +739,11 @@ export function IQUserDashboard({
   const quickStats = [
     {
       label: 'Tests Completed',
-      value: completedTests.toString(),
-      sublabel: completedTests > 0 ? 'Recorded attempts' : 'Start your first run',
+      value: completedIQSessionCount.toString(),
+      sublabel:
+        completedIQSessionCount > 0
+          ? 'Completed IQ sessions'
+          : 'No completed IQ sessions yet',
       icon: Brain,
     },
   ];
@@ -556,6 +751,40 @@ export function IQUserDashboard({
   useEffect(() => {
     setActiveSessionTab(initialSessionTab);
   }, [initialSessionTab]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadGeniusProfiles = async () => {
+      try {
+        setGeniusLoading(true);
+        setGeniusError(null);
+
+        const response = await publicGeniusApi.list();
+
+        if (!isMounted) return;
+        setGeniusProfiles((response.items || []).map(mapDashboardGeniusProfile));
+      } catch (error: any) {
+        if (!isMounted) return;
+        setGeniusProfiles([]);
+        setGeniusError(
+          error?.message && error.message !== '[object Object]'
+            ? error.message
+            : 'Unable to load genius comparison data right now.',
+        );
+      } finally {
+        if (isMounted) {
+          setGeniusLoading(false);
+        }
+      }
+    };
+
+    loadGeniusProfiles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (focusSection === 'sessions') {
@@ -633,6 +862,8 @@ export function IQUserDashboard({
     () => iqSessions.filter((session) => hasVisibleResults(session.sessionNotes)).length,
     [iqSessions],
   );
+  const isInitialSessionsLoading = sessionsLoading && iqSessions.length === 0;
+  const isInitialGeniusLoading = geniusLoading && geniusProfiles.length === 0;
 
   const openSessionDetail = (session: IQSessionBooking, tab: 'upcoming' | 'past') => {
     onNavigate('iq-session-detail', {
@@ -777,21 +1008,35 @@ export function IQUserDashboard({
         </div>
 
         <div className='grid grid-cols-1 gap-3'>
-          {quickStats.map((stat) => (
-            <div
-              key={stat.label}
-              className='rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur-sm hover:scale-[1.02] transition-all duration-300'
-            >
-              <div className='mb-4 flex items-center justify-between'>
-                <span className='text-sm text-muted-foreground'>{stat.label}</span>
-                <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary'>
-                  <stat.icon className='h-5 w-5' />
+          {isInitialSessionsLoading
+            ? Array.from({ length: quickStats.length }).map((_, index) => (
+                <div
+                  key={`quick-stat-skeleton-${index}`}
+                  className='rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur-sm'
+                >
+                  <div className='mb-4 flex items-center justify-between'>
+                    <Skeleton className='h-4 w-28' />
+                    <Skeleton className='h-10 w-10 rounded-xl' />
+                  </div>
+                  <Skeleton className='h-8 w-20' />
+                  <Skeleton className='mt-2 h-3 w-36' />
                 </div>
-              </div>
-              <p className='text-3xl font-bold tracking-tight'>{stat.value}</p>
-              <p className='mt-1 text-xs text-muted-foreground'>{stat.sublabel}</p>
-            </div>
-          ))}
+              ))
+            : quickStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className='rounded-2xl border border-border/60 bg-background/80 p-4 backdrop-blur-sm hover:scale-[1.02] transition-all duration-300'
+                >
+                  <div className='mb-4 flex items-center justify-between'>
+                    <span className='text-sm text-muted-foreground'>{stat.label}</span>
+                    <div className='flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary'>
+                      <stat.icon className='h-5 w-5' />
+                    </div>
+                  </div>
+                  <p className='text-3xl font-bold tracking-tight'>{stat.value}</p>
+                  <p className='mt-1 text-xs text-muted-foreground'>{stat.sublabel}</p>
+                </div>
+              ))}
         </div>
 
         <div className='grid gap-6 lg:grid-cols-12'>
@@ -984,41 +1229,186 @@ export function IQUserDashboard({
           </Card>
 
           <div className='lg:col-span-12'>
-            <div className='flex gap-4 pb-2'>
-              {challengeCards.map((challenge) => (
-                <Card
-                  key={challenge.title}
-                  className={` flex-1 border-border/60 bg-gradient-to-br ${challenge.accent} backdrop-blur-sm hover:scale-[1.02] transition-all duration-300`}
-                >
-                  <CardContent className='flex h-full flex-col gap-4 p-5'>
-                    <div className='flex items-start justify-between gap-3'>
-                      <div className='flex h-12 w-12 items-center justify-center rounded-2xl bg-background/80 text-primary'>
-                        <challenge.icon className='h-6 w-6' />
+            <Card className='border-border/60 bg-gradient-to-br from-amber-500/15 to-primary/10 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]'>
+              <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div>
+                  <CardTitle className='flex items-center gap-2'>
+                    <Trophy className='h-5 w-5 text-amber-500' />
+                    Genius Benchmark
+                  </CardTitle>
+                  <CardDescription>
+                    Compare your latest psychologist-led IQ result against the genius dataset on an aligned benchmark scale.
+                  </CardDescription>
+                </div>
+                <Button variant='outline' className='w-full sm:w-auto' onClick={() => onNavigate('genius-rankings')}>
+                  View Full Rankings
+                  <ArrowRight className='ml-2 h-4 w-4' />
+                </Button>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                {!latestOfficialIQScore ? (
+                  <div className='rounded-2xl border border-dashed border-border/70 bg-background/80 p-6 text-center'>
+                    <Trophy className='mx-auto mb-4 h-10 w-10 text-amber-500' />
+                    <p className='text-xl font-semibold'>No completed official IQ result yet</p>
+                    <p className='mt-2 text-sm text-muted-foreground'>
+                      Once a psychologist has completed and scored your IQ session, we will show which published genius profiles your official result is closest to.
+                    </p>
+                    <Button className='mt-5' onClick={() => focusSessionsSection('past')}>
+                      <Calendar className='mr-2 h-4 w-4' />
+                      View IQ Sessions
+                    </Button>
+                  </div>
+                ) : isInitialGeniusLoading ? (
+                  <div className='space-y-4 rounded-2xl border border-border/60 bg-background/80 p-5'>
+                    <div className='flex flex-wrap gap-2'>
+                      <Skeleton className='h-6 w-24 rounded-full' />
+                      <Skeleton className='h-6 w-40 rounded-full' />
+                      <Skeleton className='h-6 w-36 rounded-full' />
+                    </div>
+                    <Skeleton className='h-8 w-72' />
+                    <Skeleton className='h-4 w-full' />
+                    <Skeleton className='h-4 w-4/5' />
+                    <div className='grid gap-4 md:grid-cols-3'>
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div
+                          key={`genius-benchmark-skeleton-${index}`}
+                          className='rounded-2xl border border-border/60 bg-background/80 p-4'
+                        >
+                          <div className='flex items-start justify-between gap-3'>
+                            <div className='space-y-2'>
+                              <Skeleton className='h-3 w-24' />
+                              <Skeleton className='h-6 w-40' />
+                              <Skeleton className='h-4 w-32' />
+                            </div>
+                            <Skeleton className='h-6 w-16 rounded-full' />
+                          </div>
+                          <Skeleton className='mt-4 h-4 w-full' />
+                          <div className='mt-4 rounded-xl border border-border/60 bg-muted/20 p-3'>
+                            <Skeleton className='h-3 w-24' />
+                            <Skeleton className='mt-3 h-4 w-36' />
+                            <Skeleton className='mt-2 h-3 w-full' />
+                            <Skeleton className='mt-2 h-3 w-5/6' />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : geniusError ? (
+                  <div className='rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm'>
+                    <p className='font-semibold'>Unable to load benchmark profiles</p>
+                    <p className='mt-1 text-muted-foreground'>{geniusError}</p>
+                  </div>
+                ) : rankedGeniusProfiles.length > 0 ? (
+                  <>
+                    <div className='grid gap-4 lg:grid-cols-[1.2fr_0.8fr]'>
+                      <div className='rounded-2xl border border-border/60 bg-background/80 p-5'>
+                        <div className='flex flex-wrap items-center gap-2'>
+                          <Badge className='border-0 bg-primary/10 text-primary'>Official IQ: {latestOfficialIQScore}</Badge>
+                          {latestOfficialBenchmarkPercent !== null ? (
+                            <Badge variant='outline'>Aligned benchmark: {latestOfficialBenchmarkPercent}%</Badge>
+                          ) : null}
+                          <Badge variant='outline'>
+                            {formatIQTestType(latestCompletedOfficialSessionResult?.session.testType)}
+                          </Badge>
+                          {geniusStandingPercent !== null ? (
+                            <Badge variant='secondary'>Ahead of {geniusProfilesBelowUser}/{rankedGeniusProfiles.length} aligned profiles</Badge>
+                          ) : null}
+                        </div>
+                        <p className='mt-4 text-2xl font-bold'>
+                          {closestGeniusProfile
+                            ? `Closest aligned benchmark: ${closestGeniusProfile.name}`
+                            : 'Your benchmark is getting ready'}
+                        </p>
+                        <p className='mt-2 text-sm text-muted-foreground'>
+                          {closestGeniusProfile
+                            ? Math.abs(closestGeniusProfile.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0)) === 0
+                              ? `On the aligned benchmark scale, your latest result lands in the same band as ${closestGeniusProfile.name}.`
+                              : (latestOfficialBenchmarkPercent ?? 0) > closestGeniusProfile.benchmarkPercent
+                                ? `On the aligned benchmark scale, you are ${Math.abs((latestOfficialBenchmarkPercent ?? 0) - closestGeniusProfile.benchmarkPercent)} point(s) ahead of ${closestGeniusProfile.name}.`
+                                : `On the aligned benchmark scale, you are ${Math.abs(closestGeniusProfile.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0))} point(s) away from ${closestGeniusProfile.name}.`
+                            : 'As more genius profiles are published, your closest comparison will appear here.'}
+                        </p>
+                        {latestCompletedOfficialSessionResult?.session.date ? (
+                          <p className='mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground'>
+                            Based on your latest completed session · {formatSessionDate(latestCompletedOfficialSessionResult.session.date)}
+                          </p>
+                        ) : null}
+                        <p className='mt-2 text-xs text-muted-foreground'>
+                          Historical genius IQ values here are published estimates, so this benchmark aligns positions across the two scales instead of comparing raw IQ numbers directly.
+                        </p>
                       </div>
-                      <Badge variant='secondary'>{challenge.badge}</Badge>
+
+                      <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-1'>
+                        <div className='rounded-2xl border border-border/60 bg-background/80 p-4'>
+                          <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Aligned standing</p>
+                          <p className='mt-2 text-3xl font-bold'>{geniusStandingPercent ?? 0}%</p>
+                          <p className='mt-1 text-sm text-muted-foreground'>Of listed genius profiles at or below your aligned benchmark position</p>
+                        </div>
+                        <div className='rounded-2xl border border-border/60 bg-background/80 p-4'>
+                          <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Next target</p>
+                          <p className='mt-2 text-lg font-semibold'>
+                            {nextGeniusAbove?.name ?? 'You are above every currently listed score'}
+                          </p>
+                          <p className='mt-1 text-sm text-muted-foreground'>
+                            {nextGeniusAbove
+                              ? `${Math.max(nextGeniusAbove.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0), 0)} aligned point(s) away`
+                              : 'No higher aligned benchmark in the current published dataset'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className='text-lg font-semibold'>{challenge.title}</p>
-                      <p className='mt-2 text-sm text-muted-foreground'>{challenge.description}</p>
+
+                    <div className='grid gap-4 md:grid-cols-3'>
+                      {geniusComparisonCards.map((item) => {
+                        const benchmarkGap = (latestOfficialBenchmarkPercent ?? 0) - item.profile.benchmarkPercent;
+                        const isAhead = benchmarkGap >= 0;
+
+                        return (
+                          <div
+                            key={item.key}
+                            className='rounded-2xl border border-border/60 bg-background/80 p-4 transition-all duration-300 hover:border-primary/30 hover:shadow-lg'
+                          >
+                            <div className='flex items-start justify-between gap-3'>
+                              <div>
+                                <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>{item.label}</p>
+                                <p className='mt-2 text-lg font-semibold'>{item.profile.name}</p>
+                                <p className='text-sm text-muted-foreground'>
+                                  {item.profile.field} · {item.profile.era}
+                                </p>
+                              </div>
+                              <Badge className='border-0 bg-background/90 text-primary'>
+                                IQ {item.profile.iqScore ?? '—'}
+                              </Badge>
+                            </div>
+                            <p className='mt-4 text-sm text-muted-foreground'>{item.profile.notableWork}</p>
+                            <div className='mt-4 rounded-xl border border-border/60 bg-muted/20 p-3'>
+                              <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Your comparison</p>
+                              <p className={`mt-2 text-sm font-semibold ${isAhead ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                {benchmarkGap === 0
+                                  ? 'You are in the same aligned benchmark band'
+                                  : isAhead
+                                    ? `${benchmarkGap} aligned point(s) above this profile`
+                                    : `${Math.abs(benchmarkGap)} aligned point(s) below this profile`}
+                              </p>
+                              <p className='mt-2 text-xs text-muted-foreground line-clamp-3'>
+                                {item.profile.description}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div className='mt-auto'>
-                      <Button
-                        variant='outline'
-                        className='w-full justify-between bg-background/70'
-                        onClick={() =>
-                          onNavigate(
-                            challenge.action === 'rankings' ? 'genius-rankings' : 'iq-test-landing',
-                          )
-                        }
-                      >
-                        {challenge.cta}
-                        <ArrowRight className='h-4 w-4' />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                  </>
+                ) : (
+                  <div className='rounded-2xl border border-dashed border-border/70 bg-background/70 p-6 text-center'>
+                    <p className='text-lg font-semibold'>No published genius profiles available yet</p>
+                    <p className='mt-2 text-sm text-muted-foreground'>
+                      Once profiles are published from the backend, your comparison cards will appear here automatically.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div ref={sessionsSectionRef} className='lg:col-span-12 scroll-mt-24'>
@@ -1033,7 +1423,11 @@ export function IQUserDashboard({
                     Track your upcoming and past psychologist-led IQ sessions directly from your dashboard.
                   </CardDescription>
                 </div>
-                <Badge variant='secondary'>Results available: {sessionResultsCount}</Badge>
+                {isInitialSessionsLoading ? (
+                  <Skeleton className='h-6 w-36 rounded-full' />
+                ) : (
+                  <Badge variant='secondary'>Results available: {sessionResultsCount}</Badge>
+                )}
               </CardHeader>
               <CardContent className='space-y-4'>
                 {sessionsError ? (
@@ -1043,62 +1437,86 @@ export function IQUserDashboard({
                   </div>
                 ) : null}
 
-                <Tabs value={activeSessionTab} onValueChange={(value) => setActiveSessionTab(value as 'upcoming' | 'past')}>
-                  <TabsList className='grid w-full grid-cols-2 md:w-fit'>
-                    <TabsTrigger value='upcoming'>Upcoming ({upcomingSessions.length})</TabsTrigger>
-                    <TabsTrigger value='past'>Past ({pastSessions.length})</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value='upcoming' className='mt-6'>
-                    {sessionsLoading ? (
-                      <div className='flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20'>
-                        <Loader2 className='mr-3 h-5 w-5 animate-spin text-primary' />
-                        <span className='text-sm text-muted-foreground'>Loading your upcoming sessions…</span>
-                      </div>
-                    ) : upcomingSessions.length > 0 ? (
-                      <div className='space-y-4'>
-                        <div className='grid gap-4 lg:grid-cols-2'>
-                          {visibleUpcomingSessions.map((session) => renderSessionCard(session, 'upcoming'))}
+                {isInitialSessionsLoading ? (
+                  <div className='space-y-4'>
+                    <div className='grid w-full grid-cols-2 gap-2 md:w-fit'>
+                      <Skeleton className='h-10 w-full md:w-36' />
+                      <Skeleton className='h-10 w-full md:w-32' />
+                    </div>
+                    <div className='grid gap-4 lg:grid-cols-2'>
+                      {Array.from({ length: 4 }).map((_, index) => (
+                        <div
+                          key={`session-skeleton-${index}`}
+                          className='rounded-2xl border border-border/60 bg-background/70 p-5'
+                        >
+                          <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                            <div className='flex-1 space-y-3'>
+                              <div className='space-y-2'>
+                                <Skeleton className='h-6 w-40' />
+                                <Skeleton className='h-4 w-56' />
+                              </div>
+                              <div className='space-y-2'>
+                                <Skeleton className='h-4 w-44' />
+                                <Skeleton className='h-4 w-24' />
+                              </div>
+                            </div>
+                            <div className='flex flex-col gap-2 sm:items-end'>
+                              <Skeleton className='h-6 w-28 rounded-full' />
+                              <Skeleton className='h-4 w-24' />
+                            </div>
+                          </div>
                         </div>
-                        {renderSessionPagination('upcoming', upcomingSessions, visibleUpcomingSessions)}
-                      </div>
-                    ) : (
-                      <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
-                        <p className='text-lg font-semibold'>No upcoming sessions</p>
-                        <p className='mt-2 text-sm text-muted-foreground'>
-                          Book an IQ test session when you are ready for a psychologist-led assessment.
-                        </p>
-                        <Button className='mt-4' onClick={() => onNavigate('book-psychologist', { backPage: 'dashboard' })}>
-                          <Users className='mr-2 h-4 w-4' />
-                          Book IQ Test
-                        </Button>
-                      </div>
-                    )}
-                  </TabsContent>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <Tabs value={activeSessionTab} onValueChange={(value) => setActiveSessionTab(value as 'upcoming' | 'past')}>
+                    <TabsList className='grid w-full grid-cols-2 md:w-fit'>
+                      <TabsTrigger value='upcoming'>Upcoming ({upcomingSessions.length})</TabsTrigger>
+                      <TabsTrigger value='past'>Past ({pastSessions.length})</TabsTrigger>
+                    </TabsList>
 
-                  <TabsContent value='past' className='mt-6'>
-                    {sessionsLoading ? (
-                      <div className='flex min-h-[180px] items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20'>
-                        <Loader2 className='mr-3 h-5 w-5 animate-spin text-primary' />
-                        <span className='text-sm text-muted-foreground'>Loading your past sessions…</span>
-                      </div>
-                    ) : pastSessions.length > 0 ? (
-                      <div className='space-y-4'>
-                        <div className='grid gap-4 lg:grid-cols-2'>
-                          {visiblePastSessions.map((session) => renderSessionCard(session, 'past'))}
+                    <TabsContent value='upcoming' className='mt-6'>
+                      {upcomingSessions.length > 0 ? (
+                        <div className='space-y-4'>
+                          <div className='grid gap-4 lg:grid-cols-2'>
+                            {visibleUpcomingSessions.map((session) => renderSessionCard(session, 'upcoming'))}
+                          </div>
+                          {renderSessionPagination('upcoming', upcomingSessions, visibleUpcomingSessions)}
                         </div>
-                        {renderSessionPagination('past', pastSessions, visiblePastSessions)}
-                      </div>
-                    ) : (
-                      <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
-                        <p className='text-lg font-semibold'>No past sessions yet</p>
-                        <p className='mt-2 text-sm text-muted-foreground'>
-                          Completed psychologist-led IQ session results will appear here after your sessions take place.
-                        </p>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
+                      ) : (
+                        <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
+                          <p className='text-lg font-semibold'>No upcoming sessions</p>
+                          <p className='mt-2 text-sm text-muted-foreground'>
+                            Book an IQ test session when you are ready for a psychologist-led assessment.
+                          </p>
+                          <Button className='mt-4' onClick={() => onNavigate('book-psychologist', { backPage: 'dashboard' })}>
+                            <Users className='mr-2 h-4 w-4' />
+                            Book IQ Test
+                          </Button>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value='past' className='mt-6'>
+                      {pastSessions.length > 0 ? (
+                        <div className='space-y-4'>
+                          <div className='grid gap-4 lg:grid-cols-2'>
+                            {visiblePastSessions.map((session) => renderSessionCard(session, 'past'))}
+                          </div>
+                          {renderSessionPagination('past', pastSessions, visiblePastSessions)}
+                        </div>
+                      ) : (
+                        <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-8 text-center'>
+                          <p className='text-lg font-semibold'>No past sessions yet</p>
+                          <p className='mt-2 text-sm text-muted-foreground'>
+                            Completed psychologist-led IQ session results will appear here after your sessions take place.
+                          </p>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                )}
               </CardContent>
             </Card>
           </div>
