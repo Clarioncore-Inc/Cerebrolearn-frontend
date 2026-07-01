@@ -1,0 +1,115 @@
+trigger:
+  branches:
+    include:
+      - "*"
+pr: none
+
+variables:
+  APPS_DIRECTORY: "/var/www/html"
+  PROJECT: "Cerebrolearn-frontend"
+  ${{ if eq(variables['Build.SourceBranchName'], 'develop') }}:
+    ENVIRONMENT: "testing"
+  ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+    ENVIRONMENT: "production"
+
+stages:
+  - stage: Build
+    dependsOn: []
+    jobs:
+      - job: BuildApplication
+        pool:
+          vmImage: ubuntu-latest
+        displayName: Build Application
+        steps:
+          - checkout: self
+
+          - task: NodeTool@0
+            displayName: Install Node
+            inputs:
+              versionSource: "spec"
+              versionSpec: "22.x"
+
+          - task: Bash@3
+            displayName: Install Packages
+            inputs:
+              targetType: "inline"
+              script: "npm install --force"
+
+          - task: S3Download@1
+            displayName: "Download Env"
+            inputs:
+              awsCredentials: "clarioncore"
+              regionName: "eu-north-1"
+              bucketName: "cerebrolearn-envs"
+              sourceFolder: "$(PROJECT)/$(ENVIRONMENT)"
+              globExpressions: ".env"
+              targetFolder: "$(Build.Repository.LocalPath)"
+              flattenFolders: true
+
+          - task: Bash@3
+            displayName: Build Node Application
+            inputs:
+              targetType: "inline"
+              script: |
+                npm run build
+
+          - task: CopyFiles@2
+            displayName: Copy files to Staging Directory
+            condition:
+              or(eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+              eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+            inputs:
+              SourceFolder: "$(Build.Repository.LocalPath)/build"
+              Contents: |
+                **/*
+              TargetFolder: "$(Build.ArtifactStagingDirectory)"
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish Artifacts
+            condition:
+              or(eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+              eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+            inputs:
+              PathtoPublish: "$(Build.ArtifactStagingDirectory)"
+              ArtifactName: "code"
+              publishLocation: "Container"
+
+  - stage: Deploy
+    condition: and(or(eq(variables['Build.SourceBranch'], 'refs/heads/main'),
+      eq(variables['Build.SourceBranch'], 'refs/heads/develop')), succeeded())
+    dependsOn: Build
+    jobs:
+      - job: Deployment
+        pool:
+          vmImage: ubuntu-latest
+        displayName: Deploy Application
+        variables:
+          - group: ${{ variables.PROJECT }}-${{ variables.ENVIRONMENT }}
+        steps:
+          - checkout: none
+          - task: DownloadBuildArtifacts@1
+            displayName: Download Artifacts
+            inputs:
+              buildType: "current"
+              downloadType: "specific"
+              itemPattern: "**"
+              downloadPath: "$(System.ArtifactsDirectory)"
+              cleanDestinationFolder: true
+
+          - task: S3Upload@1
+            displayName: Upload Files to S3
+            inputs:
+              awsCredentials: "clarioncore"
+              regionName: "eu-north-1"
+              bucketName: "$(S3_BUCKET)"
+              sourceFolder: "$(System.ArtifactsDirectory)/code"
+              globExpressions: "**"
+
+          - task: AWSCLI@1
+            displayName: Invalidate distribution
+            inputs:
+              awsCredentials: "clarioncore"
+              regionName: "eu-north-1"
+              awsCommand: "cloudfront"
+              awsSubCommand: "create-invalidation"
+              awsArguments: '--distribution-id $(CLOUDFRONT_DISTRIBUTION) --paths "/*"'
