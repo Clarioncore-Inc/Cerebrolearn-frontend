@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap');
-
 :root {
   --font-size: 16px;
   --font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
@@ -141,12 +139,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-family);
-  }
-
-  button,
-  [role="button"],
-  .cursor-pointer {
-    cursor: pointer;
   }
 
   /* Container configuration for consistent padding */
@@ -508,4 +500,22 @@ html {
 
 .card-glow:hover::before {
   opacity: 1;
+}
+
+/* IQ Test Section - dark mode aware background */
+.iq-section-bg {
+  background: linear-gradient(to bottom right, #395192, #4a63a8, #5875be);
+}
+
+.dark .iq-section-bg {
+  background: linear-gradient(to bottom right, #0a0e1a, #111827, #1a2035);
+}
+
+/* Newsletter CTA Section - dark mode aware background */
+.newsletter-section-bg {
+  background: linear-gradient(to bottom right, #395192, #6478be, #8ca1eb);
+}
+
+.dark .newsletter-section-bg {
+  background: linear-gradient(to bottom right, #0a0e1a, #111827, #1a2035);
 }
