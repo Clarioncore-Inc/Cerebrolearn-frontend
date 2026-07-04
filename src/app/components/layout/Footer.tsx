@@ -2,6 +2,7 @@ import React from 'react';
 import { Facebook, Twitter, Instagram, Linkedin, Youtube, BookOpen, ArrowRight, Mail, Phone, MapPin } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 
 interface FooterProps {
   onNavigate?: (page: string) => void;
@@ -9,6 +10,8 @@ interface FooterProps {
 }
 
 export function Footer({ onNavigate, hasSidebar }: FooterProps) {
+  const { showCourseFeatures, showLearnerFeatures, showInstructorFeatures } =
+    useFeatureFlags();
   const handleNavigation = (page: string) => {
     if (onNavigate) {
       onNavigate(page);
@@ -62,40 +65,48 @@ export function Footer({ onNavigate, hasSidebar }: FooterProps) {
                   Explore
                 </h3>
                 <ul className="space-y-3.5">
+                  {showCourseFeatures && (
+                    <li>
+                      <button
+                        onClick={() => handleNavigation('catalog')}
+                        className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                      >
+                        Browse Courses
+                      </button>
+                    </li>
+                  )}
                   <li>
-                    <button 
-                      onClick={() => handleNavigation('catalog')}
-                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                    >
-                      Browse Courses
-                    </button>
-                  </li>
-                  <li>
-                    <button 
+                    <button
                       onClick={() => handleNavigation('dashboard')}
                       className="text-muted-foreground hover:text-primary transition-colors text-sm"
                     >
                       My Learning
                     </button>
                   </li>
-                  <li>
-                    <button 
-                      onClick={() => handleNavigation('leaderboard')}
-                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
-                    >
-                      Leaderboard
-                    </button>
-                  </li>
-                  <li>
-                    <button className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                      Achievements
-                    </button>
-                  </li>
-                  <li>
-                    <button className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                      Instructors
-                    </button>
-                  </li>
+                  {showLearnerFeatures && (
+                    <li>
+                      <button
+                        onClick={() => handleNavigation('leaderboard')}
+                        className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                      >
+                        Leaderboard
+                      </button>
+                    </li>
+                  )}
+                  {showLearnerFeatures && (
+                    <li>
+                      <button className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                        Achievements
+                      </button>
+                    </li>
+                  )}
+                  {showInstructorFeatures && (
+                    <li>
+                      <button className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                        Instructors
+                      </button>
+                    </li>
+                  )}
                 </ul>
               </div>
 

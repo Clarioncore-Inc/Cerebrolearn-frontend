@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -49,6 +50,8 @@ interface NavbarProps {
 export function Navbar({ onNavigate, currentPage }: NavbarProps) {
   const { user, profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { showCourseFeatures, showLearnerFeatures, showInstructorFeatures } =
+    useFeatureFlags();
   const isIQOnlyUser =
     Boolean(user) &&
     profile?.role === 'iq_user';
@@ -101,95 +104,99 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               </button>
 
               {/* Learning Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1 ${
-                      [
-                        'catalog',
-                        'course-notes',
-                        'course-comparison',
-                        'my-learning-path',
-                        'bookmarks',
-                      ].includes(currentPage)
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <GraduationCap className='h-4 w-4' />
-                    Learning
-                    <ChevronDown className='h-3 w-3' />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align='start' className='w-56'>
-                  <DropdownMenuLabel>Course Tools</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onNavigate('catalog')}>
-                    <BookOpen className='mr-2 h-4 w-4' />
-                    Browse Courses
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onNavigate('my-learning-path')}
-                  >
-                    <Target className='mr-2 h-4 w-4' />
-                    My Learning Path
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onNavigate('course-comparison')}
-                  >
-                    <GitCompare className='mr-2 h-4 w-4' />
-                    Compare Courses
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Study Tools</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => onNavigate('course-notes')}>
-                    <FileText className='mr-2 h-4 w-4' />
-                    My Notes
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onNavigate('bookmarks')}>
-                    <Bookmark className='mr-2 h-4 w-4' />
-                    Bookmarks
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {showCourseFeatures && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1 ${
+                        [
+                          'catalog',
+                          'course-notes',
+                          'course-comparison',
+                          'my-learning-path',
+                          'bookmarks',
+                        ].includes(currentPage)
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <GraduationCap className='h-4 w-4' />
+                      Learning
+                      <ChevronDown className='h-3 w-3' />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='start' className='w-56'>
+                    <DropdownMenuLabel>Course Tools</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => onNavigate('catalog')}>
+                      <BookOpen className='mr-2 h-4 w-4' />
+                      Browse Courses
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate('my-learning-path')}
+                    >
+                      <Target className='mr-2 h-4 w-4' />
+                      My Learning Path
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate('course-comparison')}
+                    >
+                      <GitCompare className='mr-2 h-4 w-4' />
+                      Compare Courses
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Study Tools</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => onNavigate('course-notes')}>
+                      <FileText className='mr-2 h-4 w-4' />
+                      My Notes
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onNavigate('bookmarks')}>
+                      <Bookmark className='mr-2 h-4 w-4' />
+                      Bookmarks
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {/* Progress Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1 ${
-                      [
-                        'progress-dashboard',
-                        'learning-streak',
-                        'leaderboard',
-                      ].includes(currentPage)
-                        ? 'bg-primary/10 text-primary'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    <BarChart3 className='h-4 w-4' />
-                    Progress
-                    <ChevronDown className='h-3 w-3' />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align='start' className='w-56'>
-                  <DropdownMenuItem
-                    onClick={() => onNavigate('progress-dashboard')}
-                  >
-                    <BarChart3 className='mr-2 h-4 w-4' />
-                    Learning Dashboard
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onNavigate('learning-streak')}
-                  >
-                    <Flame className='mr-2 h-4 w-4' />
-                    Streak Tracker
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onNavigate('leaderboard')}>
-                    <Trophy className='mr-2 h-4 w-4' />
-                    Leaderboard
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {showLearnerFeatures && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1 ${
+                        [
+                          'progress-dashboard',
+                          'learning-streak',
+                          'leaderboard',
+                        ].includes(currentPage)
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                      }`}
+                    >
+                      <BarChart3 className='h-4 w-4' />
+                      Progress
+                      <ChevronDown className='h-3 w-3' />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align='start' className='w-56'>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate('progress-dashboard')}
+                    >
+                      <BarChart3 className='mr-2 h-4 w-4' />
+                      Learning Dashboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => onNavigate('learning-streak')}
+                    >
+                      <Flame className='mr-2 h-4 w-4' />
+                      Streak Tracker
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onNavigate('leaderboard')}>
+                      <Trophy className='mr-2 h-4 w-4' />
+                      Leaderboard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {/* Services Dropdown */}
               <DropdownMenu>
@@ -282,7 +289,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
           {user && profile ? (
             <div className='flex items-center gap-3'>
-              {!isIQOnlyUser && (
+              {!isIQOnlyUser && showLearnerFeatures && (
                 <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border'>
                 <Trophy className='h-4 w-4 text-yellow-500' />
                 <span className='text-sm font-medium'>
@@ -322,13 +329,14 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                     <LayoutDashboard className='mr-2 h-4 w-4' />
                     Dashboard
                   </DropdownMenuItem>
-                  {(profile.role === 'instructor' ||
-                    profile.role === 'admin') && (
-                    <DropdownMenuItem onClick={() => onNavigate('instructor')}>
-                      <BookOpen className='mr-2 h-4 w-4' />
-                      Instructor Panel
-                    </DropdownMenuItem>
-                  )}
+                  {showInstructorFeatures &&
+                    (profile.role === 'instructor' ||
+                      profile.role === 'admin') && (
+                      <DropdownMenuItem onClick={() => onNavigate('instructor')}>
+                        <BookOpen className='mr-2 h-4 w-4' />
+                        Instructor Panel
+                      </DropdownMenuItem>
+                    )}
                   {(profile.role === 'org_admin' ||
                     profile.role === 'admin') && (
                     <DropdownMenuItem onClick={() => onNavigate('admin')}>

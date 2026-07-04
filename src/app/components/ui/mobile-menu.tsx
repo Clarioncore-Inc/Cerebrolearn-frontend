@@ -4,6 +4,7 @@ import { Button } from './button';
 import { Separator } from './separator';
 import { Badge } from './badge';
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 
 interface MobileMenuProps {
   currentPage: string;
@@ -14,6 +15,7 @@ interface MobileMenuProps {
 export function MobileMenu({ currentPage, onNavigate, onSignOut }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { user, profile } = useAuth();
+  const { showCourseFeatures, showLearnerFeatures } = useFeatureFlags();
 
   // Close menu when route changes
   useEffect(() => {
@@ -40,10 +42,10 @@ export function MobileMenu({ currentPage, onNavigate, onSignOut }: MobileMenuPro
   const navItems = [
     { id: 'landing', label: 'Home', icon: Home, roles: ['all'] },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student', 'instructor', 'admin', 'psychologist', 'course_creator'] },
-    { id: 'catalog', label: 'Courses', icon: BookOpen, roles: ['all'] },
+    { id: 'catalog', label: 'Courses', icon: BookOpen, roles: ['all'], requiresCourseFeatures: true },
     { id: 'iq-test-landing', label: 'IQ Test', icon: Brain, roles: ['all'] },
     { id: 'browse-psychologists', label: 'Psychologists', icon: Users, roles: ['all'] },
-    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['student', 'instructor'] },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['student', 'instructor'], requiresLearnerFeatures: true },
   ];
 
   const userMenuItems = [
@@ -51,8 +53,10 @@ export function MobileMenu({ currentPage, onNavigate, onSignOut }: MobileMenuPro
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  // Filter nav items based on user role
+  // Filter nav items based on user role and active feature flags
   const visibleNavItems = navItems.filter(item => {
+    if (item.requiresCourseFeatures && !showCourseFeatures) return false;
+    if (item.requiresLearnerFeatures && !showLearnerFeatures) return false;
     if (item.roles.includes('all')) return true;
     if (!user) return item.id === 'landing';
     return item.roles.includes(profile?.role || 'student');

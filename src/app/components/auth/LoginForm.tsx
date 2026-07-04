@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui/dialog';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -34,7 +35,7 @@ export function LoginForm({
   onToggleMode,
   onSignedIn,
   title = 'Welcome back',
-  description = 'Sign in to your account to continue learning',
+  description,
   submitLabel = 'Sign In',
 }: LoginFormProps) {
   const {
@@ -52,6 +53,7 @@ export function LoginForm({
   const [pendingSocialCredential, setPendingSocialCredential] = useState<string | null>(null);
   const [pendingSocialProvider, setPendingSocialProvider] = useState<'google' | 'facebook' | null>(null);
   const [socialRoleDialogOpen, setSocialRoleDialogOpen] = useState(false);
+  const { isIQOnlyMode } = useFeatureFlags();
   const [googleButtonReady, setGoogleButtonReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -267,12 +269,17 @@ export function LoginForm({
   };
 
   const isGoogleButtonDisabled = loading || !googleButtonReady;
+  const effectiveDescription =
+    description ??
+    (isIQOnlyMode
+      ? 'Sign in to access your IQ test dashboard'
+      : 'Sign in to your account to continue learning');
 
   return (
     <Card className='w-full max-w-md mx-auto'>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>{effectiveDescription}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className='space-y-4'>
@@ -420,7 +427,7 @@ export function LoginForm({
             Facebook
           </Button>
         </div>
-
+{!isIQOnlyMode &&
         <div className='relative my-6'>
           <div className='absolute inset-0 flex items-center'>
             <span className='w-full border-t' />
@@ -431,7 +438,8 @@ export function LoginForm({
             </span>
           </div>
         </div>
-
+}
+{!isIQOnlyMode &&
         <div className='grid grid-cols-2 gap-3'>
           <Button
             type='button'
@@ -452,6 +460,7 @@ export function LoginForm({
             Demo Instructor
           </Button>
         </div>
+}
       </CardContent>
       <CardFooter className='flex justify-center'>
         <p className='text-muted-foreground'>

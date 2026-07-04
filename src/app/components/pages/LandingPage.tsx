@@ -1,4 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { HowItWorksSection } from '../sections/HowItWorksSection';
 import { AIHeroSection } from './AIHeroSection';
@@ -37,7 +38,8 @@ import {
   BookMarked,
   Lightbulb,
   Users2,
-  CheckCircle
+  CheckCircle,
+  Book
 } from 'lucide-react';
 
 const imgImage9 = "/assets/1b8ecf81cf4f7b4c4ad46fb87d38198fce6066e5.png";
@@ -64,6 +66,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onNavigate }: LandingPageProps) {
   const { user } = useAuth();
+  const { isIQOnlyMode, showCourseFeatures } = useFeatureFlags();
   const { formattedIQTestPrice } = useAppSettings();
 
   const allInOneFeatures = [
@@ -176,13 +179,15 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
   ];
 
   const platformFeatures = [
-    {
-      icon: Upload,
-      title: 'Create Courses',
-      description: 'Upload your courses with ease using our intuitive course creation tools. Share your knowledge and expertise with thousands of eager learners worldwide.',
-      image: imgCallToAction,
-      action: () => onNavigate(user ? 'instructor' : 'auth')
-    },
+    ...(isIQOnlyMode
+      ? []
+      : [{
+          icon: Upload,
+          title: 'Create Courses',
+          description: 'Upload your courses with ease using our intuitive course creation tools. Share your knowledge and expertise with thousands of eager learners worldwide.',
+          image: imgCallToAction,
+          action: () => onNavigate(user ? 'instructor' : 'auth')
+        }]),
     {
       icon: FileText,
       title: 'Testing Center',
@@ -195,12 +200,12 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       title: 'Rankings',
       description: 'Visit our Rankings center to see global and local leaderboards. Compete with learners worldwide and track your progress against the best.',
       image: imgExam1,
-      action: () => onNavigate('leaderboard')
+      action: () => onNavigate(user ? 'dashboard' : 'iq-test-overview')
     },
     {
-      icon: Gamepad2,
-      title: 'Gaming Center',
-      description: 'Visit the Cerebrolearn Gaming Center to play various intellectual games. Challenge yourself to memorize digits of Pi and more!',
+      icon: Book,
+      title: 'Certification',
+      description: 'Get an IQ certificate from a certified psychologist',
       image: imgCertification1,
       action: () => onNavigate(user ? 'dashboard' : 'auth')
     }
@@ -248,22 +253,24 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
   return (
     <div className="w-full overflow-hidden">
       {/* Animated Top Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-primary via-secondary to-primary text-white">
-        <div className="absolute inset-0 neural-grid opacity-20"></div>
-        <div className="container relative py-3 text-center text-sm z-10">
-          <p className="flex items-center justify-center gap-2 flex-wrap">
-            <Sparkles className="w-4 h-4 animate-pulse" />
-            Start, switch, or advance your career with more than 70+ Topics, Professional Certificates, and gain knowledge from world-class universities and companies.
-            <button
-              onClick={() => onNavigate(user ? 'dashboard' : 'auth')}
-              className="underline hover:no-underline font-semibold inline-flex items-center gap-1 group"
-            >
-              Join for Free
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </p>
+      {!isIQOnlyMode && (
+        <div className="relative overflow-hidden bg-gradient-to-r from-primary via-secondary to-primary text-white">
+          <div className="absolute inset-0 neural-grid opacity-20"></div>
+          <div className="container relative py-3 text-center text-sm z-10">
+            <p className="flex items-center justify-center gap-2 flex-wrap">
+              <Sparkles className="w-4 h-4 animate-pulse" />
+              Start, switch, or advance your career with more than 70+ Topics, Professional Certificates, and gain knowledge from world-class universities and companies.
+              <button
+                onClick={() => onNavigate(user ? 'dashboard' : 'auth')}
+                className="underline hover:no-underline font-semibold inline-flex items-center gap-1 group"
+              >
+                Join for Free
+                <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* AI Hero Section */}
       <AIHeroSection onNavigate={onNavigate} isAuthenticated={!!user} />
@@ -277,29 +284,33 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 <Badge className="bg-primary text-primary-foreground border-0">Get Started</Badge>
                 <h2 className="text-3xl md:text-4xl font-bold text-primary">Choose Your CerebroLearn Path</h2>
                 <p className="text-muted-foreground max-w-3xl mx-auto">
-                  Start as a learner, teach as an instructor, or jump directly into our IQ and psychologist services.
+                  {isIQOnlyMode
+                    ? 'Jump directly into our IQ and psychologist services.'
+                    : 'Start as a learner, teach as an instructor, or jump directly into our IQ and psychologist services.'}
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Button
-                  size="lg"
-                  className="h-14 text-base"
-                  onClick={() => onNavigate(user ? 'dashboard' : 'auth', { authMode: 'signup' })}
-                >
-                  <GraduationCap className="w-5 h-5 mr-2" />
-                  Become a Learner
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-14 text-base border-2"
-                  onClick={() => onNavigate(user ? 'instructor' : 'auth', { authMode: 'signup' })}
-                >
-                  <Briefcase className="w-5 h-5 mr-2" />
-                  Become an Instructor
-                </Button>
-              </div>
+              {!isIQOnlyMode && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Button
+                    size="lg"
+                    className="h-14 text-base"
+                    onClick={() => onNavigate(user ? 'dashboard' : 'auth', { authMode: 'signup' })}
+                  >
+                    <GraduationCap className="w-5 h-5 mr-2" />
+                    Become a Learner
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-14 text-base border-2"
+                    onClick={() => onNavigate(user ? 'instructor' : 'auth', { authMode: 'signup' })}
+                  >
+                    <Briefcase className="w-5 h-5 mr-2" />
+                    Become an Instructor
+                  </Button>
+                </div>
+              )}
 
               <div className="pt-2 border-t">
                 <p className="text-sm font-semibold text-primary mb-3">Popular Services</p>
@@ -357,6 +368,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </section>
 
       {/* Journey Cards with Bento Grid */}
+      {!isIQOnlyMode && (
       <section className="py-16 bg-gradient-to-b from-background to-background/95 relative overflow-hidden">
         <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
         <div className="container relative z-10">
@@ -402,8 +414,10 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </div>
         </div>
       </section>
+      )}
 
       {/* All-In-One Features with Modern Cards */}
+      {!isIQOnlyMode && (
       <section className="py-20 relative overflow-hidden bg-background">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-secondary/5"></div>
         <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
@@ -450,8 +464,10 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </div>
         </div>
       </section>
+      )}
 
       {/* Popular Courses - Modern Grid */}
+      {showCourseFeatures && (
       <section className="py-20 bg-gradient-to-br from-background via-background to-background/95 relative overflow-hidden">
         <div className="absolute inset-0 neural-grid opacity-[0.02]"></div>
         <div className="container relative z-10">
@@ -528,6 +544,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </div>
         </div>
       </section>
+      )}
 
       {/* Platform Features - Alternating Layout */}
       <section className="py-20 bg-background relative overflow-hidden">
@@ -608,6 +625,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </section>
 
       {/* Why Choose Us Section */}
+      {!isIQOnlyMode && (
       <section className="py-20 relative overflow-hidden bg-gradient-to-br bg-background">
         <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
         <div className="container relative z-10">
@@ -653,6 +671,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
           </div>
         </div>
       </section>
+      )}
 
       {/* AI Technology Banner */}
       <BrilliantBanner variant="technology" />
@@ -854,7 +873,38 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       </section>
 
       {/* How It Works Section */}
-      <HowItWorksSection />
+      {isIQOnlyMode ? (
+        <HowItWorksSection
+          badgeText="How It Works"
+          title="Your IQ Journey Made Simple"
+          subtitle="Discover your true IQ score in three easy steps"
+          steps={[
+            {
+              number: '01',
+              title: 'Sign Up and Practice',
+              description: 'Create your account, pay and unlock unlimited practice tests to prepare',
+              icon: Target,
+              gradient: 'from-indigo-500 to-purple-500'
+            },
+            {
+              number: '02',
+              title: 'Book Your Assessment',
+              description: `Schedule a verified psychologist-proctored IQ test for ${formattedIQTestPrice}`,
+              icon: Brain,
+              gradient: 'from-cyan-500 to-blue-500'
+            },
+            {
+              number: '03',
+              title: 'Get Your Results',
+              description: 'Receive your certified score and compare yourself with history\'s greatest minds',
+              icon: BarChart3,
+              gradient: 'from-emerald-500 to-teal-500'
+            }
+          ]}
+        />
+      ) : (
+        <HowItWorksSection />
+      )}
 
       {/* Newsletter CTA with Glassmorphism */}
       <section className="newsletter-section-bg relative py-24 overflow-hidden">
@@ -873,7 +923,9 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                   Subscribe to our newsletter
                 </h2>
                 <p className="text-xl text-white/90 dark:text-primary/80 max-w-2xl mx-auto leading-relaxed">
-                  Stay updated with the latest courses, learning tips, and exclusive offers delivered straight to your inbox.
+                  {isIQOnlyMode
+                    ? 'Stay updated with IQ testing tips, cognitive science insights, and exclusive offers delivered straight to your inbox.'
+                    : 'Stay updated with the latest courses, learning tips, and exclusive offers delivered straight to your inbox.'}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
                   <Input
@@ -909,29 +961,55 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 <Rocket className="w-16 h-16 mx-auto text-primary relative" />
               </div>
               <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2">
-                Ready to Start Learning?
+                {isIQOnlyMode ? 'Ready to Discover Your IQ?' : 'Ready to Start Learning?'}
               </h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-                Join thousands of learners worldwide and start your journey to mastery today.
+                {isIQOnlyMode
+                  ? 'Join thousands who have taken our official IQ assessment and see how you compare.'
+                  : 'Join thousands of learners worldwide and start your journey to mastery today.'}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <Button
-                  size="lg"
-                  onClick={() => onNavigate(user ? 'dashboard' : 'auth')}
-                  className="text-base px-10 h-14 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
-                >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Start Learning Now
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  onClick={() => onNavigate('catalog')}
-                  className="text-base px-10 h-14 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-lg"
-                >
-                  Browse All Courses
-                </Button>
+                {isIQOnlyMode ? (
+                  <>
+                    <Button
+                      size="lg"
+                      onClick={() => onNavigate('iq-test-overview')}
+                      className="text-base px-10 h-14 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
+                    >
+                      <Brain className="mr-2 h-5 w-5" />
+                      Start My IQ Test
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => onNavigate('genius-directory')}
+                      className="text-base px-10 h-14 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-lg"
+                    >
+                      Explore Genius Database
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      onClick={() => onNavigate(user ? 'dashboard' : 'auth')}
+                      className="text-base px-10 h-14 bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
+                    >
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Start Learning Now
+                      <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => onNavigate('catalog')}
+                      className="text-base px-10 h-14 border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground shadow-lg"
+                    >
+                      Browse All Courses
+                    </Button>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { FeatureFlagProvider } from './contexts/FeatureFlagContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { DynamicFooter } from './components/layout/DynamicFooter';
@@ -1017,7 +1018,9 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <AppContent />
+          <FeatureFlagProvider>
+            <AppContent />
+          </FeatureFlagProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>
