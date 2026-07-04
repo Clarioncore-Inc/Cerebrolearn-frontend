@@ -8,6 +8,7 @@ import {
 } from '../ui/card';
 import { Button } from '../ui/button';
 import { User, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 
 interface SignupChoiceProps {
   onSelectRegular: () => void;
@@ -19,6 +20,8 @@ export function SignupChoice({
   onSelectRegular,
   onToggleMode,
 }: SignupChoiceProps) {
+  const { isIQOnlyMode } = useFeatureFlags();
+
   return (
     <div className='w-full max-w-lg mx-auto'>
       <div className='text-center mb-8'>
@@ -40,7 +43,9 @@ export function SignupChoice({
             </div>
             <CardTitle className='text-2xl'>Create Account</CardTitle>
             <CardDescription>
-              For learners, instructors, and organizations
+              {isIQOnlyMode
+                ? 'For IQ assessment and psychologist services'
+                : 'For learners, instructors, and organizations'}
             </CardDescription>
           </CardHeader>
           <CardContent className='space-y-6'>
@@ -51,20 +56,24 @@ export function SignupChoice({
               <ul className='space-y-2'>
                 <li className='flex items-start gap-2 text-sm'>
                   <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
-                  <span>Students wanting to learn and take IQ tests</span>
+                  <span>Taking official and practice IQ tests</span>
                 </li>
-                <li className='flex items-start gap-2 text-sm'>
-                  <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
-                  <span>Instructors creating and teaching courses</span>
-                </li>
-                <li className='flex items-start gap-2 text-sm'>
-                  <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
-                  <span>Organizations managing team learning</span>
-                </li>
-                <li className='flex items-start gap-2 text-sm'>
-                  <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
-                  <span>Access to full course catalog and features</span>
-                </li>
+                {!isIQOnlyMode && (
+                  <>
+                    <li className='flex items-start gap-2 text-sm'>
+                      <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
+                      <span>Instructors creating and teaching courses</span>
+                    </li>
+                    <li className='flex items-start gap-2 text-sm'>
+                      <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
+                      <span>Organizations managing team learning</span>
+                    </li>
+                    <li className='flex items-start gap-2 text-sm'>
+                      <CheckCircle2 className='h-4 w-4 text-primary mt-0.5 flex-shrink-0' />
+                      <span>Access to full course catalog and features</span>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 

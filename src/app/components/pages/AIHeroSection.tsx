@@ -6,6 +6,7 @@ import { NeuralNetworkBackground } from './NeuralNetworkBackground';
 import { IntelligenceMetrics } from './IntelligenceMetrics';
 import { SlideInView } from './SlideInView';
 import { ArrowRight, Sparkles, Brain, Rocket } from 'lucide-react';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 
 const imgImage9 = '/assets/1b8ecf81cf4f7b4c4ad46fb87d38198fce6066e5.png';
 
@@ -15,6 +16,7 @@ interface AIHeroSectionProps {
 }
 
 export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProps) {
+  const { isIQOnlyMode } = useFeatureFlags();
   return (
     <section className="relative min-h-[90vh] flex items-center overflow-hidden">
       {/* Animated Background */}
@@ -63,24 +65,30 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
               {/* CTA Buttons */}
               <SlideInView delay={300}>
                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                  <Button
-                    size="lg"
-                    onClick={() => onNavigate(isAuthenticated ? 'dashboard' : 'auth')}
-                    className="group relative bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 h-14 shadow-2xl hover:shadow-primary/50 transition-all duration-300 overflow-hidden ai-glow"
-                  >
-                    <span className="relative z-10 flex items-center">
-                      <Brain className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
-                      Start Learning Free
-                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-primary via-secondary to-primary opacity-0 group-hover:opacity-20 transition-opacity bg-[length:200%_100%] animate-[gradient-shift_3s_ease_infinite]"></div>
-                  </Button>
+                  {!isIQOnlyMode && (
+                    <Button
+                      size="lg"
+                      onClick={() => onNavigate(isAuthenticated ? 'dashboard' : 'auth')}
+                      className="group relative bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 h-14 shadow-2xl hover:shadow-primary/50 transition-all duration-300 overflow-hidden ai-glow"
+                    >
+                      <span className="relative z-10 flex items-center">
+                        <Brain className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
+                        Start Learning Free
+                        <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                      </span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-primary via-secondary to-primary opacity-0 group-hover:opacity-20 transition-opacity bg-[length:200%_100%] animate-[gradient-shift_3s_ease_infinite]"></div>
+                    </Button>
+                  )}
 
                   <Button
                     size="lg"
-                    variant="outline"
+                    variant={isIQOnlyMode ? 'default' : 'outline'}
                     onClick={() => onNavigate('iq-test-overview')}
-                    className="group border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground text-lg px-8 h-14 shadow-lg transition-all duration-300"
+                    className={
+                      isIQOnlyMode
+                        ? 'group bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 h-14 shadow-2xl transition-all duration-300 w-full'
+                        : 'group border-2 border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground text-lg px-8 h-14 shadow-lg transition-all duration-300'
+                    }
                   >
                     <Rocket className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                     Test My IQ
@@ -91,18 +99,22 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
               {/* Feature Pills */}
               <SlideInView delay={400}>
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-primary/20">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-muted-foreground">50,000+ Active Learners</span>
-                  </div>
+                  {!isIQOnlyMode && (
+                    <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-primary/20">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                      <span className="text-muted-foreground">50,000+ Active Learners</span>
+                    </div>
+                  )}
                   <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-secondary/20">
                     <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
                     <span className="text-muted-foreground">AI-Powered Tutoring</span>
                   </div>
-                  <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-yellow-500/20">
-                    <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
-                    <span className="text-muted-foreground">100% Free to Start</span>
-                  </div>
+                  {!isIQOnlyMode && (
+                    <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-yellow-500/20">
+                      <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                      <span className="text-muted-foreground">100% Free to Start</span>
+                    </div>
+                  )}
                 </div>
               </SlideInView>
             </div>

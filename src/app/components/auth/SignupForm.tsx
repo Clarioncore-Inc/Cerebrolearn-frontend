@@ -20,6 +20,7 @@ import {
 } from '../ui/select';
 import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription } from '../ui/alert';
+import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 
 interface FieldErrors {
   fullName?: string;
@@ -117,19 +118,20 @@ export function SignupForm({
   fixedRole,
   simplified = false,
   title = 'Create your account',
-  description = 'Start your learning journey today',
+  description,
   submitLabel = 'Create Account',
   onSignedUp,
   onSignedUpWithCredentials,
 }: SignupFormProps) {
   const { signUp } = useAuth();
+  const { isIQOnlyMode } = useFeatureFlags();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [role, setRole] = useState('learner');
+  const [role, setRole] = useState(isIQOnlyMode ? 'iq_user' : 'learner');
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -137,7 +139,14 @@ export function SignupForm({
 
   const passwordStrength = password ? getPasswordStrength(password) : null;
   const requirePasswordConfirmation = !simplified;
-  const showRoleSelection = !(hideRoleSelection || simplified);
+  const showRoleSelection =
+    !(hideRoleSelection || simplified) && !isIQOnlyMode;
+  const effectiveDescription =
+    description ??
+    (isIQOnlyMode
+      ? 'Sign up to take your official IQ assessment'
+      : 'Start your learning journey today');
+  const effectiveFixedRole = isIQOnlyMode ? 'iq_user' : fixedRole;
 
   const handleBlur = (field: string) => {
     setTouched((prev) => ({ ...prev, [field]: true }));
@@ -174,7 +183,7 @@ export function SignupForm({
 
     setLoading(true);
     try {
-      const selectedRole = fixedRole ?? role;
+      const selectedRole = effectiveFixedRole ?? role;
       await signUp(email, password, fullName, selectedRole);
       if (onSignedUpWithCredentials) {
         await onSignedUpWithCredentials({
@@ -199,7 +208,7 @@ export function SignupForm({
     <Card className='w-full max-w-md mx-auto'>
       <CardHeader>
         <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardDescription>{effectiveDescription}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className='space-y-4' noValidate>

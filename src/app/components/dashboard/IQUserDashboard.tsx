@@ -533,7 +533,6 @@ export function IQUserDashboard({
 
     addCard('Closest profile', closestGeniusProfile);
     addCard('Next target', nextGeniusAbove);
-    addCard('Already ahead of', nextGeniusBelow);
 
     return cards;
   }, [closestGeniusProfile, nextGeniusAbove, nextGeniusBelow]);
@@ -1300,10 +1299,10 @@ export function IQUserDashboard({
                   </div>
                 ) : rankedGeniusProfiles.length > 0 ? (
                   <>
-                    <div className='grid gap-4 lg:grid-cols-[1.2fr_0.8fr]'>
+                    <div className='grid gap-4'>
                       <div className='rounded-2xl border border-border/60 bg-background/80 p-5'>
                         <div className='flex flex-wrap items-center gap-2'>
-                          <Badge className='border-0 bg-primary/10 text-primary'>Official IQ: {latestOfficialIQScore}</Badge>
+                          <Badge className='border-0 bg-primary/10 text-primary'>Latest official IQ: {latestOfficialIQScore}</Badge>
                           {latestOfficialBenchmarkPercent !== null ? (
                             <Badge variant='outline'>Aligned benchmark: {latestOfficialBenchmarkPercent}%</Badge>
                           ) : null}
@@ -1328,37 +1327,11 @@ export function IQUserDashboard({
                                 : `On the aligned benchmark scale, you are ${Math.abs(closestGeniusProfile.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0))} point(s) away from ${closestGeniusProfile.name}.`
                             : 'As more genius profiles are published, your closest comparison will appear here.'}
                         </p>
-                        {latestCompletedOfficialSessionResult?.session.date ? (
-                          <p className='mt-3 text-xs uppercase tracking-[0.18em] text-muted-foreground'>
-                            Based on your latest completed session · {formatSessionDate(latestCompletedOfficialSessionResult.session.date)}
-                          </p>
-                        ) : null}
-                        <p className='mt-2 text-xs text-muted-foreground'>
-                          Historical genius IQ values here are published estimates, so this benchmark aligns positions across the two scales instead of comparing raw IQ numbers directly.
+                        <p className='mt-2 text-xs text-muted-foreground text-red-700'>
+                          * Genius profile IQ values here are published estimates, so this benchmark aligns positions across the two scales instead of comparing raw IQ numbers directly.
                         </p>
                       </div>
-
-                      <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-1'>
-                        <div className='rounded-2xl border border-border/60 bg-background/80 p-4'>
-                          <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Aligned standing</p>
-                          <p className='mt-2 text-3xl font-bold'>{geniusStandingPercent ?? 0}%</p>
-                          <p className='mt-1 text-sm text-muted-foreground'>Of listed genius profiles at or below your aligned benchmark position</p>
-                        </div>
-                        <div className='rounded-2xl border border-border/60 bg-background/80 p-4'>
-                          <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Next target</p>
-                          <p className='mt-2 text-lg font-semibold'>
-                            {nextGeniusAbove?.name ?? 'You are above every currently listed score'}
-                          </p>
-                          <p className='mt-1 text-sm text-muted-foreground'>
-                            {nextGeniusAbove
-                              ? `${Math.max(nextGeniusAbove.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0), 0)} aligned point(s) away`
-                              : 'No higher aligned benchmark in the current published dataset'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className='grid gap-4 md:grid-cols-3'>
+                        {/* <div className='grid gap-4'>
                       {geniusComparisonCards.map((item) => {
                         const benchmarkGap = (latestOfficialBenchmarkPercent ?? 0) - item.profile.benchmarkPercent;
                         const isAhead = benchmarkGap >= 0;
@@ -1377,27 +1350,17 @@ export function IQUserDashboard({
                                 </p>
                               </div>
                               <Badge className='border-0 bg-background/90 text-primary'>
-                                IQ {item.profile.iqScore ?? '—'}
+                               Est IQ {item.profile.iqScore ?? '—'}
                               </Badge>
                             </div>
                             <p className='mt-4 text-sm text-muted-foreground'>{item.profile.notableWork}</p>
-                            <div className='mt-4 rounded-xl border border-border/60 bg-muted/20 p-3'>
-                              <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>Your comparison</p>
-                              <p className={`mt-2 text-sm font-semibold ${isAhead ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                {benchmarkGap === 0
-                                  ? 'You are in the same aligned benchmark band'
-                                  : isAhead
-                                    ? `${benchmarkGap} aligned point(s) above this profile`
-                                    : `${Math.abs(benchmarkGap)} aligned point(s) below this profile`}
-                              </p>
-                              <p className='mt-2 text-xs text-muted-foreground line-clamp-3'>
-                                {item.profile.description}
-                              </p>
-                            </div>
                           </div>
                         );
                       })}
+                    </div> */}
                     </div>
+
+                  
                   </>
                 ) : (
                   <div className='rounded-2xl border border-dashed border-border/70 bg-background/70 p-6 text-center'>
