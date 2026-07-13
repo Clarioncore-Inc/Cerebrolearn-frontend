@@ -20,6 +20,11 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api, { SessionType } from '../../utils/api-client';
+import {
+  DEFAULT_IQ_TEST_TYPE,
+  IQ_TEST_TYPE_OPTIONS,
+  type IQTestType,
+} from '../../utils/iqTestTypes';
 
 interface BookingPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -28,24 +33,8 @@ interface BookingPageProps {
 
 type BookingType = 'standard' | 'emergency';
 type Step = 'type-date' | 'time' | 'details' | 'success';
-type IQTestType = 'culture_fair_intelligence_test' | 'weschler_intelligence_test';
 const DEFAULT_BOOKING_TYPE: BookingType = 'standard';
 const DEFAULT_IQ_SESSION_TYPE = 'IQ Test';
-
-const IQ_TEST_TYPES: Array<{ value: IQTestType; label: string; description: string }> = [
-  {
-    value: 'culture_fair_intelligence_test',
-    label: 'Culture Fair Intelligence Test',
-    description:
-      'A non-verbal assessment focused on pattern recognition, classification, series completion, and matrix reasoning to reduce the influence of language and cultural background.',
-  },
-  {
-    value: 'weschler_intelligence_test',
-    label: 'Weschler Intelligence Test',
-    description:
-      'A broad clinical intelligence assessment that reviews verbal comprehension, working memory, processing speed, and perceptual reasoning through structured psychologist-led tasks.',
-  },
-];
 
 const today = () => {
   const d = new Date();
@@ -108,7 +97,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   const [selectedTime, setSelectedTime] = useState<string>('');
 
   // Step 3
-  const [testType, setTestType] = useState<IQTestType>('culture_fair_intelligence_test');
+  const [testType, setTestType] = useState<IQTestType>(DEFAULT_IQ_TEST_TYPE);
   const [notes, setNotes] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<string>('');
@@ -241,7 +230,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
   };
 
   const availableDateSet = new Set(availableDates);
-  const selectedTestType = IQ_TEST_TYPES.find((test) => test.value === testType);
+  const selectedTestType = IQ_TEST_TYPE_OPTIONS.find((test) => test.value === testType);
   const selectedSessionType =
     sessionTypesList.find(
       (item) => item.name?.trim().toLowerCase() === DEFAULT_IQ_SESSION_TYPE.toLowerCase(),
@@ -461,7 +450,7 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
                   <SelectValue placeholder='Select an IQ test type' />
                 </SelectTrigger>
                 <SelectContent>
-                  {IQ_TEST_TYPES.map((test) => (
+                  {IQ_TEST_TYPE_OPTIONS.map((test) => (
                     <SelectItem key={test.value} value={test.value}>
                       {test.label}
                     </SelectItem>

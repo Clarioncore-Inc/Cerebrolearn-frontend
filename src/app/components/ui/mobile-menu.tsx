@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Menu, Home, BookOpen, Brain, Users, Trophy, User, Settings, LogOut, LayoutDashboard } from 'lucide-react';
 import { Button } from './button';
 import { Separator } from './separator';
@@ -75,83 +76,63 @@ export function MobileMenu({ currentPage, onNavigate, onSignOut }: MobileMenuPro
         <Menu className="h-6 w-6" />
       </Button>
 
-      {/* Mobile Menu Overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 md:hidden"
-          onClick={() => setIsOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Mobile Menu Drawer */}
-      <div
-        className={`fixed top-0 left-0 h-full w-[280px] bg-background border-r shadow-2xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-              <BookOpen className="h-4 w-4 text-white" />
-            </div>
-            <span className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-              CerebroLearn
-            </span>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsOpen(false)}
-            aria-label="Close menu"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* Navigation Items */}
-        <div className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-180px)]">
-          {/* User Info */}
-          {user && profile && (
-            <>
-              <div className="mb-4 p-3 rounded-lg bg-accent/50">
-                <p className="font-semibold text-sm">{profile.full_name}</p>
-                <p className="text-xs text-muted-foreground">{profile.email}</p>
-                <Badge variant="secondary" className="mt-2 text-xs">
-                  {profile.role === 'course_creator' ? 'Creator' : 
-                   profile.role === 'org_admin' ? 'Org Admin' :
-                   profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
-                </Badge>
-              </div>
-              <Separator className="my-4" />
-            </>
+      {/* Mobile Menu Overlay + Drawer rendered outside the blurred navbar via portal */}
+      {createPortal(
+        <>
+          {isOpen && (
+            <div
+              className="fixed inset-0 bg-black/50 z-50 md:hidden"
+              onClick={() => setIsOpen(false)}
+              aria-hidden="true"
+            />
           )}
 
-          {/* Main Navigation */}
-          <div className="space-y-1">
-            {visibleNavItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleNavigate(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                  currentPage === item.id
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                }`}
+          <div
+            className={`fixed top-0 left-0 h-full w-[280px] bg-background border-r shadow-2xl z-50 transform transition-transform duration-300 ease-in-out md:hidden ${
+              isOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                  <BookOpen className="h-4 w-4 text-white" />
+                </div>
+                <span className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+                  CerebroLearn
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsOpen(false)}
+                aria-label="Close menu"
               >
-                <item.icon className="h-5 w-5" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
-          </div>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
 
-          {/* User Menu */}
-          {user && (
-            <>
-              <Separator className="my-4" />
+            {/* Navigation Items */}
+            <div className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-180px)]">
+              {/* User Info */}
+              {user && profile && (
+                <>
+                  <div className="mb-4 p-3 rounded-lg bg-accent/50">
+                    <p className="font-semibold text-sm">{profile.full_name}</p>
+                    <p className="text-xs text-muted-foreground">{profile.email}</p>
+                    <Badge variant="secondary" className="mt-2 text-xs">
+                      {profile.role === 'course_creator' ? 'Creator' :
+                       profile.role === 'org_admin' ? 'Org Admin' :
+                       profile.role.charAt(0).toUpperCase() + profile.role.slice(1)}
+                    </Badge>
+                  </div>
+                  <Separator className="my-4" />
+                </>
+              )}
+
+              {/* Main Navigation */}
               <div className="space-y-1">
-                {userMenuItems.map((item) => (
+                {visibleNavItems.map((item) => (
                   <button
                     key={item.id}
                     onClick={() => handleNavigate(item.id)}
@@ -166,27 +147,51 @@ export function MobileMenu({ currentPage, onNavigate, onSignOut }: MobileMenuPro
                   </button>
                 ))}
               </div>
-            </>
-          )}
-        </div>
 
-        {/* Footer with Sign Out */}
-        {user && onSignOut && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
-            <Button
-              variant="ghost"
-              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                onSignOut();
-                setIsOpen(false);
-              }}
-            >
-              <LogOut className="h-5 w-5 mr-3" />
-              Sign Out
-            </Button>
+              {/* User Menu */}
+              {user && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="space-y-1">
+                    {userMenuItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNavigate(item.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                          currentPage === item.id
+                            ? 'bg-primary/10 text-primary'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                        }`}
+                      >
+                        <item.icon className="h-5 w-5" />
+                        <span className="font-medium">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer with Sign Out */}
+            {user && onSignOut && (
+              <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-background">
+                <Button
+                  variant="ghost"
+                  className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    onSignOut();
+                    setIsOpen(false);
+                  }}
+                >
+                  <LogOut className="h-5 w-5 mr-3" />
+                  Sign Out
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>,
+        document.body
+      )}
     </>
   );
 }

@@ -623,10 +623,10 @@ export function GeniusRankingsPage({ onNavigate }: GeniusRankingsPageProps) {
                 className={`hover:shadow-lg transition-shadow ${isTopThree ? 'border-primary/30 bg-gradient-to-r from-primary/5 to-transparent' : ''}`}
               >
                 <CardContent className="py-6">
-                  <div className="flex items-start gap-6">
+                  <div className="flex items-start gap-3 sm:gap-6">
                     {/* Rank */}
-                    <div className="flex flex-col items-center min-w-[60px]">
-                      <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
+                    <div className="flex flex-col items-center min-w-[48px] sm:min-w-[60px] shrink-0">
+                      <div className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full ${
                         rank === 1 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' :
                         rank === 2 ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
                         rank === 3 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
@@ -637,12 +637,12 @@ export function GeniusRankingsPage({ onNavigate }: GeniusRankingsPageProps) {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
+                        <div className="min-w-0">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="text-xl font-bold">{genius.name}</h3>
-                            {isTopThree && <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />}
+                            {isTopThree && <Star className="w-5 h-5 text-yellow-500 fill-yellow-500 shrink-0" />}
                           </div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <Badge variant="outline">{genius.field}</Badge>
@@ -652,7 +652,7 @@ export function GeniusRankingsPage({ onNavigate }: GeniusRankingsPageProps) {
                         </div>
 
                         {/* IQ Score */}
-                        <div className="text-right">
+                        <div className="flex flex-col items-start sm:items-end shrink-0">
                           <div className="flex items-center gap-2 mb-1">
                             <Brain className="w-5 h-5 text-primary" />
                             <span className="text-3xl font-bold text-primary">{genius.iqScore ?? 'N/A'}</span>
@@ -665,7 +665,7 @@ export function GeniusRankingsPage({ onNavigate }: GeniusRankingsPageProps) {
                         <span className="font-medium text-foreground">Notable Work:</span> {genius.notableWork}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {genius.description}
+                        * {genius.description}
                       </p>
                     </div>
                   </div>

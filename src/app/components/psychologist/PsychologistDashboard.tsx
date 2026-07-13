@@ -55,6 +55,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { psychologistApi, storageApi } from '../../utils/api-client';
+import { formatIQTestType } from '../../utils/iqTestTypes';
 import {
   calculateIQScoreFromCognitiveProfile,
   type IQCertificateCognitiveProfile,
@@ -373,11 +374,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
   const formatTestTypeLabel = (value?: string | null) => {
     if (!value) return null;
 
-    return value
-      .split('_')
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+    return formatIQTestType(value, '');
   };
 
   const normalizeDashboardBooking = (
@@ -1656,8 +1653,8 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
 
       {/* Main Content Tabs */}
       <Tabs defaultValue='bookings' className='space-y-6'>
-        <div className='flex items-center justify-between mb-4'>
-          <TabsList className='grid w-full grid-cols-4 lg:w-auto'>
+        <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4'>
+          <TabsList className='grid h-auto w-full grid-cols-2 gap-1.5 sm:flex sm:h-9 sm:w-auto sm:gap-0'>
             <TabsTrigger value='bookings'>Bookings</TabsTrigger>
             <TabsTrigger value='availability'>Availability</TabsTrigger>
             <TabsTrigger value='clients'>Clients</TabsTrigger>
@@ -2319,22 +2316,25 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                   </div>
 
                   <div className='grid gap-4 md:grid-cols-2'>
-                    <div className='space-y-2'>
-                      <Label htmlFor='professional-hourly-rate'>Hourly Rate</Label>
-                      <Input
-                        id='professional-hourly-rate'
-                        type='number'
-                        min='0'
-                        step='0.01'
-                        placeholder='75'
-                        value={professionalProfile.hourlyRate}
-                        onChange={(e) =>
+                       <div className='space-y-2'>
+                      <Label htmlFor='default-booking-type'>Default Booking Type</Label>
+                      <Select
+                        value={professionalProfile.defaultBookingType}
+                        onValueChange={(value: 'standard' | 'emergency') =>
                           handleProfessionalProfileFieldChange(
-                            'hourlyRate',
-                            e.target.value,
+                            'defaultBookingType',
+                            value,
                           )
                         }
-                      />
+                      >
+                        <SelectTrigger id='default-booking-type'>
+                          <SelectValue placeholder='Select booking type' />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value='standard'>Standard</SelectItem>
+                          <SelectItem value='emergency'>Emergency</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className='space-y-2'>
@@ -2360,26 +2360,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                       </Select>
                     </div>
 
-                    <div className='space-y-2 md:col-span-2'>
-                      <Label htmlFor='default-booking-type'>Default Booking Type</Label>
-                      <Select
-                        value={professionalProfile.defaultBookingType}
-                        onValueChange={(value: 'standard' | 'emergency') =>
-                          handleProfessionalProfileFieldChange(
-                            'defaultBookingType',
-                            value,
-                          )
-                        }
-                      >
-                        <SelectTrigger id='default-booking-type'>
-                          <SelectValue placeholder='Select booking type' />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value='standard'>Standard</SelectItem>
-                          <SelectItem value='emergency'>Emergency</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                
                   </div>
 
                   <div className='space-y-4'>

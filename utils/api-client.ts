@@ -1081,6 +1081,47 @@ export interface SessionTypeUpdate {
   description?: string;
 }
 
+export type IQPracticeQuestionDifficulty = 'easy' | 'medium' | 'hard';
+
+export interface IQPracticeQuestionApiResponse {
+  id: string;
+  type: string;
+  difficulty: IQPracticeQuestionDifficulty;
+  question: string;
+  options: string[];
+  correct_answer: number;
+  explanation: string | null;
+  category: string;
+  test_types: string[];
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IQPracticeQuestionCreatePayload {
+  type: string;
+  difficulty: IQPracticeQuestionDifficulty;
+  question: string;
+  options: string[];
+  correct_answer: number;
+  explanation?: string | null;
+  category: string;
+  test_types: string[];
+  sort_order?: number;
+}
+
+export interface IQPracticeQuestionUpdatePayload {
+  type?: string;
+  difficulty?: IQPracticeQuestionDifficulty;
+  question?: string;
+  options?: string[];
+  correct_answer?: number;
+  explanation?: string | null;
+  category?: string;
+  test_types?: string[];
+  sort_order?: number;
+}
+
 export const sessionTypeApi = {
   list: () => request<SessionType[]>('/admin/session-types'),
 
@@ -1100,6 +1141,29 @@ export const sessionTypeApi = {
 
   delete: (id: string) =>
     request<null>(`/admin/session-types/${id}`, { method: 'DELETE' }),
+};
+
+export const iqPracticeQuestionsApi = {
+  listPublic: () => request<IQPracticeQuestionApiResponse[]>('/iq-practice-questions'),
+
+  listAdmin: () => request<IQPracticeQuestionApiResponse[]>('/admin/iq-practice-questions'),
+
+  get: (id: string) => request<IQPracticeQuestionApiResponse>(`/admin/iq-practice-questions/${id}`),
+
+  create: (data: IQPracticeQuestionCreatePayload) =>
+    request<IQPracticeQuestionApiResponse>('/admin/iq-practice-questions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: IQPracticeQuestionUpdatePayload) =>
+    request<IQPracticeQuestionApiResponse>(`/admin/iq-practice-questions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<null>(`/admin/iq-practice-questions/${id}`, { method: 'DELETE' }),
 };
 
 // ========================================
@@ -1493,6 +1557,7 @@ export const api = {
   organizations: organizationsApi,
   payments: paymentsApi,
   admin: adminApi,
+  iqPracticeQuestions: iqPracticeQuestionsApi,
   genius: publicGeniusApi,
   geniusProfiles: geniusProfilesApi,
   psychologist: psychologistApi,

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
+import { useIsMobile } from '../ui/use-mobile';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -21,6 +22,7 @@ import {
 import {
   Moon,
   Sun,
+  Menu,
   BookOpen,
   Trophy,
   User,
@@ -52,9 +54,15 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
   const { theme, toggleTheme } = useTheme();
   const { showCourseFeatures, showLearnerFeatures, showInstructorFeatures } =
     useFeatureFlags();
+  const isMobile = useIsMobile();
   const isIQOnlyUser =
     Boolean(user) &&
     profile?.role === 'iq_user';
+  const isAdminUser =
+    profile?.role === 'admin' || profile?.role === 'org_admin';
+  const isAdminSurface = currentPage === 'admin' || currentPage === 'dashboard';
+  const showAdminMobileMenu =
+    Boolean(user) && !isIQOnlyUser && isAdminUser && isAdminSurface;
 
   const handleSignOut = async () => {
     try {
@@ -65,17 +73,33 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
     }
   };
 
+  const handleToggleAdminMobileMenu = () => {
+    window.dispatchEvent(new CustomEvent('toggle-admin-mobile-sidebar'));
+  };
+
   return (
     <nav className='sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm'>
-      <div className='flex h-20 items-center justify-between md:px-8 lg:px-12 px-[24px] py-[0px]'>
-        <div className='flex items-center gap-12'>
+      <div className='flex h-20 items-center justify-between px-[16px] py-[0px] md:px-8 lg:px-12'>
+        <div className='flex items-center gap-3 md:gap-12'>
           {/* Mobile Menu */}
-          {user && !isIQOnlyUser && (
+          {showAdminMobileMenu ? (
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={handleToggleAdminMobileMenu}
+              className='shrink-0 md:hidden'
+              aria-label='Toggle admin panel'
+            >
+              <Menu className='h-6 w-6' />
+            </Button>
+          ) : (
+            user && !isIQOnlyUser && (
             <MobileMenu
               currentPage={currentPage}
               onNavigate={onNavigate}
               onSignOut={handleSignOut}
             />
+            )
           )}
 
           <button
@@ -242,7 +266,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           )}
         </div>
 
-        <div className='flex items-center gap-6'>
+        <div className='flex items-center gap-2 md:gap-6'>
           {/* Global Search for Admin/Instructor */}
           {!isIQOnlyUser &&
             user &&
@@ -256,7 +280,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             )}
 
           {/* Navigation History */}
-          {user && !isIQOnlyUser && (
+          {user && !isIQOnlyUser && !isAdminUser && (
             <NavigationHistory
               currentPage={currentPage}
               onNavigate={onNavigate}
@@ -264,7 +288,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           )}
 
           {/* Notification Center */}
-          {user && profile && !isIQOnlyUser && <NotificationCenter />}
+          {user && profile && !isIQOnlyUser && !isAdminUser && <NotificationCenter />}
 
           {/* Keyboard Shortcuts */}
           {!isIQOnlyUser &&
@@ -272,7 +296,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             profile &&
             (profile.role === 'admin' ||
               profile.role === 'org_admin' ||
-              profile.role === 'instructor') && <KeyboardShortcuts />}
+              profile.role === 'instructor') && <div className='hidden md:block'><KeyboardShortcuts /></div>}
 
           <Button
             variant='ghost'
@@ -288,7 +312,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           </Button>
 
           {user && profile ? (
-            <div className='flex items-center gap-3'>
+            <div className='flex shrink-0 items-center gap-2 md:gap-3'>
               {!isIQOnlyUser && showLearnerFeatures && (
                 <div className='hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border'>
                 <Trophy className='h-4 w-4 text-yellow-500' />
@@ -302,7 +326,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant='ghost'
-                    className='relative h-10 w-10 rounded-full'
+                    className='relative h-10 w-10 shrink-0 rounded-full'
                   >
                     <Avatar>
                       <AvatarImage src={profile.avatar || undefined} />
@@ -338,7 +362,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                       </DropdownMenuItem>
                     )}
                   {(profile.role === 'org_admin' ||
-                    profile.role === 'admin') && (
+                    profile.role === 'admin') && !isMobile && (
                     <DropdownMenuItem onClick={() => onNavigate('admin')}>
                       <Settings className='mr-2 h-4 w-4' />
                       Admin Panel
@@ -380,7 +404,12 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               >
                 Sign In
               </Button>
-              <Button onClick={() => onNavigate('auth')}>Get Started</Button>
+              <Button
+                onClick={() => onNavigate('auth')}
+                className='mr-2 sm:mr-0'
+              >
+                Get Started
+              </Button>
             </div>
           )}
         </div>

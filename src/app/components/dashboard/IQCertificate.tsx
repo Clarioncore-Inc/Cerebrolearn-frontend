@@ -2,6 +2,7 @@ import React from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { createRoot } from 'react-dom/client';
+import { formatIQTestType } from '../../utils/iqTestTypes';
 
 const BRAND_COLOR = '#395192';
 const BRAND_FONT_FAMILY = 'Roboto, Arial, sans-serif';
@@ -284,17 +285,6 @@ export const calculateIQScoreFromCognitiveProfile = (
 
 export const buildIQCertificateId = (bookingId: string) =>
   `IQ-${bookingId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12).toUpperCase()}`;
-
-const formatIQTestType = (testType?: string) => {
-  switch (testType) {
-    case 'weschler_intelligence_test':
-      return 'Weschler Intelligence Test';
-    case 'culture_fair_intelligence_test':
-      return 'Culture Fair Intelligence Test';
-    default:
-      return testType?.trim() || 'Culture Fair Intelligence Test';
-  }
-};
 
 const waitForNextPaint = () =>
   new Promise<void>((resolve) => {

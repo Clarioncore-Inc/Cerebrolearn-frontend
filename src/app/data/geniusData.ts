@@ -739,7 +739,7 @@ const buildGeniusProfile = (seed: GeniusSeed): Genius => {
         : 'Reported/estimated IQ'
       : 'No verified IQ score',
     iq_score_note: seed.iq_score
-      ? 'IQ values shown here are estimates or widely circulated public figures, not verified clinical records.'
+      ? '* IQ values shown here are estimates or widely circulated public figures, not verified clinical records.'
       : 'No verified IQ score is shown. This profile uses expertise, influence, and documented achievements instead.',
     source_url: sourceNames[seed.id]
       ? null
