@@ -195,17 +195,17 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background dark:bg-slate-950">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/95 to-primary/90 text-primary-foreground">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.15),transparent_50%)]" />
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary/95 to-primary/90 text-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-50">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.22),transparent_45%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(6,182,212,0.15),transparent_50%)] dark:bg-[radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.12),transparent_45%)]" />
         
         <div className="container relative max-w-7xl mx-auto px-6 py-20">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Column */}
             <div>
-              <Badge className="mb-4 bg-white/20 hover:bg-white/30 text-primary-foreground border-0">
+              <Badge className="mb-4 border-0 bg-white/20 text-white hover:bg-white/30 dark:bg-white/10 dark:text-slate-50 dark:hover:bg-white/15">
                 <Sparkles className="w-4 h-4 mr-1" />
                 Official IQ Package • Only {formattedIQTestPrice}
               </Badge>
@@ -213,7 +213,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                  Proctored IQ Test Performed by Registered Certified Psychologist
                  <br/> ONLY {formattedIQTestPrice}!
               </h1>
-              <p className="text-xl text-primary-foreground/90 mb-8 leading-relaxed">
+              <p className="mb-8 text-xl leading-relaxed text-white/90 dark:text-slate-200">
                 Includes your results on an <strong>Official</strong> IQ <strong>Certification</strong> <strong>Document</strong> and <strong>Unlimited Practice Tests</strong> before your final IQ exam.
               </p>
 
@@ -232,73 +232,73 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
 
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <div className="rounded-xl bg-white/10 p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
                   <Clock className="w-6 h-6 mx-auto mb-2" />
                   <p className="text-2xl font-bold">60</p>
-                  <p className="text-sm text-primary-foreground/80">Minutes</p>
+                  <p className="text-sm">Minutes</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <div className="rounded-xl bg-white/10 p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
                   <Brain className="w-6 h-6 mx-auto mb-2" />
                   <p className="text-2xl font-bold">Included</p>
-                  <p className="text-sm text-primary-foreground/80">Practice Access</p>
+                  <p className="text-sm">Practice Access</p>
                 </div>
-                <div className="bg-white/10 backdrop-blur rounded-xl p-4 text-center">
+                <div className="rounded-xl bg-white/10 p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
                   <Users className="w-6 h-6 mx-auto mb-2" />
                   <p className="text-2xl font-bold">{formattedIQTestPrice}</p>
-                  <p className="text-sm text-primary-foreground/80">Certified Session</p>
+                  <p className="text-sm">Certified Session</p>
                 </div>
               </div>
             </div>
 
             {/* Right Column - Top Geniuses Preview */}
             <div>
-              <Card className="bg-white/10 backdrop-blur border-white/20">
+              <Card className="border-white/20 bg-white/10 backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
                 <CardHeader>
-                  <CardTitle className="text-2xl text-primary-foreground flex items-center gap-2">
+                  <CardTitle className="flex items-center gap-2 text-2xl text-white dark:text-slate-50">
                     <Trophy className="w-6 h-6 text-yellow-300" />
                     Top 5 Genius Rankings
                   </CardTitle>
-                  <CardDescription className="text-primary-foreground/80">
+                  <CardDescription className="text-white/80 dark:text-slate-300">
                     See how you compare to history's greatest minds
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {isLoadingTopGeniuses ? (
-                    <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-primary-foreground/80">
+                    <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-white/80 dark:bg-white/5 dark:text-slate-300">
                       Loading genius profiles…
                     </div>
                   ) : topGeniuses.length > 0 ? (
                     topGeniuses.map((genius, index) => (
                     <div 
                       key={genius.id}
-                      className="flex items-center gap-4 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                      className="flex items-center gap-4 rounded-lg bg-white/5 p-3 transition-colors hover:bg-white/10 dark:bg-white/5 dark:hover:bg-white/10"
                     >
                       <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
                         index === 0 ? 'bg-yellow-500 text-yellow-900' :
                         index === 1 ? 'bg-gray-300 text-gray-800' :
                         index === 2 ? 'bg-amber-600 text-white' :
-                        'bg-white/20 text-primary-foreground'
+                          'bg-white/20 text-white dark:bg-white/10 dark:text-slate-100'
                       }`}>
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-primary-foreground">{genius.name}</p>
-                        <p className="text-sm text-primary-foreground/70">{genius.field}</p>
+                        <p className="font-semibold text-white dark:text-slate-100">{genius.name}</p>
+                        <p className="text-sm text-white/70 dark:text-slate-400">{genius.field}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-primary-foreground">{genius.iq ?? '—'}</p>
-                        <p className="text-xs text-primary-foreground/70">IQ Score</p>
+                        <p className="text-2xl font-bold text-white dark:text-slate-100">{genius.iq ?? '—'}</p>
+                        <p className="text-xs text-white/70 dark:text-slate-400">IQ Score</p>
                       </div>
                     </div>
                     ))
                   ) : (
-                    <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-primary-foreground/80">
+                    <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-white/80 dark:bg-white/5 dark:text-slate-300">
                       Genius profiles are not available yet.
                     </div>
                   )}
                   <Button 
                     variant="outline" 
-                    className="w-full mt-4 bg-transparent border-white/30 text-primary-foreground hover:bg-white/10"
+                    className="mt-4 w-full border-white/30 bg-transparent text-white hover:bg-white/10 dark:border-white/15 dark:text-slate-100 dark:hover:bg-white/5"
                     onClick={() => onNavigate('genius-rankings')}
                   >
                     View Full Rankings
@@ -688,7 +688,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
           </div>
 
           {/* Trust Indicators */}
-          <Card className="bg-gradient-to-br from-muted/50 to-muted/30 border-0">
+          <Card className="border-0 bg-gradient-to-br from-muted/50 to-muted/30 dark:from-slate-900/80 dark:to-slate-900/50">
             <CardContent className="py-12">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
                 <div>
@@ -713,11 +713,11 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
 
         {/* CTA Section */}
         <section className="py-20">
-          <Card className="bg-gradient-to-br from-primary to-primary/90 text-primary-foreground border-0">
+          <Card className="border-0 bg-gradient-to-br from-primary to-primary/90 text-primary-foreground dark:from-slate-900 dark:to-slate-800 dark:text-slate-50 dark:border dark:border-white/10">
             <CardContent className="py-16 text-center">
               <Brain className="w-20 h-20 mx-auto mb-6" />
               <h2 className="text-4xl font-bold mb-4">Ready to Discover Your IQ?</h2>
-              <p className="text-xl text-primary-foreground/90 mb-8 max-w-2xl mx-auto">
+              <p className="mb-8 max-w-2xl mx-auto text-xl text-primary-foreground/90 dark:text-slate-300">
                 Unlock unlimited practice tests, then complete your certified psychologist session for guided insight,
                 official documentation, and expert follow-up.
               </p>
@@ -735,7 +735,7 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                 <Button 
                   size="lg" 
                   variant="outline"
-                  className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10 text-lg"
+                  className="border-primary-foreground/30 bg-transparent text-lg text-primary-foreground hover:bg-white/10 dark:border-white/15 dark:text-slate-100 dark:hover:bg-white/5"
                   onClick={() => onNavigate('browse-psychologists')}
                 >
                   <Users className="w-5 h-5 mr-2" />

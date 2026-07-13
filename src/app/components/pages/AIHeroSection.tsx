@@ -55,10 +55,21 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
               {/* Subheadline */}
               <SlideInView delay={200}>
                 <p className="text-lg md:text-xl lg:text-2xl text-muted-foreground max-w-2xl leading-relaxed">
-                  Unlock your genius potential with{' '}
-                  <span className="text-primary font-semibold">AI-driven learning</span>,{' '}
-                  <span className="text-secondary font-semibold">IQ enhancement</span>, and join an{' '}
-                  <span className="text-primary font-semibold">elite community of innovators</span>.
+                  {isIQOnlyMode ? (
+                    <>
+                      Discover your cognitive strengths with{' '}
+                      <span className="text-primary font-semibold">official IQ tests</span>,{' '}
+                      <span className="text-secondary font-semibold">targeted practice</span>, and{' '}
+                      <span className="text-primary font-semibold">certified insights</span> designed to measure how you think.
+                    </>
+                  ) : (
+                    <>
+                      Unlock your genius potential with{' '}
+                      <span className="text-primary font-semibold">AI-driven learning</span>,{' '}
+                      <span className="text-secondary font-semibold">IQ enhancement</span>, and join an{' '}
+                      <span className="text-primary font-semibold">elite community of innovators</span>.
+                    </>
+                  )}
                 </p>
               </SlideInView>
 

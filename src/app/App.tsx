@@ -637,7 +637,13 @@ function AppContent() {
         );
 
       case 'iq-test-practice':
-        return <IQTestPracticeMode onNavigate={handleNavigate} />;
+        return (
+          <IQTestPracticeMode
+            onNavigate={handleNavigate}
+            allowedTestTypes={pageData?.allowedTestTypes}
+            bookedTestLabel={pageData?.bookedTestLabel}
+          />
+        );
 
       case 'iq-test-overview':
         return <IQTestOverviewPage onNavigate={handleNavigate} />;

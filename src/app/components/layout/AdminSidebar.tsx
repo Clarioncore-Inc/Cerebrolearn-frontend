@@ -3,6 +3,7 @@ import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { Separator } from '../ui/separator';
 import {
+  Brain,
   LayoutDashboard,
   Users,
   BookOpen,
@@ -21,6 +22,8 @@ import {
   Shield,
   FileCheck,
   Lightbulb,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface AdminSidebarProps {
@@ -28,6 +31,8 @@ interface AdminSidebarProps {
   onNavigate: (page: string) => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function AdminSidebar({
@@ -35,6 +40,8 @@ export function AdminSidebar({
   onNavigate,
   collapsed = false,
   onToggleCollapse,
+  mobileOpen = false,
+  onCloseMobile,
 }: AdminSidebarProps) {
   const menuItems = [
     {
@@ -83,6 +90,12 @@ export function AdminSidebar({
       id: 'admin_financials',
       label: 'Financials',
       icon: DollarSign,
+      isSeparator: false,
+    },
+    {
+      id: 'iq-practice-questions',
+      label: 'IQ Practice Questions',
+      icon: Brain,
       isSeparator: false,
     },
     {
@@ -172,103 +185,140 @@ export function AdminSidebar({
     },
   ];
 
-  return (
-    <div
-      className={`fixed left-0 top-16 h-[calc(100vh-4rem)] bg-card border-r transition-all duration-300 z-30 max-md:hidden ${
-        collapsed ? 'w-16' : 'w-[280px]'
-      }`}
-    >
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="p-4 flex items-center justify-between mt-3 ml-3">
-          {!collapsed && (
-            <div>
-              <h2 className="font-semibold">Admin Panel</h2>
-              <p className="text-xs text-muted-foreground">Platform Management</p>
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleCollapse}
-            className="ml-auto"
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
+  const renderNavigation = (isMobile = false) => (
+    <ScrollArea className="flex-1 overflow-hidden px-3 py-4">
+      <nav className="space-y-1">
+        {menuItems.map((item) => {
+          const isActive = currentPage === item.id;
 
-        <Separator />
+          if (item.isSeparator && !(collapsed && !isMobile)) {
+            return (
+              <div key={item.id} className="pb-2 pt-4">
+                <Separator />
+                <p className="mt-2 px-3 text-xs font-semibold text-muted-foreground">
+                  {item.label}
+                </p>
+              </div>
+            );
+          }
 
-        {/* Menu Items */}
-        <ScrollArea className="flex-1 overflow-hidden px-3 py-4">
-          <nav className="space-y-1">
-            {menuItems.map((item) => {
-              const isActive = currentPage === item.id;
-              
-              // Render separator
-              if (item.isSeparator && !collapsed) {
-                return (
-                  <div key={item.id} className="pt-4 pb-2">
-                    <Separator />
-                    <p className="text-xs font-semibold text-muted-foreground mt-2 px-3">
-                      {item.label}
-                    </p>
-                  </div>
-                );
-              }
-              
-              // Skip separator when collapsed
-              if (item.isSeparator && collapsed) {
-                return null;
-              }
-              
-              return (
-                <Button
-                  key={item.id}
-                  variant={isActive ? 'default' : 'ghost'}
-                  className={`w-full justify-start ${
-                    collapsed ? 'px-2' : 'px-3'
-                  } ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
-                  onClick={() => onNavigate(item.id)}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <item.icon className={`h-5 w-5 ${collapsed ? '' : 'mr-3'}`} />
-                  {!collapsed && (
-                    <div className="flex-1 text-left">
-                      <p className="text-sm font-medium">{item.label}</p>
-                      {!isActive && (
-                        <p className="text-xs text-muted-foreground">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
+          if (item.isSeparator && collapsed && !isMobile) {
+            return null;
+          }
+
+          return (
+            <Button
+              key={item.id}
+              variant={isActive ? 'default' : 'ghost'}
+              className={`w-full justify-start ${
+                collapsed && !isMobile ? 'px-2' : 'px-3'
+              } ${isActive ? 'bg-primary text-primary-foreground' : ''}`}
+              onClick={() => {
+                onNavigate(item.id);
+                if (isMobile) {
+                  onCloseMobile?.();
+                }
+              }}
+              title={collapsed && !isMobile ? item.label : undefined}
+            >
+              <item.icon className={`h-5 w-5 ${collapsed && !isMobile ? '' : 'mr-3'}`} />
+              {(!collapsed || isMobile) && (
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-medium">{item.label}</p>
+                  {!isActive && item.description && (
+                    <p className="text-xs text-muted-foreground">{item.description}</p>
                   )}
-                </Button>
-              );
-            })}
-          </nav>
-        </ScrollArea>
+                </div>
+              )}
+            </Button>
+          );
+        })}
+      </nav>
+    </ScrollArea>
+  );
 
-        {/* Footer */}
-        {!collapsed && (
-          <>
-            <Separator />
-            <div className="p-4">
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-1">Platform Status</p>
+  return (
+    <>
+      <div
+        className={`fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] border-r bg-card transition-all duration-300 md:block ${
+          collapsed ? 'w-16' : 'w-[280px]'
+        }`}
+      >
+        <div className="flex h-full flex-col">
+          <div className="ml-3 mt-3 flex items-center justify-between p-4">
+            {!collapsed && (
+              <div>
+                <h2 className="font-semibold">Admin Panel</h2>
+                <p className="text-xs text-muted-foreground">Platform Management</p>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onToggleCollapse}
+              className="ml-auto"
+            >
+              {collapsed ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronLeft className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          <Separator />
+          {renderNavigation()}
+
+          {!collapsed && (
+            <>
+              <Separator />
+              <div className="p-4">
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="mb-1 text-sm font-medium">Platform Status</p>
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+                    <p className="text-xs text-muted-foreground">All Systems Operational</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/50"
+            onClick={onCloseMobile}
+            aria-label="Close admin menu"
+          />
+
+          <div className="absolute left-0 top-0 flex h-full w-[280px] max-w-[85vw] flex-col border-r bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b p-4">
+              <div>
+                <h2 className="font-semibold">Admin Panel</h2>
+                <p className="text-xs text-muted-foreground">Platform Management</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={onCloseMobile}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {renderNavigation(true)}
+
+            <div className="border-t p-4">
+              <div className="rounded-lg bg-muted p-3">
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                  <div className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
                   <p className="text-xs text-muted-foreground">All Systems Operational</p>
                 </div>
               </div>
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

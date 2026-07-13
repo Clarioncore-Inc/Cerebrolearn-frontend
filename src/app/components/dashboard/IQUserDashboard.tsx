@@ -36,6 +36,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 import { psychologistApi, publicGeniusApi, type GeniusApiResponse } from '../../utils/api-client';
+import { formatIQTestType, isIQTestType, type IQTestType } from '../../utils/iqTestTypes';
 import { calculateIQScoreFromCognitiveProfile } from './IQCertificate';
 import type {
   IQSessionBooking,
@@ -48,6 +49,7 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Skeleton } from '../ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { toast } from 'sonner';
 
 interface IQUserDashboardProps {
   onNavigate: (page: string, data?: any) => void;
@@ -216,17 +218,6 @@ const getOfficialIQScoreFromSession = (session?: IQSessionBooking | null) => {
   return profile ? calculateIQScoreFromCognitiveProfile(profile) : null;
 };
 
-const formatIQTestType = (testType?: string) => {
-  switch (testType) {
-    case 'weschler_intelligence_test':
-      return 'Wechsler Intelligence Test';
-    case 'culture_fair_intelligence_test':
-      return 'Culture Fair Intelligence Test';
-    default:
-      return testType?.trim() || 'Official IQ Test';
-  }
-};
-
 const formatSessionDate = (dateString: string) =>
   new Date(dateString).toLocaleDateString('en-US', {
     weekday: 'long',
@@ -363,6 +354,45 @@ export function IQUserDashboard({
     });
   };
 
+  const practiceEligibleSession = useMemo(() => {
+    const now = new Date();
+
+    return (
+      [...iqSessions]
+        .filter((session) => session.status !== 'cancelled' && isIQTestType(session.testType))
+        .sort((a, b) => {
+          const aUpcoming = a.status !== 'completed' && getSessionDateTime(a) >= now;
+          const bUpcoming = b.status !== 'completed' && getSessionDateTime(b) >= now;
+
+          if (aUpcoming !== bUpcoming) {
+            return aUpcoming ? -1 : 1;
+          }
+
+          return getSessionLatestTimestamp(b) - getSessionLatestTimestamp(a);
+        })[0] ?? null
+    );
+  }, [iqSessions]);
+
+  const practiceAllowedTestTypes = useMemo<IQTestType[]>(
+    () =>
+      practiceEligibleSession?.testType && isIQTestType(practiceEligibleSession.testType)
+        ? [practiceEligibleSession.testType]
+        : [],
+    [practiceEligibleSession],
+  );
+
+  const openPracticeTest = () => {
+    if (!practiceAllowedTestTypes.length) {
+      toast.error('Book an IQ test first to unlock the matching practice test.');
+      return;
+    }
+
+    onNavigate('iq-test-practice', {
+      allowedTestTypes: practiceAllowedTestTypes,
+      bookedTestLabel: formatIQTestType(practiceAllowedTestTypes[0]),
+    });
+  };
+
   const sessionActions = [
     {
       label: 'Book My IQ Test',
@@ -378,8 +408,9 @@ export function IQUserDashboard({
     {
       label: 'Practice Test',
       icon: Play,
-      onClick: () => onNavigate('iq-test-practice'),
+      onClick: openPracticeTest,
       variant: 'outline' as const,
+      disabled: !practiceAllowedTestTypes.length,
     },
   ];
 
@@ -673,7 +704,9 @@ export function IQUserDashboard({
         {
           id: 'start',
           title: 'Your cognitive baseline is ready to be created',
-          subtitle: 'Take your first practice test to unlock live analytics and trend data.',
+          subtitle: practiceAllowedTestTypes.length
+            ? `Your ${formatIQTestType(practiceAllowedTestTypes[0])} practice track is ready.`
+            : 'Book your first IQ test to unlock the matching practice track and analytics.',
           icon: Sparkles,
           tone: 'text-primary',
         },
@@ -733,7 +766,16 @@ export function IQUserDashboard({
     }>;
 
     return items;
-  }, [completedTests, currentStreak, estimatedPercentile, iqDelta, latestIQScore, latestResult, unlockedBadges]);
+  }, [
+    completedTests,
+    currentStreak,
+    estimatedPercentile,
+    iqDelta,
+    latestIQScore,
+    latestResult,
+    practiceAllowedTestTypes,
+    unlockedBadges,
+  ]);
 
   const quickStats = [
     {
@@ -971,8 +1013,8 @@ export function IQUserDashboard({
   };
 
   return (
-    <div className='min-h-screen bg-[radial-gradient(circle_at_top_right,rgba(57,81,146,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.10),transparent_28%)]'>
-      <div className='container max-w-7xl py-8 md:py-10 space-y-6'>
+    <div className='min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top_right,rgba(57,81,146,0.10),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(16,185,129,0.10),transparent_28%)]'>
+      <div className='container max-w-7xl space-y-6 overflow-x-hidden py-8 md:py-10'>
         <div className='flex flex-col gap-5 md:flex-row md:items-center md:justify-between'>
           <div className='space-y-4'>
             <Badge className='w-fit border-0 bg-primary/10 text-primary'>
@@ -980,7 +1022,7 @@ export function IQUserDashboard({
               Cognitive Command Center
             </Badge>
             <div className='space-y-2'>
-              <h1 className='text-[clamp(1.75rem,4vw,3rem)] font-bold tracking-tight whitespace-nowrap'>
+              <h1 className='text-[clamp(1.75rem,4vw,3rem)] break-words font-bold tracking-tight'>
                 {greeting}, {userName} 👋
               </h1>
               <p className='max-w-2xl text-base md:text-lg text-muted-foreground'>
@@ -998,6 +1040,7 @@ export function IQUserDashboard({
                 variant={action.variant}
                 className='shadow-lg'
                 onClick={action.onClick}
+                disabled={action.disabled}
               >
                 <action.icon className='mr-2 h-5 w-5' />
                 {action.label}
@@ -1005,6 +1048,14 @@ export function IQUserDashboard({
             ))}
           </div>
         </div>
+
+        {/* {!sessionsLoading ? (
+          <p className='text-sm text-muted-foreground'>
+            {practiceAllowedTestTypes.length
+              ? `Practice unlocked for ${formatIQTestType(practiceAllowedTestTypes[0])}.`
+              : 'Practice tests unlock after you book an IQ test.'}
+          </p>
+        ) : null} */}
 
         <div className='grid grid-cols-1 gap-3'>
           {isInitialSessionsLoading
@@ -1093,11 +1144,11 @@ export function IQUserDashboard({
             </CardContent>
           </Card> */}
 
-          <Card className={`lg:col-span-12 lg:order-1 ${glassCardClassName}`}>
+          <Card className={`min-w-0 overflow-hidden lg:col-span-12 lg:order-1 ${glassCardClassName}`}>
             <CardHeader>
-              <div className='flex items-center justify-between gap-3'>
-                <div>
-                  <CardTitle className='flex items-center gap-2'>
+              <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
+                <div className='min-w-0'>
+                  <CardTitle className='flex flex-wrap items-center gap-2 break-words'>
                     <Brain className='h-5 w-5 text-primary' />
                     Cognitive Profile Analytics
                   </CardTitle>
@@ -1107,17 +1158,19 @@ export function IQUserDashboard({
                       : 'Estimated from your completed IQ assessments and recent performance patterns.'}
                   </CardDescription>
                 </div>
-                <Badge variant='secondary'>{cognitiveAnalyticsMode}</Badge>
+                <Badge variant='secondary' className='self-start sm:self-auto shrink-0'>
+                  {cognitiveAnalyticsMode}
+                </Badge>
               </div>
             </CardHeader>
             <CardContent className='space-y-4'>
               <div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
-                <div className='flex items-center justify-between gap-3'>
-                  <div>
+                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                  <div className='min-w-0'>
                     <p className='text-sm text-muted-foreground'>Top current signal</p>
-                    <p className='text-2xl font-bold'>{strongestMetric.metric}</p>
+                    <p className='break-words text-2xl font-bold'>{strongestMetric.metric}</p>
                   </div>
-                  <Badge className='border-0 bg-emerald-500/10 text-emerald-600'>{strongestMetric.score}%</Badge>
+                  <Badge className='w-fit border-0 bg-emerald-500/10 text-emerald-600'>{strongestMetric.score}%</Badge>
                 </div>
                 <p className='mt-3 text-sm text-muted-foreground'>
                   {latestSessionWithCognitiveProfile
@@ -1137,9 +1190,9 @@ export function IQUserDashboard({
                   const isStrength = index < 2;
                   return (
                     <div key={metric.metric} className='space-y-2'>
-                      <div className='flex items-center justify-between gap-3 text-sm'>
+                      <div className='flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3'>
                         <span className='font-medium'>{metric.metric}</span>
-                        <span className={isStrength ? 'text-emerald-600' : 'text-amber-600'}>
+                        <span className={`break-words ${isStrength ? 'text-emerald-600' : 'text-amber-600'}`}>
                           {isStrength ? 'Strength' : 'Opportunity'} · {metric.score}%
                         </span>
                       </div>
@@ -1151,7 +1204,7 @@ export function IQUserDashboard({
             </CardContent>
           </Card>
 
-          <Card className={`lg:col-span-12 lg:order-3 ${glassCardClassName}`}>
+          <Card className={`min-w-0 overflow-hidden lg:col-span-12 lg:order-3 ${glassCardClassName}`}>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <TrendingUp className='h-5 w-5 text-primary' />
@@ -1162,7 +1215,7 @@ export function IQUserDashboard({
             <CardContent className='space-y-5'>
               {completedTests > 0 ? (
                 <>
-                  <div className='grid grid-cols-3 gap-3'>
+                  <div className='grid gap-3 sm:grid-cols-3'>
                     <div className='rounded-2xl border border-border/60 bg-muted/20 p-3 text-center'>
                       <p className='text-xs text-muted-foreground'>Latest IQ</p>
                       <p className='text-2xl font-bold'>{latestIQScore}</p>
@@ -1182,8 +1235,9 @@ export function IQUserDashboard({
                     </div>
                   </div>
 
-                  <ResponsiveContainer width='100%' height={280}>
-                    <AreaChart data={trendData}>
+                  <div className='min-w-0 overflow-hidden'>
+                    <ResponsiveContainer width='100%' height={280}>
+                      <AreaChart data={trendData}>
                       <defs>
                         <linearGradient id='iqTrendFill' x1='0' y1='0' x2='0' y2='1'>
                           <stop offset='5%' stopColor='hsl(var(--primary))' stopOpacity={0.45} />
@@ -1207,20 +1261,25 @@ export function IQUserDashboard({
                         strokeWidth={3}
                         fill='url(#iqTrendFill)'
                       />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
                 </>
               ) : (
                 <div className='flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 text-center'>
                   <BarChart3 className='mb-4 h-10 w-10 text-primary' />
                   <p className='text-xl font-semibold'>No trend line yet</p>
                   <p className='mt-2 max-w-sm text-sm text-muted-foreground'>
-                    Complete your first practice test to unlock score growth analytics, percentile tracking,
-                    and momentum insights.
+                    {practiceAllowedTestTypes.length
+                      ? `Take your ${formatIQTestType(practiceAllowedTestTypes[0])} practice test to unlock score growth analytics, percentile tracking, and momentum insights.`
+                      : 'Book your first IQ test to unlock the matching practice track, score growth analytics, percentile tracking, and momentum insights.'}
                   </p>
-                  <Button className='mt-5' onClick={() => onNavigate('iq-test-practice')}>
-                    <Play className='mr-2 h-4 w-4' />
-                    Take First Practice Test
+                  <Button
+                    className='mt-5'
+                    onClick={practiceAllowedTestTypes.length ? openPracticeTest : () => onNavigate('book-psychologist', { backPage: 'dashboard' })}
+                  >
+                    {practiceAllowedTestTypes.length ? <Play className='mr-2 h-4 w-4' /> : <Users className='mr-2 h-4 w-4' />}
+                    {practiceAllowedTestTypes.length ? `Take ${formatIQTestType(practiceAllowedTestTypes[0])} Practice Test` : 'Book IQ Test to Unlock Practice'}
                   </Button>
                 </div>
               )}
@@ -1228,10 +1287,10 @@ export function IQUserDashboard({
           </Card>
 
           <div className='lg:col-span-12'>
-            <Card className='border-border/60 bg-gradient-to-br from-amber-500/15 to-primary/10 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]'>
+            <Card className='min-w-0 overflow-hidden border-border/60 bg-gradient-to-br from-amber-500/15 to-primary/10 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]'>
               <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
-                <div>
-                  <CardTitle className='flex items-center gap-2'>
+                <div className='min-w-0'>
+                  <CardTitle className='flex flex-wrap items-center gap-2 break-words'>
                     <Trophy className='h-5 w-5 text-amber-500' />
                     Genius Benchmark
                   </CardTitle>
@@ -1313,7 +1372,7 @@ export function IQUserDashboard({
                             <Badge variant='secondary'>Ahead of {geniusProfilesBelowUser}/{rankedGeniusProfiles.length} aligned profiles</Badge>
                           ) : null}
                         </div>
-                        <p className='mt-4 text-2xl font-bold'>
+                        <p className='mt-4 break-words text-2xl font-bold'>
                           {closestGeniusProfile
                             ? `Closest aligned benchmark: ${closestGeniusProfile.name}`
                             : 'Your benchmark is getting ready'}
@@ -1327,7 +1386,7 @@ export function IQUserDashboard({
                                 : `On the aligned benchmark scale, you are ${Math.abs(closestGeniusProfile.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0))} point(s) away from ${closestGeniusProfile.name}.`
                             : 'As more genius profiles are published, your closest comparison will appear here.'}
                         </p>
-                        <p className='mt-2 text-xs text-muted-foreground text-red-700'>
+                        <p className='mt-2 text-xs text-muted-foreground text-gray-700'>
                           * Genius profile IQ values here are published estimates, so this benchmark aligns positions across the two scales instead of comparing raw IQ numbers directly.
                         </p>
                       </div>
@@ -1374,8 +1433,8 @@ export function IQUserDashboard({
             </Card>
           </div>
 
-          <div ref={sessionsSectionRef} className='lg:col-span-12 scroll-mt-24'>
-            <Card className={glassCardClassName}>
+          <div ref={sessionsSectionRef} className='scroll-mt-24 lg:col-span-12'>
+            <Card className={`min-w-0 overflow-hidden ${glassCardClassName}`}>
               <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
                 <div>
                   <CardTitle className='flex items-center gap-2'>

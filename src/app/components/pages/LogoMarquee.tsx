@@ -67,10 +67,15 @@ export function LogoMarquee({
   });
 
   return (
-    <div className="relative overflow-hidden">
-      {/* Gradient fade on edges */}
-      <div className="absolute left-0 top-0 bottom-0 w-24 md:w-32 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none"></div>
-      <div className="absolute right-0 top-0 bottom-0 w-24 md:w-32 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none"></div>
+    <div
+      className="relative overflow-hidden"
+      style={{
+        WebkitMaskImage:
+          'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)',
+        maskImage:
+          'linear-gradient(to right, transparent 0%, black 8%, black 92%, transparent 100%)',
+      }}
+    >
 
       {/* Scrolling container */}
       <motion.div

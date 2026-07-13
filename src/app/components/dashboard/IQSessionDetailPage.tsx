@@ -5,6 +5,7 @@ import { Badge } from '../ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatIQTestType } from '../../utils/iqTestTypes';
 import {
   buildIQCertificateId,
   calculateIQScoreFromCognitiveProfile,
@@ -73,17 +74,6 @@ const formatDate = (dateString: string) =>
     month: 'long',
     day: 'numeric',
   });
-
-const formatIQTestType = (testType?: string) => {
-  switch (testType) {
-    case 'weschler_intelligence_test':
-      return 'Weschler Intelligence Test';
-    case 'culture_fair_intelligence_test':
-      return 'Culture Fair Intelligence Test';
-    default:
-      return testType?.trim() || '';
-  }
-};
 
 const hasVisibleResults = (notes?: IQSessionNotes | null) =>
   Boolean(

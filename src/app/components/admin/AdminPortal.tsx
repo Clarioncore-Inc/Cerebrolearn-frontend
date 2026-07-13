@@ -10,6 +10,7 @@ import { PsychologistManagementPage } from './PsychologistManagementPage';
 import { PsychologistDetailPage } from './PsychologistDetailPage';
 import { AdminFinancials } from './AdminFinancials';
 import { AdminBookingManagement } from './AdminBookingManagement';
+import { IQPracticeQuestionManagementPage } from './IQPracticeQuestionManagementPage';
 import { PsychologistAnalytics } from './PsychologistAnalytics';
 import { PlatformAnalyticsDashboard } from './PlatformAnalyticsDashboard';
 import { QualityAssuranceDashboard } from './QualityAssuranceDashboard';
@@ -55,6 +56,7 @@ const ADMIN_PORTAL_PAGES = new Set([
   'admin_psychologist_management',
   'admin_booking_management',
   'admin_financials',
+  'iq-practice-questions',
   'psychologist_analytics',
   'platform-analytics',
   'quality-assurance',
@@ -75,6 +77,7 @@ const getInitialAdminPortalPage = () => {
 export function AdminPortal() {
   const [currentPage, setCurrentPage] = useState(getInitialAdminPortalPage);
   const [pageData, setPageData] = useState<any>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('adminSidebarCollapsed');
     return saved ? JSON.parse(saved) : false;
@@ -89,6 +92,17 @@ export function AdminPortal() {
   useEffect(() => {
     sessionStorage.setItem(ADMIN_PORTAL_PAGE_KEY, currentPage);
   }, [currentPage]);
+
+  useEffect(() => {
+    const handleToggleMobileSidebar = () => {
+      setMobileSidebarOpen((previous) => !previous);
+    };
+
+    window.addEventListener('toggle-admin-mobile-sidebar', handleToggleMobileSidebar);
+    return () => {
+      window.removeEventListener('toggle-admin-mobile-sidebar', handleToggleMobileSidebar);
+    };
+  }, []);
 
   useEffect(() => {
     // Listen for navigation events from dashboard
@@ -153,6 +167,8 @@ export function AdminPortal() {
         return <AdminBookingManagement />;
       case 'admin_financials':
         return <AdminFinancials />;
+      case 'iq-practice-questions':
+        return <IQPracticeQuestionManagementPage />;
       case 'psychologist_analytics':
         return <PsychologistAnalytics />;
       case 'platform-analytics':
@@ -181,6 +197,8 @@ export function AdminPortal() {
         onNavigate={setCurrentPage}
         collapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleCollapse}
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
       />
       <div
         className={`transition-all duration-300 ${
