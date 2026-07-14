@@ -17,12 +17,6 @@ export function IntelligenceMetrics() {
 
   const metrics: Metric[] = [
     {
-      icon: Users,
-      value: '50K+',
-      label: 'Active Learners',
-      color: '#395192'
-    },
-    {
       icon: Brain,
       value: '100K+',
       label: 'IQ Tests Taken',
@@ -30,7 +24,7 @@ export function IntelligenceMetrics() {
     },
     {
       icon: Trophy,
-      value: '1000+',
+      value: '100+',
       label: 'Geniuses',
       color: '#f59e0b'
     },
@@ -43,7 +37,7 @@ export function IntelligenceMetrics() {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {metrics.map((metric, index) => {
         const Icon = metric.icon;
         return (

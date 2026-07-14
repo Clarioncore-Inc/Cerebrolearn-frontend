@@ -513,7 +513,7 @@ html {
 
 /* Newsletter CTA Section - dark mode aware background */
 .newsletter-section-bg {
-  background: linear-gradient(to bottom right, #395192, #6478be, #8ca1eb);
+  background: linear-gradient(to bottom right, #395192, #4a63a8, #5875be);
 }
 
 .dark .newsletter-section-bg {

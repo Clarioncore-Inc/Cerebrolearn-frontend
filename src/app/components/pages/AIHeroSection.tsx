@@ -116,10 +116,10 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
                       <span className="text-muted-foreground">50,000+ Active Learners</span>
                     </div>
                   )}
-                  <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-secondary/20">
+                  {/* <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-secondary/20">
                     <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
                     <span className="text-muted-foreground">AI-Powered Tutoring</span>
-                  </div>
+                  </div> */}
                   {!isIQOnlyMode && (
                     <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-yellow-500/20">
                       <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>

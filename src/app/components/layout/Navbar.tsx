@@ -79,8 +79,8 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
   return (
     <nav className='sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 shadow-sm'>
-      <div className='flex h-20 items-center justify-between px-[16px] py-[0px] md:px-8 lg:px-12'>
-        <div className='flex items-center gap-3 md:gap-12'>
+      <div className='flex h-20 items-center justify-between px-3 py-[0px] md:px-8 lg:px-12'>
+        <div className='flex items-center gap-2 md:gap-12 min-w-0'>
           {/* Mobile Menu */}
           {showAdminMobileMenu ? (
             <Button
@@ -109,7 +109,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             <div className='h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg'>
               <BookOpen className='h-5 w-5 text-white' />
             </div>
-            <span className='font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent'>
+            <span className='font-bold text-base sm:text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent whitespace-nowrap'>
               CerebroLearn
             </span>
           </button>
@@ -266,7 +266,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           )}
         </div>
 
-        <div className='flex items-center gap-2 md:gap-6'>
+        <div className='flex items-center gap-1 sm:gap-2 md:gap-6'>
           {/* Global Search for Admin/Instructor */}
           {!isIQOnlyUser &&
             user &&
@@ -397,16 +397,19 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               </DropdownMenu>
             </div>
           ) : (
-            <div className='flex items-center gap-2'>
+            <div className='flex items-center gap-1 sm:gap-2 shrink-0'>
               <Button
                 variant='ghost'
+                size='sm'
                 onClick={() => onNavigate('auth', { authMode: 'login' })}
+                className='px-2 sm:px-4 whitespace-nowrap'
               >
                 Sign In
               </Button>
               <Button
+                size='sm'
                 onClick={() => onNavigate('auth')}
-                className='mr-2 sm:mr-0'
+                className='px-2 sm:px-4 whitespace-nowrap'
               >
                 Get Started
               </Button>
