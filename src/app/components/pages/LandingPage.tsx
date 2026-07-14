@@ -276,7 +276,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <AIHeroSection onNavigate={onNavigate} isAuthenticated={!!user} />
 
       {/* Conversion CTAs */}
-      <section className="py-14 bg-gradient-to-b from-background to-background/95">
+      {/* <section className="py-14 bg-gradient-to-b from-background to-background/95">
         <div className="container">
           <Card className="border-2 border-primary/20 shadow-xl bg-gradient-to-br from-card to-card/90">
             <CardContent className="py-10 space-y-8">
@@ -335,7 +335,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
             </CardContent>
           </Card>
         </div>
-      </section>
+      </section> */}
 
       {/* Brilliant Banner - Trusted Partners */}
       <BrilliantBanner variant="partners" />
@@ -573,9 +573,9 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
               return (
                 <div
                   key={index}
-                  className={`grid lg:grid-cols-2 gap-12 items-center ${
+                  className={`grid lg:grid-cols-2 gap-12 items-center rounded-3xl p-6 md:p-10 dark:bg-transparent ${
                     index % 2 === 1 ? 'lg:flex-row-reverse' : ''
-                  }`}
+                  } ${index === 1 ? 'bg-[#F2F4F7]' : 'bg-white'}`}
                 >
                   <div className={`space-y-6 ${index % 2 === 1 ? 'lg:order-2' : ''}`}>
                     <div className="relative inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg group/icon">
@@ -960,7 +960,7 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                 <div className="absolute inset-0 bg-primary rounded-full blur-2xl opacity-30 animate-pulse"></div>
                 <Rocket className="w-16 h-16 mx-auto text-primary relative" />
               </div>
-              <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2">
+              <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-secondary to-primary bg-clip-text text-transparent pb-2">
                 {isIQOnlyMode ? 'Ready to Discover Your IQ?' : 'Ready to Start Learning?'}
               </h2>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">

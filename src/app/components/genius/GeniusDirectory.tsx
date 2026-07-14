@@ -108,7 +108,7 @@ export function GeniusDirectory({ onNavigate }: GeniusDirectoryProps) {
   const renderGeniusSkeletonCard = (key: number) => (
     <Card
       key={key}
-      className="overflow-hidden border border-border/70 bg-card shadow-sm dark:border-white/10 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950"
+      className="overflow-hidden !border-slate-200 !bg-white shadow-sm dark:!border-white/10 dark:!bg-gradient-to-b dark:from-slate-900 dark:to-slate-950"
     >
       <Skeleton className="h-48 w-full rounded-none" />
       <div className="space-y-4 p-6">
@@ -243,7 +243,7 @@ export function GeniusDirectory({ onNavigate }: GeniusDirectoryProps) {
           <aside className="lg:col-span-1 space-y-6">
             <SlideInView delay={100}>
               {/* Search */}
-              <Card className="dark:border-white/10 dark:bg-slate-950/90">
+              <Card className="!border-slate-200 !bg-white shadow-sm dark:!border-white/10 dark:!bg-slate-950/90">
                 <CardContent className="p-4">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -252,14 +252,14 @@ export function GeniusDirectory({ onNavigate }: GeniusDirectoryProps) {
                       placeholder="Search geniuses..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
+                      className="border-slate-200 bg-white pl-10 text-slate-900 placeholder:text-slate-400"
                     />
                   </div>
                 </CardContent>
               </Card>
 
               {/* Era Filter */}
-              <Card className="dark:border-white/10 dark:bg-slate-950/90 mt-4">
+              <Card className="mt-4 !border-slate-200 !bg-white shadow-sm dark:!border-white/10 dark:!bg-slate-950/90">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
                     <Filter className="w-4 h-4" />
@@ -273,7 +273,7 @@ export function GeniusDirectory({ onNavigate }: GeniusDirectoryProps) {
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                           selectedEra === era.value
                             ? 'bg-[#395192] text-white font-medium'
-                            : 'hover:bg-muted text-muted-foreground'
+                            : 'text-slate-600 hover:bg-slate-100'
                         }`}
                       >
                         {era.label}
@@ -284,7 +284,7 @@ export function GeniusDirectory({ onNavigate }: GeniusDirectoryProps) {
               </Card>
 
               {/* Top 5 by IQ */}
-              <Card className="dark:border-white/10 dark:bg-slate-950/90 mt-4">
+              <Card className="mt-4 !border-slate-200 !bg-white shadow-sm dark:!border-white/10 dark:!bg-slate-950/90">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2">
                     <Brain className="w-4 h-4" />
