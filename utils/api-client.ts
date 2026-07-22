@@ -17,6 +17,16 @@ import type {
   Organization,
   Payment,
   PlatformSettings,
+  Education,
+  WorkExperience,
+  Honor,
+  Interest,
+  Cause,
+  CognitiveProfile,
+  Patent,
+  Publication,
+  Project,
+  TestScore,
 } from '../types/database';
 
 export interface PaginatedResponse<T> {
@@ -795,6 +805,303 @@ export const notesApi = {
 };
 
 // ========================================
+// PROFILE API (Education, Work Experience, Honors, Interests)
+// ========================================
+
+export const educationApi = {
+  list: () => request<Education[]>('/profile/education'),
+  create: (data: {
+    school: string;
+    degree?: string | null;
+    field_of_study?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    is_current?: boolean;
+    description?: string | null;
+  }) =>
+    request<Education>('/profile/education', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      school: string;
+      degree: string | null;
+      field_of_study: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      is_current: boolean;
+      description: string | null;
+    }>,
+  ) =>
+    request<Education>(`/profile/education/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/education/${id}`, { method: 'DELETE' }),
+};
+
+export const workExperienceApi = {
+  list: () => request<WorkExperience[]>('/profile/work-experience'),
+  create: (data: {
+    company: string;
+    title?: string | null;
+    location?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    is_current?: boolean;
+    description?: string | null;
+  }) =>
+    request<WorkExperience>('/profile/work-experience', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      company: string;
+      title: string | null;
+      location: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      is_current: boolean;
+      description: string | null;
+    }>,
+  ) =>
+    request<WorkExperience>(`/profile/work-experience/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/work-experience/${id}`, { method: 'DELETE' }),
+};
+
+export const honorsApi = {
+  list: () => request<Honor[]>('/profile/honors'),
+  create: (data: {
+    title: string;
+    issuer?: string | null;
+    date_awarded?: string | null;
+    description?: string | null;
+  }) =>
+    request<Honor>('/profile/honors', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      issuer: string | null;
+      date_awarded: string | null;
+      description: string | null;
+    }>,
+  ) =>
+    request<Honor>(`/profile/honors/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/honors/${id}`, { method: 'DELETE' }),
+};
+
+export const interestsApi = {
+  list: () => request<Interest[]>('/profile/interests'),
+  create: (data: { name: string }) =>
+    request<Interest>('/profile/interests', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<{ name: string }>) =>
+    request<Interest>(`/profile/interests/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/interests/${id}`, { method: 'DELETE' }),
+};
+
+export const causesApi = {
+  list: () => request<Cause[]>('/profile/causes'),
+  create: (data: { name: string }) =>
+    request<Cause>('/profile/causes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<{ name: string }>) =>
+    request<Cause>(`/profile/causes/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/causes/${id}`, { method: 'DELETE' }),
+};
+
+export interface CognitiveProfileUpdatePayload {
+  creative?: number | null;
+  logical_perceptual?: number | null;
+  analytical?: number | null;
+  existential?: number | null;
+  long_term_memory?: number | null;
+  implicit?: number | null;
+  linguistic?: number | null;
+  musical_rhythmic?: number | null;
+  intrapersonal?: number | null;
+  naturalistic?: number | null;
+  motivational?: number | null;
+  current_iq_estimate?: number | null;
+  potential_max_iq?: number | null;
+  memory_level?: string | null;
+  memory_benchmark?: string | null;
+  memory_benchmark_proof_url?: string | null;
+}
+
+export const cognitiveProfileApi = {
+  get: () => request<CognitiveProfile>('/profile/cognitive-profile'),
+  update: (data: CognitiveProfileUpdatePayload) =>
+    request<CognitiveProfile>('/profile/cognitive-profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+};
+
+export const patentsApi = {
+  list: () => request<Patent[]>('/profile/patents'),
+  create: (data: {
+    title: string;
+    patent_number?: string | null;
+    issuing_office?: string | null;
+    filing_date?: string | null;
+    grant_date?: string | null;
+    description?: string | null;
+    url?: string | null;
+  }) =>
+    request<Patent>('/profile/patents', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      patent_number: string | null;
+      issuing_office: string | null;
+      filing_date: string | null;
+      grant_date: string | null;
+      description: string | null;
+      url: string | null;
+    }>,
+  ) =>
+    request<Patent>(`/profile/patents/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/patents/${id}`, { method: 'DELETE' }),
+};
+
+export const publicationsApi = {
+  list: () => request<Publication[]>('/profile/publications'),
+  create: (data: {
+    title: string;
+    publisher?: string | null;
+    publication_date?: string | null;
+    url?: string | null;
+    description?: string | null;
+  }) =>
+    request<Publication>('/profile/publications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      publisher: string | null;
+      publication_date: string | null;
+      url: string | null;
+      description: string | null;
+    }>,
+  ) =>
+    request<Publication>(`/profile/publications/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/publications/${id}`, { method: 'DELETE' }),
+};
+
+export const projectsApi = {
+  list: () => request<Project[]>('/profile/projects'),
+  create: (data: {
+    title: string;
+    role?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    is_current?: boolean;
+    description?: string | null;
+    url?: string | null;
+  }) =>
+    request<Project>('/profile/projects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      role: string | null;
+      start_date: string | null;
+      end_date: string | null;
+      is_current: boolean;
+      description: string | null;
+      url: string | null;
+    }>,
+  ) =>
+    request<Project>(`/profile/projects/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/projects/${id}`, { method: 'DELETE' }),
+};
+
+export const testScoresApi = {
+  list: () => request<TestScore[]>('/profile/test-scores'),
+  create: (data: {
+    test_name: string;
+    score?: string | null;
+    max_score?: string | null;
+    test_date?: string | null;
+    description?: string | null;
+    proof_url?: string | null;
+  }) =>
+    request<TestScore>('/profile/test-scores', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      test_name: string;
+      score: string | null;
+      max_score: string | null;
+      test_date: string | null;
+      description: string | null;
+      proof_url: string | null;
+    }>,
+  ) =>
+    request<TestScore>(`/profile/test-scores/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/test-scores/${id}`, { method: 'DELETE' }),
+};
+
+// ========================================
 // REVIEWS API
 // ========================================
 
@@ -989,8 +1296,25 @@ export const paymentsApi = {
       method: 'POST',
     }),
 
+  createIQTestGuestCheckoutSession: (data: {
+    email: string;
+    password: string;
+    full_name: string;
+    org_id?: string;
+  }) =>
+    request<{ checkout_url: string; session_id: string }>('/payments/iq-test/guest-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
   confirmIQTestCheckoutSession: (session_id: string) =>
-    request<Payment>('/payments/iq-test/confirm', {
+    request<{
+      payment: Payment;
+      access_token?: string;
+      token_type?: string;
+      user?: User;
+      is_first_login?: boolean;
+    }>('/payments/iq-test/confirm', {
       method: 'POST',
       body: JSON.stringify({ session_id }),
     }),
@@ -1563,6 +1887,16 @@ export const api = {
   psychologist: psychologistApi,
   storage: storageApi,
   videoLessons: videoLessonsApi,
+  education: educationApi,
+  workExperience: workExperienceApi,
+  honors: honorsApi,
+  interests: interestsApi,
+  causes: causesApi,
+  cognitiveProfile: cognitiveProfileApi,
+  patents: patentsApi,
+  publications: publicationsApi,
+  projects: projectsApi,
+  testScores: testScoresApi,
 };
 
 export default api;

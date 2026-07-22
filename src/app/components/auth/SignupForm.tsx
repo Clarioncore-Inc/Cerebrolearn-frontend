@@ -110,6 +110,13 @@ interface SignupFormProps {
   onSignedUpWithCredentials?: (
     payload: SignupSuccessPayload,
   ) => void | Promise<void>;
+  /**
+   * When true, the form does NOT create the account immediately on submit.
+   * Instead it only validates the fields and hands the credentials off via
+   * `onSignedUpWithCredentials`, so the caller can defer account creation
+   * (e.g. until after payment is confirmed).
+   */
+  skipAccountCreation?: boolean;
 }
 
 export function SignupForm({
@@ -122,6 +129,7 @@ export function SignupForm({
   submitLabel = 'Create Account',
   onSignedUp,
   onSignedUpWithCredentials,
+  skipAccountCreation = false,
 }: SignupFormProps) {
   const { signUp } = useAuth();
   const { isIQOnlyMode } = useFeatureFlags();
@@ -184,7 +192,9 @@ export function SignupForm({
     setLoading(true);
     try {
       const selectedRole = effectiveFixedRole ?? role;
-      await signUp(email, password, fullName, selectedRole);
+      if (!skipAccountCreation) {
+        await signUp(email, password, fullName, selectedRole);
+      }
       if (onSignedUpWithCredentials) {
         await onSignedUpWithCredentials({
           email,

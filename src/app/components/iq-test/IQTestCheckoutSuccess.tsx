@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 
 import { CheckCircle2, CreditCard, Loader2 } from 'lucide-react';
@@ -14,11 +14,19 @@ interface IQTestCheckoutSuccessProps {
 }
 
 export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps) {
-  const { user } = useAuth();
+  const { user, loginWithToken } = useAuth();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState<'confirming' | 'success' | 'error'>('confirming');
+  const [status, setStatus] = useState<'confirming' | 'success' | 'error' | 'needs-auth'>('confirming');
   const [message, setMessage] = useState('We are confirming your payment.');
+
+  // Kept in refs so the confirmation effect (which should only run once per
+  // session id) can read the latest values without re-running when the user
+  // logs in as a side effect of confirmation succeeding.
+  const userRef = useRef(user);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id') ?? location.state?.sessionId;
@@ -27,19 +35,28 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
       setMessage('Missing payment information. Please return to the IQ test overview.');
       return;
     }
-    if (!user || !sessionId) {
-      return;
-    }
 
     let isActive = true;
     let timeoutId: number | undefined;
 
     const confirmPayment = async () => {
       try {
-        await paymentsApi.confirmIQTestCheckoutSession(sessionId);
+        // No pre-existing session is required here: guest checkouts are
+        // confirmed and their account is created server-side at this step,
+        // while already logged-in users are simply validated as before.
+        const result = await paymentsApi.confirmIQTestCheckoutSession(sessionId);
         if (!isActive) {
           return;
         }
+
+        if (result.access_token && result.user) {
+          loginWithToken({
+            access_token: result.access_token,
+            user: result.user,
+            is_first_login: Boolean(result.is_first_login),
+          });
+        }
+
         sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
         setStatus('success');
         setMessage('Payment confirmed. Redirecting to your IQ dashboard…');
@@ -47,6 +64,11 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
         timeoutId = window.setTimeout(() => onNavigate('dashboard'), 1200);
       } catch (err) {
         if (!isActive) {
+          return;
+        }
+        if (!userRef.current) {
+          setStatus('needs-auth');
+          setMessage('We need your account session to confirm the payment and open your dashboard.');
           return;
         }
         setStatus('error');
@@ -62,17 +84,15 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
         window.clearTimeout(timeoutId);
       }
     };
-  }, [location.state, onNavigate, searchParams, user]);
+  }, [location.state, onNavigate, searchParams, loginWithToken]);
 
-  if (!user) {
+  if (status === 'needs-auth') {
     return (
       <div className='container max-w-2xl py-16'>
         <Card>
           <CardHeader>
             <CardTitle>Sign in to finish your IQ test purchase</CardTitle>
-            <CardDescription>
-              We need your account session to confirm the payment and open your dashboard.
-            </CardDescription>
+            <CardDescription>{message}</CardDescription>
           </CardHeader>
           <CardContent>
             <Button

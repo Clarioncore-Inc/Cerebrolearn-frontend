@@ -22,6 +22,8 @@ interface UserProfile {
   bio?: string | null;
   phone_number?: string | null;
   location?: string | null;
+  personality?: string | null;
+  date_of_birth?: string | null;
   xp: number;
   streak: number;
   badges: any[];
@@ -43,6 +45,11 @@ interface AuthContextType {
     orgId?: string,
   ) => Promise<void>;
   signOut: () => Promise<void>;
+  loginWithToken: (result: {
+    access_token: string;
+    user: User;
+    is_first_login: boolean;
+  }) => void;
   renderGoogleButton: (
     container: HTMLElement,
     onCredential: (credential: string) => void,
@@ -184,6 +191,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       role,
       org_id: orgId,
     });
+  };
+
+  const loginWithToken = (result: {
+    access_token: string;
+    user: User;
+    is_first_login: boolean;
+  }) => {
+    applyAuthResult(result);
   };
 
   const signOut = async () => {
@@ -432,6 +447,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signUp,
         signOut,
+        loginWithToken,
         renderGoogleButton,
         getFacebookAccessToken,
         lookupGoogleAccount,

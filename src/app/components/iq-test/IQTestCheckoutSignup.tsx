@@ -15,16 +15,45 @@ interface IQTestCheckoutSignupProps {
 }
 
 export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) {
-  const { signIn, user } = useAuth();
+  const { user } = useAuth();
   const [mode, setMode] = useState<'signup' | 'login'>(user ? 'login' : 'signup');
   const [redirecting, setRedirecting] = useState(false);
 
+  // Existing/logged-in user: account already exists, so just start checkout.
   const redirectToCheckout = async () => {
     sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
     setRedirecting(true);
 
     try {
       const session = await paymentsApi.createIQTestCheckoutSession();
+      window.location.assign(session.checkout_url);
+    } catch (err) {
+      setRedirecting(false);
+      toast.error(err instanceof Error ? err.message : 'Unable to start secure checkout.');
+    }
+  };
+
+  // New guest: don't create the account yet. Stash the signup details on the
+  // backend as a pending signup and only create the account once Stripe
+  // confirms payment.
+  const redirectToGuestCheckout = async ({
+    email,
+    password,
+    fullName,
+  }: {
+    email: string;
+    password: string;
+    fullName: string;
+  }) => {
+    sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
+    setRedirecting(true);
+
+    try {
+      const session = await paymentsApi.createIQTestGuestCheckoutSession({
+        email,
+        password,
+        full_name: fullName,
+      });
       window.location.assign(session.checkout_url);
     } catch (err) {
       setRedirecting(false);
@@ -80,16 +109,14 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
         ) : mode === 'signup' ? (
           <SignupForm
             simplified
+            skipAccountCreation
             fixedRole='iq_user'
             hideRoleSelection
             title='Create your booking account'
             description='Use a few details to continue with your certified psychologist session.'
-            submitLabel='Create account and continue'
+            submitLabel='Continue to secure payment'
             onToggleMode={() => setMode('login')}
-            onSignedUpWithCredentials={async ({ email, password }) => {
-              await signIn(email, password);
-              await redirectToCheckout();
-            }}
+            onSignedUpWithCredentials={redirectToGuestCheckout}
           />
         ) : (
           <LoginForm
