@@ -85,8 +85,18 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
-import { MBTI_PROFILES, MBTI_FUNCTIONS, type MBTIType } from '../../data/mbtiData';
-import { ZODIAC_PROFILES, ZODIAC_ELEMENT_ICONS, getZodiacSign } from '../../data/zodiacData';
+import {
+  MBTI_PROFILES,
+  MBTI_FUNCTIONS,
+  getCognitiveFunctionImagePath,
+  getMBTITypeImagePath,
+  type MBTIType,
+} from '../../data/mbtiData';
+import {
+  ZODIAC_PROFILES,
+  getZodiacAppearanceSummary,
+  getZodiacSign,
+} from '../../data/zodiacData';
 import { INTELLIGENCE_TYPES, INTELLIGENCE_TYPE_KEYS } from '../../data/intelligenceTypesData';
 import { Slider } from '../ui/slider';
 
@@ -1399,69 +1409,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             </CardContent>
           </Card>
 
-          {profile?.date_of_birth && getZodiacSign(profile.date_of_birth) && (
-            (() => {
-              const sign = getZodiacSign(profile.date_of_birth as string)!;
-              const zodiacProfile = ZODIAC_PROFILES[sign];
-              const ElementIcon = ZODIAC_ELEMENT_ICONS[zodiacProfile.element];
-              return (
-                <Card>
-                  <CardContent className='pt-6 space-y-6'>
-                    <div className='flex items-center gap-2'>
-                      <h3 className='text-lg font-medium'>{zodiacProfile.archetype}</h3>
-                      <Badge variant='secondary'>{sign}</Badge>
-                    </div>
-
-                    <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-                      <div className='space-y-1 p-3 rounded-lg border bg-muted/30'>
-                        <ElementIcon className='h-6 w-6 text-primary' />
-                        <p className='text-sm font-medium'>{zodiacProfile.element}</p>
-                        <p className='text-xs text-muted-foreground'>Element</p>
-                      </div>
-                      <div className='space-y-1 p-3 rounded-lg border bg-muted/30'>
-                        <p className='text-sm font-medium'>{zodiacProfile.modality}</p>
-                        <p className='text-xs text-muted-foreground'>Modality</p>
-                      </div>
-                      <div className='space-y-1 p-3 rounded-lg border bg-muted/30'>
-                        <p className='text-sm font-medium'>{zodiacProfile.rulingPlanet}</p>
-                        <p className='text-xs text-muted-foreground'>Ruling Planet</p>
-                      </div>
-                      <div className='space-y-1 p-3 rounded-lg border bg-muted/30'>
-                        <p className='text-sm font-medium'>{zodiacProfile.dateRangeLabel}</p>
-                        <p className='text-xs text-muted-foreground'>Date Range</p>
-                      </div>
-                    </div>
-
-                    <div className='rounded-lg border bg-muted/30 p-4 space-y-3'>
-                      {zodiacProfile.paragraphs
-                        .slice(0, zodiacExpanded ? undefined : 1)
-                        .map((paragraph, index) => (
-                          <p key={index} className='text-sm text-muted-foreground'>
-                            {paragraph}
-                          </p>
-                        ))}
-                      <button
-                        type='button'
-                        onClick={() => setZodiacExpanded((current) => !current)}
-                        className='text-sm text-primary flex items-center gap-1 ml-auto'
-                      >
-                        {zodiacExpanded ? (
-                          <>
-                            Show Less <ChevronUp className='h-4 w-4' />
-                          </>
-                        ) : (
-                          <>
-                            Show More <ChevronDown className='h-4 w-4' />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })()
-          )}
-
           <Card>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
@@ -1698,56 +1645,80 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             (() => {
               const mbtiProfile = MBTI_PROFILES[personality as MBTIType];
               return (
-                <Card>
-                  <CardContent className='pt-6 space-y-6'>
-                    <div className='flex items-center justify-between'>
-                      <div className='flex items-center gap-2'>
-                        <h3 className='text-lg font-medium'>{mbtiProfile.nickname}</h3>
-                        <Badge variant='secondary'>{personality}</Badge>
+                <Card className='overflow-hidden'>
+                  <CardContent className='p-0'>
+                    <div className='p-6'>
+                      <div className='flex flex-col gap-4 md:flex-row md:items-start md:justify-between'>
+                        <div className='flex flex-wrap items-center gap-3'>
+                          <h3 className='text-lg font-semibold'>{mbtiProfile.nickname}</h3>
+                          <Badge variant='secondary'>{personality}</Badge>
+                        </div>
+                        <div className='flex items-center gap-1'>
+                          <Button
+                            size='sm'
+                            variant='outline'
+                            onClick={() => onNavigate?.('personality-types')}
+                          >
+                            <ExternalLink className='mr-2 h-4 w-4' />
+                            View All Personality Types
+                          </Button>
+                          <Button
+                            size='icon'
+                            variant='ghost'
+                            onClick={() => setPersonalityEditing(true)}
+                          >
+                            <Pencil className='h-4 w-4' />
+                          </Button>
+                        </div>
                       </div>
-                      <Button
-                        size='icon'
-                        variant='ghost'
-                        onClick={() => setPersonalityEditing(true)}
-                      >
-                        <Pencil className='h-4 w-4' />
-                      </Button>
                     </div>
 
-                    <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
-                      {mbtiProfile.stack.map((code) => {
-                        const fn = MBTI_FUNCTIONS[code];
-                        const FnIcon = fn.icon;
-                        return (
-                          <div key={code} className='space-y-2 p-3 rounded-lg border bg-muted/30'>
-                            <FnIcon className='h-6 w-6 text-primary' />
-                            <p className='text-sm font-medium'>
-                              ({code}) {fn.name}
+                    <div className='border-t px-6 py-6 space-y-6'>
+                      <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'>
+                        {mbtiProfile.stack.map((code) => {
+                          const fn = MBTI_FUNCTIONS[code];
+                          return (
+                            <div key={code} className='space-y-3'>
+                              <img
+                                src={getCognitiveFunctionImagePath(code)}
+                                alt={`${code} icon`}
+                                className='h-14 w-14 object-contain'
+                              />
+                              <div className='space-y-1.5'>
+                                <p className='text-sm font-semibold'>
+                                  ({code}) {fn.name}
+                                </p>
+                                <p className='text-sm text-muted-foreground'>
+                                  <span className='font-semibold text-foreground'>{fn.sublabel}:</span>{' '}
+                                  {fn.description}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className='space-y-3'>
+                        <div className='overflow-hidden rounded-xl border bg-muted/20'>
+                          <img
+                            src={getMBTITypeImagePath(personality as MBTIType)}
+                            alt={`Illustration of ${personality}`}
+                            className='w-full h-auto object-cover'
+                          />
+                        </div>
+                        <p className='text-xs italic text-muted-foreground'>Image of MBTI Type</p>
+                      </div>
+
+                      <div className='rounded-2xl bg-muted/40 p-6 space-y-4'>
+                        {mbtiProfile.paragraphs
+                          .slice(0, personalityExpanded ? undefined : 1)
+                          .map((paragraph, index) => (
+                            <p key={index} className='text-sm leading-7 text-muted-foreground'>
+                              {paragraph}
                             </p>
-                            <p className='text-xs'>
-                              <span className='font-semibold'>{fn.sublabel}:</span>{' '}
-                              <span className='text-muted-foreground'>{fn.description}</span>
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          ))}
+                      </div>
 
-                    <div className='rounded-lg border bg-muted/30 py-10 flex flex-col items-center justify-center gap-3'>
-                      <Brain className='h-16 w-16 text-primary/60' />
-                      <p className='text-xs italic text-muted-foreground'>
-                        Illustration of {personality} type
-                      </p>
-                    </div>
-
-                    <div className='rounded-lg border bg-muted/30 p-4 space-y-3'>
-                      {mbtiProfile.paragraphs
-                        .slice(0, personalityExpanded ? undefined : 1)
-                        .map((paragraph, index) => (
-                          <p key={index} className='text-sm text-muted-foreground'>
-                            {paragraph}
-                          </p>
-                        ))}
                       <button
                         type='button'
                         onClick={() => setPersonalityExpanded((current) => !current)}
@@ -1763,22 +1734,22 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                           </>
                         )}
                       </button>
-                    </div>
 
-                    <div className='space-y-2'>
-                      <h4 className='text-sm font-semibold flex items-center gap-2'>
-                        <Trophy className='h-4 w-4 text-primary' />
-                        Personality Matchups
-                      </h4>
-                      <p className='text-xs text-muted-foreground'>
-                        Notable figures who share your cognitive type
-                      </p>
-                      <div className='flex flex-wrap gap-2'>
-                        {mbtiProfile.matchups.map((name) => (
-                          <Badge key={name} variant='outline' className='text-sm py-1.5'>
-                            {name}
-                          </Badge>
-                        ))}
+                      <div className='space-y-2'>
+                        <h4 className='text-sm font-semibold flex items-center gap-2'>
+                          <Trophy className='h-4 w-4 text-primary' />
+                          Personality Matchups
+                        </h4>
+                        <p className='text-xs text-muted-foreground'>
+                          Notable figures who share your cognitive type
+                        </p>
+                        <div className='flex flex-wrap gap-2'>
+                          {mbtiProfile.matchups.map((name) => (
+                            <Badge key={name} variant='outline' className='text-sm py-1.5'>
+                              {name}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
@@ -1788,10 +1759,22 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>Personality</CardTitle>
-                <CardDescription>
-                  Select the personality type that best describes you
-                </CardDescription>
+                <div className='flex items-center justify-between gap-4'>
+                  <div>
+                    <CardTitle>Personality</CardTitle>
+                    <CardDescription>
+                      Select the personality type that best describes you
+                    </CardDescription>
+                  </div>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => onNavigate?.('personality-types')}
+                  >
+                    <ExternalLink className='mr-2 h-4 w-4' />
+                    View All Personality Types
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className='space-y-4'>
                 <div className='space-y-2 max-w-xs'>
@@ -1824,6 +1807,126 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   </Button>
                 )}
               </CardContent>
+            </Card>
+          )}
+
+          {/* Zodiac Profile */}
+          {profile?.date_of_birth && getZodiacSign(profile.date_of_birth) ? (
+            (() => {
+              const sign = getZodiacSign(profile.date_of_birth as string)!;
+              const zodiacProfile = ZODIAC_PROFILES[sign];
+              const appearanceSummary = getZodiacAppearanceSummary(sign, zodiacProfile);
+              return (
+                <Card className='overflow-hidden'>
+                  <CardContent className='p-0'>
+                    <div className='p-6 space-y-3'>
+                      <div className='flex flex-col gap-4 md:flex-row md:items-start md:justify-between'>
+                        <div className='space-y-2'>
+                          <div className='flex flex-wrap items-center gap-2'>
+                            <h3 className='text-lg font-semibold'>
+                              {sign} ({zodiacProfile.symbolName})
+                            </h3>
+                            <Badge variant='secondary'>{zodiacProfile.archetype}</Badge>
+                          </div>
+                          <p className='text-sm text-muted-foreground'>
+                            {zodiacProfile.dateRangeLabel}
+                          </p>
+                          <div className='flex flex-wrap gap-2'>
+                            <Badge variant='outline'>{zodiacProfile.element}</Badge>
+                            <Badge variant='outline'>{zodiacProfile.modality}</Badge>
+                            <Badge variant='outline'>Ruled by {zodiacProfile.rulingPlanet}</Badge>
+                            <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
+                          </div>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <Button
+                            size='sm'
+                            variant='outline'
+                            onClick={() => onNavigate?.('zodiac-signs')}
+                          >
+                            <ExternalLink className='mr-2 h-4 w-4' />
+                            View All Zodiac Signs
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className='border-t px-6 py-6 space-y-6'>
+                      <div className='flex items-start gap-4'>
+                        <div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-3'>
+                          <img
+                            src={`/assets/${sign.toLowerCase()}_symbol.png`}
+                            alt={`${sign} symbol`}
+                            className='max-h-full max-w-full object-contain'
+                          />
+                        </div>
+                        <div className='space-y-2'>
+                          <h4 className='text-base font-semibold'>General Physical Appearance</h4>
+                          <p className='text-sm text-muted-foreground'>{appearanceSummary}</p>
+                        </div>
+                      </div>
+
+                      <div className='space-y-3'>
+                        <div className='overflow-hidden rounded-xl border bg-muted/20'>
+                          <img
+                            src={`/assets/${sign.toLowerCase()}.png`}
+                            alt={`Illustration of ${sign}`}
+                            className='w-full h-auto object-cover'
+                          />
+                        </div>
+                        <p className='text-xs italic text-muted-foreground'>Image of a {sign}</p>
+                      </div>
+
+                      <div className='space-y-3'>
+                        <h4 className='text-base font-semibold'>General Conscience &amp; Personality</h4>
+                        {zodiacProfile.paragraphs
+                          .slice(0, zodiacExpanded ? undefined : 1)
+                          .map((paragraph, index) => (
+                            <p key={index} className='text-sm text-muted-foreground'>
+                              {paragraph}
+                            </p>
+                          ))}
+                        <button
+                          type='button'
+                          onClick={() => setZodiacExpanded((current) => !current)}
+                          className='text-sm text-primary flex items-center gap-1 ml-auto'
+                        >
+                          {zodiacExpanded ? (
+                            <>
+                              Show Less <ChevronUp className='h-4 w-4' />
+                            </>
+                          ) : (
+                            <>
+                              Show More <ChevronDown className='h-4 w-4' />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()
+          ) : (
+            <Card>
+              <CardHeader>
+                <div className='flex items-center justify-between gap-4'>
+                  <div>
+                    <CardTitle>Zodiac Profile</CardTitle>
+                    <CardDescription>
+                      Add your date of birth in the About tab to reveal your zodiac profile
+                    </CardDescription>
+                  </div>
+                  <Button
+                    size='sm'
+                    variant='outline'
+                    onClick={() => onNavigate?.('zodiac-signs')}
+                  >
+                    <ExternalLink className='mr-2 h-4 w-4' />
+                    View All Zodiac Signs
+                  </Button>
+                </div>
+              </CardHeader>
             </Card>
           )}
 

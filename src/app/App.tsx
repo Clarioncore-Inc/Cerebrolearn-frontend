@@ -37,6 +37,8 @@ import { SidebarLayout } from './components/layout/SidebarLayout';
 import { Leaderboard } from './components/pages/Leaderboard';
 import { PaymentPage } from './components/pages/PaymentPage';
 import { ProfilePage } from './components/pages/ProfilePage';
+import { ZodiacSignsPage } from './components/pages/ZodiacSignsPage';
+import { PersonalityTypesPage } from './components/pages/PersonalityTypesPage';
 import { DemoAccountSeeder } from './components/utils/DemoAccountSeeder';
 import { Toaster } from './components/ui/sonner';
 import { initializeDummyData } from '../../utils/dummyData';
@@ -598,6 +600,12 @@ function AppContent() {
 
       case 'profile':
         return <ProfilePage onNavigate={handleNavigate} />;
+
+      case 'zodiac-signs':
+        return <ZodiacSignsPage onNavigate={handleNavigate} />;
+
+      case 'personality-types':
+        return <PersonalityTypesPage onNavigate={handleNavigate} />;
 
       // IQ Test routes
       case 'iq-test-landing':
