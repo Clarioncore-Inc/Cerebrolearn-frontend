@@ -32,6 +32,8 @@ export interface User {
   country: string | null;
   phone_number?: string | null;
   location?: string | null;
+  personality?: string | null;
+  date_of_birth?: string | null;
   xp: number;
   streak: number;
   badges: Badge[];
@@ -319,6 +321,137 @@ export interface Note {
   tags?: string[] | null;
   color: string;
   is_pinned: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Education {
+  id: string;
+  user_id: string;
+  school: string;
+  degree?: string | null;
+  field_of_study?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_current: boolean;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkExperience {
+  id: string;
+  user_id: string;
+  company: string;
+  title?: string | null;
+  location?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_current: boolean;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Honor {
+  id: string;
+  user_id: string;
+  title: string;
+  issuer?: string | null;
+  date_awarded?: string | null;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Interest {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Cause {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CognitiveProfile {
+  id: string;
+  user_id: string;
+  creative?: number | null;
+  logical_perceptual?: number | null;
+  analytical?: number | null;
+  existential?: number | null;
+  long_term_memory?: number | null;
+  implicit?: number | null;
+  linguistic?: number | null;
+  musical_rhythmic?: number | null;
+  intrapersonal?: number | null;
+  naturalistic?: number | null;
+  motivational?: number | null;
+  current_iq_estimate?: number | null;
+  potential_max_iq?: number | null;
+  memory_level?: string | null;
+  memory_benchmark?: string | null;
+  memory_benchmark_proof_url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Patent {
+  id: string;
+  user_id: string;
+  title: string;
+  patent_number?: string | null;
+  issuing_office?: string | null;
+  filing_date?: string | null;
+  grant_date?: string | null;
+  description?: string | null;
+  url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Publication {
+  id: string;
+  user_id: string;
+  title: string;
+  publisher?: string | null;
+  publication_date?: string | null;
+  url?: string | null;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  user_id: string;
+  title: string;
+  role?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  is_current: boolean;
+  description?: string | null;
+  url?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TestScore {
+  id: string;
+  user_id: string;
+  test_name: string;
+  score?: string | null;
+  max_score?: string | null;
+  test_date?: string | null;
+  description?: string | null;
+  proof_url?: string | null;
   created_at: string;
   updated_at: string;
 }
