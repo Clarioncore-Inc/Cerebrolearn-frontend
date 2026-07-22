@@ -87,6 +87,14 @@ export interface MBTIProfile {
   matchups: string[];
 }
 
+export function getMBTITypeImagePath(type: MBTIType): string {
+  return `/assets/${type}.png`;
+}
+
+export function getCognitiveFunctionImagePath(code: CognitiveFunctionCode): string {
+  return `/assets/${code}.svg`;
+}
+
 export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   INTJ: {
     nickname: 'The Strategic Architect',

@@ -231,3 +231,7 @@ export function getZodiacSign(dateOfBirth: string): ZodiacSign | null {
 
   return match?.sign ?? null;
 }
+
+export function getZodiacAppearanceSummary(sign: ZodiacSign, profile: ZodiacProfile): string {
+  return `The ${sign} (${profile.symbolName}) is traditionally associated with a ${profile.element.toLowerCase()}-led presence, ${profile.modality.toLowerCase()} expression, and the influence of ${profile.rulingPlanet}.`;
+}
