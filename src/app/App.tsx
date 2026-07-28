@@ -37,6 +37,7 @@ import { SidebarLayout } from './components/layout/SidebarLayout';
 import { Leaderboard } from './components/pages/Leaderboard';
 import { PaymentPage } from './components/pages/PaymentPage';
 import { ProfilePage } from './components/pages/ProfilePage';
+import { ProfileView } from './components/pages/ProfileView';
 import { ZodiacSignsPage } from './components/pages/ZodiacSignsPage';
 import { PersonalityTypesPage } from './components/pages/PersonalityTypesPage';
 import { DemoAccountSeeder } from './components/utils/DemoAccountSeeder';
@@ -600,6 +601,9 @@ function AppContent() {
 
       case 'profile':
         return <ProfilePage onNavigate={handleNavigate} />;
+
+      case 'profile-view':
+        return <ProfileView />;
 
       case 'zodiac-signs':
         return <ZodiacSignsPage onNavigate={handleNavigate} />;
