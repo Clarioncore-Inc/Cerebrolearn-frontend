@@ -28,6 +28,7 @@ export interface User {
   role: UserRole;
   org_id: string | null;
   avatar: string | null;
+  cover_photo: string | null;
   bio: string | null;
   country: string | null;
   phone_number?: string | null;

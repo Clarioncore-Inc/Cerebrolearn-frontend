@@ -44,7 +44,6 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
-import { BackButton } from '../ui/back-button';
 import {
   Select,
   SelectContent,
@@ -83,6 +82,7 @@ import {
   FolderKanban,
   Trophy,
   ExternalLink,
+  Eye,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -110,6 +110,7 @@ interface ProfileFormData {
   phone_number: string;
   location: string;
   avatar: string;
+  cover_photo: string;
   bio: string;
   date_of_birth: string;
 }
@@ -128,6 +129,7 @@ const createProfileFormData = (profile: any): ProfileFormData => ({
   phone_number: profile?.phone_number ?? '',
   location: profile?.location ?? '',
   avatar: profile?.avatar ?? '',
+  cover_photo: profile?.cover_photo ?? '',
   bio: profile?.bio ?? '',
   date_of_birth: profile?.date_of_birth ?? '',
 });
@@ -322,9 +324,12 @@ const createCognitiveProfileForm = (
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const { profile, refreshProfile } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [activeTab, setActiveTab] = useState('about');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
+  const [coverUploading, setCoverUploading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [formData, setFormData] = useState<ProfileFormData>(
     createProfileFormData(profile),
@@ -515,6 +520,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         phone_number: formData.phone_number.trim() || null,
         location: formData.location.trim() || null,
         avatar: formData.avatar.trim() || null,
+        cover_photo: formData.cover_photo.trim() || null,
         bio: formData.bio.trim() || null,
         date_of_birth: formData.date_of_birth || null,
       });
@@ -595,6 +601,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
       const finishedUpload = await storageApi.finish(startedUpload.id);
       setFormData((current) => ({ ...current, avatar: finishedUpload.url }));
+      await authApi.updateProfile({ avatar: finishedUpload.url });
+      await refreshProfile();
       toast.success('Profile photo uploaded successfully');
     } catch (error) {
       console.error('Error uploading profile photo:', error);
@@ -603,6 +611,68 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       );
     } finally {
       setAvatarUploading(false);
+      event.target.value = '';
+    }
+  };
+
+  const handleCoverPhotoUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Cover photo must be smaller than 5 MB');
+      event.target.value = '';
+      return;
+    }
+
+    setCoverUploading(true);
+
+    try {
+      const startedUpload = await storageApi.start({
+        file_type: 'image',
+        filename: file.name,
+        mime_type: file.type,
+        create_type: 'post',
+      });
+
+      const uploadFormData = new FormData();
+      Object.entries(startedUpload.fields || {}).forEach(([key, value]) => {
+        uploadFormData.append(key, value);
+      });
+      uploadFormData.append('file', file);
+
+      const uploadResponse = await fetch(startedUpload.url, {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text().catch(() => '');
+        throw new Error(
+          `Storage upload failed with status ${uploadResponse.status}${errorText ? `: ${errorText}` : ''}`,
+        );
+      }
+
+      const finishedUpload = await storageApi.finish(startedUpload.id);
+      setFormData((current) => ({ ...current, cover_photo: finishedUpload.url }));
+      await authApi.updateProfile({ cover_photo: finishedUpload.url });
+      await refreshProfile();
+      toast.success('Cover photo uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading cover photo:', error);
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to upload cover photo',
+      );
+    } finally {
+      setCoverUploading(false);
       event.target.value = '';
     }
   };
@@ -1196,17 +1266,40 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   };
 
   return (
-    <div className='container py-8 space-y-6 max-w-5xl'>
-      <BackButton
-        label='Back'
-        fallbackPage='dashboard'
-        onNavigate={onNavigate ? (page) => onNavigate(page) : undefined}
-        className='px-0 hover:bg-transparent'
-      />
-
+    <div className='container pb-8 space-y-6 max-w-5xl'>
       {/* Profile Header: banner + overlapping avatar */}
       <div className='relative'>
-        <div className='h-32 md:h-48 rounded-2xl bg-gradient-to-r from-primary/25 via-primary/10 to-transparent' />
+        <div className='relative h-32 md:h-48 overflow-hidden rounded-2xl bg-gradient-to-r from-primary/25 via-primary/10 to-transparent'>
+          {formData.cover_photo && (
+            <img
+              src={formData.cover_photo}
+              alt='Cover'
+              className='absolute inset-0 h-full w-full object-cover'
+            />
+          )}
+          <input
+            ref={coverInputRef}
+            type='file'
+            accept='image/*'
+            className='hidden'
+            onChange={handleCoverPhotoUpload}
+          />
+          <Button
+            type='button'
+            size='sm'
+            variant='secondary'
+            className='absolute bottom-3 right-3'
+            onClick={() => coverInputRef.current?.click()}
+            disabled={coverUploading}
+          >
+            {coverUploading ? (
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+            ) : (
+              <Camera className='mr-2 h-4 w-4' />
+            )}
+            {formData.cover_photo ? 'Change Cover' : 'Add Cover Photo'}
+          </Button>
+        </div>
         <div className='absolute -bottom-12 left-6'>
           <div className='relative'>
             <Avatar className='h-24 w-24 md:h-28 md:w-28 border-4 border-background shadow-lg'>
@@ -1252,7 +1345,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         </div>
 
         <div className='flex gap-2'>
-          {isEditing ? (
+          {activeTab === 'about' && isEditing ? (
             <>
               <Button onClick={handleUpdate} disabled={loading || avatarUploading}>
                 <Save className='mr-2 h-4 w-4' />
@@ -1269,15 +1362,34 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               </Button>
             </>
           ) : (
-            <Button onClick={() => setIsEditing(true)}>
-              <Pencil className='mr-2 h-4 w-4' />
-              Edit Profile
-            </Button>
+            <>
+              <Button
+                variant='outline'
+                onClick={() => window.open('/profile-view', '_blank', 'noopener,noreferrer')}
+              >
+                <Eye className='mr-2 h-4 w-4' />
+                View Profile
+              </Button>
+              {activeTab === 'about' && (
+                <Button onClick={() => setIsEditing(true)}>
+                  <Pencil className='mr-2 h-4 w-4' />
+                  Edit Profile
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      <Tabs defaultValue='about' className='space-y-6'>
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          setIsEditing(false);
+          setFormData(createProfileFormData(profile));
+        }}
+        className='space-y-6'
+      >
         <TabsList className='flex h-auto w-full flex-wrap justify-start gap-1'>
           <TabsTrigger value='about'>
             <User className='mr-2 h-4 w-4' />
