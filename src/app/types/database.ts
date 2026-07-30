@@ -35,6 +35,15 @@ export interface User {
   location?: string | null;
   personality?: string | null;
   date_of_birth?: string | null;
+  gender?: string | null;
+  birthplace?: string | null;
+  languages?: string[] | null;
+  culture?: string | null;
+  admin_type?: string | null;
+  official_title?: string | null;
+  licenses_certifications?: string[] | null;
+  social_links?: Record<string, string> | null;
+  websites?: string[] | null;
   xp: number;
   streak: number;
   badges: Badge[];
@@ -381,6 +390,14 @@ export interface Cause {
   updated_at: string;
 }
 
+export interface Skill {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CognitiveProfile {
   id: string;
   user_id: string;
@@ -400,6 +417,8 @@ export interface CognitiveProfile {
   memory_level?: string | null;
   memory_benchmark?: string | null;
   memory_benchmark_proof_url?: string | null;
+  official_iq?: number | null;
+  pi_digits_memorized?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -457,12 +476,131 @@ export interface TestScore {
   updated_at: string;
 }
 
+export interface MentoringListingUser {
+  id: string;
+  full_name: string;
+  role: string;
+  xp: number;
+  streak: number;
+  avatar?: string | null;
+  location?: string | null;
+}
+
+export interface MentoringListing {
+  id: string;
+  user_id: string;
+  user?: MentoringListingUser | null;
+  service_name: string;
+  qualifications?: string | null;
+  approved_subjects?: string[] | null;
+  examples_of_expertise?: string | null;
+  years_in_practice?: string | null;
+  policies?: string | null;
+  price?: number | null;
+  is_active: boolean;
+  average_rating: number;
+  total_reviews: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MentoringReview {
+  id: string;
+  listing_id: string;
+  reviewer_id: string;
+  reviewer?: MentoringListingUser | null;
+  rating: number;
+  comment?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MentorDaySchedule {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+export interface MentorSchedule {
+  id: string;
+  user_id: string;
+  schedule: {
+    monday: MentorDaySchedule;
+    tuesday: MentorDaySchedule;
+    wednesday: MentorDaySchedule;
+    thursday: MentorDaySchedule;
+    friday: MentorDaySchedule;
+    saturday: MentorDaySchedule;
+    sunday: MentorDaySchedule;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Share {
   id: string;
   user_id: string;
   lesson_id: string;
   platform: SharePlatform;
   created_at: string;
+}
+
+export interface PublicProfile {
+  id: string;
+  full_name: string;
+  role: string;
+  xp: number;
+  streak: number;
+  avatar?: string | null;
+  cover_photo?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  personality?: string | null;
+  date_of_birth?: string | null;
+  gender?: string | null;
+  birthplace?: string | null;
+  languages?: string[] | null;
+  culture?: string | null;
+  official_title?: string | null;
+  licenses_certifications?: string[] | null;
+  social_links?: Record<string, string> | null;
+  websites?: string[] | null;
+  created_at: string;
+}
+
+export interface FollowUser {
+  id: string;
+  full_name: string;
+  role: string;
+  xp: number;
+  streak: number;
+  avatar?: string | null;
+  location?: string | null;
+}
+
+export interface FollowStatus {
+  is_following: boolean;
+  followers_count: number;
+  following_count: number;
+}
+
+export type ActivityType =
+  | 'follow'
+  | 'discussion_post'
+  | 'review'
+  | 'enrollment'
+  | 'mentoring_listing';
+
+export interface ActivityItem {
+  id: string;
+  type: ActivityType;
+  created_at: string;
+  actor: FollowUser;
+  target_user?: FollowUser | null;
+  course_id?: string | null;
+  title?: string | null;
+  snippet?: string | null;
+  rating?: number | null;
 }
 
 export interface PlatformSettings {

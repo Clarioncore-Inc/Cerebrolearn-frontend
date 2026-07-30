@@ -42,6 +42,7 @@ import {
   GitCompare,
   Target,
   Bookmark,
+  Rss,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -191,6 +192,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                           'progress-dashboard',
                           'learning-streak',
                           'leaderboard',
+                          'activity-feed',
                         ].includes(currentPage)
                           ? 'bg-primary/10 text-primary'
                           : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -217,6 +219,10 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                     <DropdownMenuItem onClick={() => onNavigate('leaderboard')}>
                       <Trophy className='mr-2 h-4 w-4' />
                       Leaderboard
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onNavigate('activity-feed')}>
+                      <Rss className='mr-2 h-4 w-4' />
+                      Activity Feed
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

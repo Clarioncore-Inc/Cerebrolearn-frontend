@@ -87,8 +87,26 @@ export interface MBTIProfile {
   matchups: string[];
 }
 
+const MBTI_TYPE_IMAGE_PATHS: Partial<Record<MBTIType, string>> = {
+  ENFJ: '/assets/ENFJ.png',
+  ENFP: '/assets/ENFP.jpeg',
+  ENTJ: '/assets/ENTJ.jpeg',
+  ENTP: '/assets/ENTP.png',
+  ESFJ: '/assets/ESFJ.jpg',
+  ESFP: '/assets/ESFP.PNG',
+  ESTJ: '/assets/ESTJ.jpg',
+  ESTP: '/assets/ESTP.PNG',
+  INFJ: '/assets/INFJ.png',
+  INFP: '/assets/INFP.jpeg',
+  INTJ: '/assets/INTJ.jpeg',
+  INTP: '/assets/INTP.JPE',
+  ISFJ: '/assets/ISFJ.png',
+  ISFP: '/assets/ISFP.PNG',
+  ISTJ: '/assets/ISTJ.png',
+};
+
 export function getMBTITypeImagePath(type: MBTIType): string {
-  return `/assets/${type}.png`;
+  return MBTI_TYPE_IMAGE_PATHS[type] ?? `/assets/${type}.png`;
 }
 
 export function getCognitiveFunctionImagePath(code: CognitiveFunctionCode): string {
