@@ -63,57 +63,57 @@ export function LoginForm({
     password?: string;
   }>({});
 
+  const handleGoogleCredentialRef = useRef<(credential: string) => Promise<void>>();
+  handleGoogleCredentialRef.current = async (credential: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      const isIqOnlyFlow =
+        typeof window !== 'undefined' &&
+        window.sessionStorage.getItem('cerebrolearn.user.intent') === 'iq-only';
+
+      if (isIqOnlyFlow) {
+        await completeGoogleSignIn(credential);
+        if (onSignedIn) {
+          await onSignedIn();
+        }
+        return;
+      }
+
+      const lookup = await lookupGoogleAccount(credential);
+      if (lookup.exists) {
+        await completeGoogleSignIn(credential);
+        if (onSignedIn) {
+          await onSignedIn();
+        }
+      } else {
+        setPendingSocialCredential(credential);
+        setPendingSocialProvider('google');
+        setSocialRoleDialogOpen(true);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Google sign-in failed. Please try again.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initialize the Google button once on mount. google.accounts.id.initialize()
+  // must only be called a single time per page load, so this intentionally
+  // does not re-run when the AuthContext callbacks are recreated on re-render.
   useEffect(() => {
     let isMounted = true;
-
-    const handleGoogleCredential = async (credential: string) => {
-      setError('');
-      setLoading(true);
-      try {
-        const isIqOnlyFlow =
-          typeof window !== 'undefined' &&
-          window.sessionStorage.getItem('cerebrolearn.user.intent') === 'iq-only';
-
-        if (isIqOnlyFlow) {
-          await completeGoogleSignIn(credential);
-          if (onSignedIn) {
-            await onSignedIn();
-          }
-          return;
-        }
-
-        const lookup = await lookupGoogleAccount(credential);
-        if (lookup.exists) {
-          await completeGoogleSignIn(credential);
-          if (onSignedIn) {
-            await onSignedIn();
-          }
-        } else if (isMounted) {
-          setPendingSocialCredential(credential);
-          setPendingSocialProvider('google');
-          setSocialRoleDialogOpen(true);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(
-            err instanceof Error
-              ? err.message
-              : 'Google sign-in failed. Please try again.',
-          );
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
 
     const initializeGoogleButton = async () => {
       if (!googleButtonRef.current) return;
       try {
         setGoogleButtonReady(false);
         await renderGoogleButton(googleButtonRef.current, (credential) => {
-          void handleGoogleCredential(credential);
+          void handleGoogleCredentialRef.current?.(credential);
         });
         if (isMounted) {
           setGoogleButtonReady(true);
@@ -135,7 +135,8 @@ export function LoginForm({
     return () => {
       isMounted = false;
     };
-  }, [completeGoogleSignIn, lookupGoogleAccount, onSignedIn, renderGoogleButton]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const validate = (): boolean => {
     const errs: { email?: string; password?: string } = {};
@@ -378,7 +379,10 @@ export function LoginForm({
                 isGoogleButtonDisabled ? 'opacity-60' : 'hover:border-primary/40 hover:shadow-md'
               }`}
             >
-              <div className='flex h-full w-full items-center justify-center gap-2 px-3 text-sm font-medium text-foreground'>
+              <div
+                className='flex h-full w-full items-center justify-center gap-2 px-3 text-sm font-medium text-foreground'
+                aria-hidden='true'
+              >
                 <svg className='h-4 w-4 shrink-0' viewBox='0 0 24 24' aria-hidden='true'>
                   <path
                     fill='#4285F4'
@@ -403,7 +407,6 @@ export function LoginForm({
               <div
                 ref={googleButtonRef}
                 className='absolute inset-0 z-10 h-full w-full opacity-0'
-                aria-hidden='true'
               />
 
               {isGoogleButtonDisabled ? (
