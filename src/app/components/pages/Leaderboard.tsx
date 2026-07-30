@@ -5,9 +5,17 @@ import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Trophy, Medal, Award, TrendingUp } from 'lucide-react';
 
-export function Leaderboard() {
+interface LeaderboardProps {
+  onNavigate?: (page: string, data?: any) => void;
+}
+
+export function Leaderboard({ onNavigate }: LeaderboardProps = {}) {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const goToProfile = (userId: string) => {
+    onNavigate?.('user-profile', { userId });
+  };
 
   useEffect(() => {
     loadLeaderboard();
@@ -50,7 +58,10 @@ export function Leaderboard() {
         {leaderboard.length >= 3 && (
           <div className='grid md:grid-cols-3 gap-4 mb-8'>
             {/* 2nd Place */}
-            <Card className='border-2 border-gray-300 dark:border-gray-700'>
+            <Card
+              className='border-2 border-gray-300 dark:border-gray-700 cursor-pointer'
+              onClick={() => leaderboard[1]?.id && goToProfile(leaderboard[1].id)}
+            >
               <CardContent className='p-6 text-center'>
                 <div className='mb-4'>
                   <Medal className='h-12 w-12 text-gray-400 mx-auto mb-2' />
@@ -71,7 +82,10 @@ export function Leaderboard() {
             </Card>
 
             {/* 1st Place */}
-            <Card className='border-2 border-yellow-500 md:-mt-4'>
+            <Card
+              className='border-2 border-yellow-500 md:-mt-4 cursor-pointer'
+              onClick={() => leaderboard[0]?.id && goToProfile(leaderboard[0].id)}
+            >
               <CardContent className='p-6 text-center'>
                 <div className='mb-4'>
                   <Trophy className='h-16 w-16 text-yellow-500 mx-auto mb-2' />
@@ -90,7 +104,10 @@ export function Leaderboard() {
             </Card>
 
             {/* 3rd Place */}
-            <Card className='border-2 border-orange-600'>
+            <Card
+              className='border-2 border-orange-600 cursor-pointer'
+              onClick={() => leaderboard[2]?.id && goToProfile(leaderboard[2].id)}
+            >
               <CardContent className='p-6 text-center'>
                 <div className='mb-4'>
                   <Medal className='h-12 w-12 text-orange-600 mx-auto mb-2' />
@@ -122,7 +139,8 @@ export function Leaderboard() {
               {leaderboard.map((user, index) => (
                 <div
                   key={user.id}
-                  className='flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors'
+                  className='flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer'
+                  onClick={() => user.id && goToProfile(user.id)}
                 >
                   <div className='w-12 flex justify-center'>
                     {getRankIcon(index + 1)}

@@ -38,6 +38,8 @@ import { Leaderboard } from './components/pages/Leaderboard';
 import { PaymentPage } from './components/pages/PaymentPage';
 import { ProfilePage } from './components/pages/ProfilePage';
 import { ProfileView } from './components/pages/ProfileView';
+import { UserProfilePage } from './components/pages/UserProfilePage';
+import { ActivityFeedPage } from './components/pages/ActivityFeedPage';
 import { ZodiacSignsPage } from './components/pages/ZodiacSignsPage';
 import { PersonalityTypesPage } from './components/pages/PersonalityTypesPage';
 import { DemoAccountSeeder } from './components/utils/DemoAccountSeeder';
@@ -247,6 +249,7 @@ function AppContent() {
       currentPage !== 'iq-test-payment-success' &&
       currentPage !== 'iq-test-overview' &&
       currentPage !== 'genius-rankings' &&
+      currentPage !== 'activity-feed' &&
       currentPage !== 'iq-test-landing' &&
       currentPage !== 'iq-test-practice' &&
       currentPage !== 'iq-test-interface' &&
@@ -583,7 +586,7 @@ function AppContent() {
         );
 
       case 'leaderboard':
-        return <Leaderboard />;
+        return <Leaderboard onNavigate={handleNavigate} />;
 
       case 'payment':
         return pageData ? (
@@ -604,6 +607,16 @@ function AppContent() {
 
       case 'profile-view':
         return <ProfileView />;
+
+      case 'user-profile':
+        return pageData?.userId ? (
+          <UserProfilePage userId={pageData.userId} onNavigate={handleNavigate} />
+        ) : (
+          <ProfileView />
+        );
+
+      case 'activity-feed':
+        return <ActivityFeedPage onNavigate={handleNavigate} />;
 
       case 'zodiac-signs':
         return <ZodiacSignsPage onNavigate={handleNavigate} />;

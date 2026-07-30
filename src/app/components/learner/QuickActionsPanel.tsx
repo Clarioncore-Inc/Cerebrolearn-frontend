@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Flame,
   BarChart3,
-  FileText
+  FileText,
+  Rss
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -183,6 +184,14 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
       color: 'from-blue-500 to-indigo-500'
     },
     {
+      id: 'activity-feed',
+      label: 'Activity Feed',
+      description: 'See what your network is up to',
+      icon: Rss,
+      action: 'activity-feed',
+      color: 'from-cyan-500 to-teal-500'
+    },
+    {
       id: 'notes',
       label: 'Notes',
       description: 'Review your notes',
@@ -240,6 +249,9 @@ export function QuickActionsPanel({ onNavigate, compact = false }: QuickActionsP
         break;
       case 'discussions':
         onNavigate('discussions');
+        break;
+      case 'activity-feed':
+        onNavigate('activity-feed');
         break;
       case 'notes':
         onNavigate('notes');

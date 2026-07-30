@@ -22,11 +22,19 @@ import type {
   Honor,
   Interest,
   Cause,
+  Skill,
   CognitiveProfile,
   Patent,
   Publication,
   Project,
   TestScore,
+  MentoringListing,
+  MentoringReview,
+  MentorSchedule,
+  PublicProfile,
+  FollowUser,
+  FollowStatus,
+  ActivityItem,
 } from '../types/database';
 
 export interface PaginatedResponse<T> {
@@ -809,7 +817,8 @@ export const notesApi = {
 // ========================================
 
 export const educationApi = {
-  list: () => request<Education[]>('/profile/education'),
+  list: (userId?: string) =>
+    request<Education[]>(`/profile/education${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     school: string;
     degree?: string | null;
@@ -844,7 +853,8 @@ export const educationApi = {
 };
 
 export const workExperienceApi = {
-  list: () => request<WorkExperience[]>('/profile/work-experience'),
+  list: (userId?: string) =>
+    request<WorkExperience[]>(`/profile/work-experience${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     company: string;
     title?: string | null;
@@ -879,7 +889,8 @@ export const workExperienceApi = {
 };
 
 export const honorsApi = {
-  list: () => request<Honor[]>('/profile/honors'),
+  list: (userId?: string) =>
+    request<Honor[]>(`/profile/honors${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     title: string;
     issuer?: string | null;
@@ -908,7 +919,8 @@ export const honorsApi = {
 };
 
 export const interestsApi = {
-  list: () => request<Interest[]>('/profile/interests'),
+  list: (userId?: string) =>
+    request<Interest[]>(`/profile/interests${userId ? `?user_id=${userId}` : ''}`),
   create: (data: { name: string }) =>
     request<Interest>('/profile/interests', {
       method: 'POST',
@@ -924,7 +936,8 @@ export const interestsApi = {
 };
 
 export const causesApi = {
-  list: () => request<Cause[]>('/profile/causes'),
+  list: (userId?: string) =>
+    request<Cause[]>(`/profile/causes${userId ? `?user_id=${userId}` : ''}`),
   create: (data: { name: string }) =>
     request<Cause>('/profile/causes', {
       method: 'POST',
@@ -937,6 +950,23 @@ export const causesApi = {
     }),
   delete: (id: string) =>
     request<void>(`/profile/causes/${id}`, { method: 'DELETE' }),
+};
+
+export const skillsApi = {
+  list: (userId?: string) =>
+    request<Skill[]>(`/profile/skills${userId ? `?user_id=${userId}` : ''}`),
+  create: (data: { name: string }) =>
+    request<Skill>('/profile/skills', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<{ name: string }>) =>
+    request<Skill>(`/profile/skills/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    request<void>(`/profile/skills/${id}`, { method: 'DELETE' }),
 };
 
 export interface CognitiveProfileUpdatePayload {
@@ -956,10 +986,13 @@ export interface CognitiveProfileUpdatePayload {
   memory_level?: string | null;
   memory_benchmark?: string | null;
   memory_benchmark_proof_url?: string | null;
+  official_iq?: number | null;
+  pi_digits_memorized?: number | null;
 }
 
 export const cognitiveProfileApi = {
-  get: () => request<CognitiveProfile>('/profile/cognitive-profile'),
+  get: (userId?: string) =>
+    request<CognitiveProfile>(`/profile/cognitive-profile${userId ? `?user_id=${userId}` : ''}`),
   update: (data: CognitiveProfileUpdatePayload) =>
     request<CognitiveProfile>('/profile/cognitive-profile', {
       method: 'PUT',
@@ -968,7 +1001,8 @@ export const cognitiveProfileApi = {
 };
 
 export const patentsApi = {
-  list: () => request<Patent[]>('/profile/patents'),
+  list: (userId?: string) =>
+    request<Patent[]>(`/profile/patents${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     title: string;
     patent_number?: string | null;
@@ -1003,7 +1037,8 @@ export const patentsApi = {
 };
 
 export const publicationsApi = {
-  list: () => request<Publication[]>('/profile/publications'),
+  list: (userId?: string) =>
+    request<Publication[]>(`/profile/publications${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     title: string;
     publisher?: string | null;
@@ -1034,7 +1069,8 @@ export const publicationsApi = {
 };
 
 export const projectsApi = {
-  list: () => request<Project[]>('/profile/projects'),
+  list: (userId?: string) =>
+    request<Project[]>(`/profile/projects${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     title: string;
     role?: string | null;
@@ -1069,7 +1105,8 @@ export const projectsApi = {
 };
 
 export const testScoresApi = {
-  list: () => request<TestScore[]>('/profile/test-scores'),
+  list: (userId?: string) =>
+    request<TestScore[]>(`/profile/test-scores${userId ? `?user_id=${userId}` : ''}`),
   create: (data: {
     test_name: string;
     score?: string | null;
@@ -1137,6 +1174,92 @@ export const reviewsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  getForUser: (userId: string) => request<Review[]>(`/users/${userId}/reviews`),
+};
+
+// ========================================
+// MENTORING / TUTORING API
+// ========================================
+
+export const mentoringApi = {
+  listListings: (params?: { user_id?: string; active_only?: boolean }) => {
+    const query = new URLSearchParams();
+    if (params?.user_id) query.set('user_id', params.user_id);
+    if (params?.active_only) query.set('active_only', 'true');
+    const qs = query.toString();
+    return request<MentoringListing[]>(`/mentoring/listings${qs ? `?${qs}` : ''}`);
+  },
+
+  listMyListings: () => request<MentoringListing[]>('/mentoring/listings/mine'),
+
+  getListing: (id: string) => request<MentoringListing>(`/mentoring/listings/${id}`),
+
+  createListing: (data: {
+    service_name: string;
+    qualifications?: string | null;
+    approved_subjects?: string[] | null;
+    examples_of_expertise?: string | null;
+    years_in_practice?: string | null;
+    policies?: string | null;
+    price?: number | null;
+    is_active?: boolean;
+  }) =>
+    request<MentoringListing>('/mentoring/listings', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateListing: (
+    id: string,
+    data: Partial<{
+      service_name: string;
+      qualifications: string | null;
+      approved_subjects: string[] | null;
+      examples_of_expertise: string | null;
+      years_in_practice: string | null;
+      policies: string | null;
+      price: number | null;
+      is_active: boolean;
+    }>,
+  ) =>
+    request<MentoringListing>(`/mentoring/listings/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteListing: (id: string) =>
+    request<void>(`/mentoring/listings/${id}`, { method: 'DELETE' }),
+
+  getReviews: (listingId: string) =>
+    request<MentoringReview[]>(`/mentoring/listings/${listingId}/reviews`),
+
+  createReview: (listingId: string, data: { rating: number; comment?: string | null }) =>
+    request<MentoringReview>(`/mentoring/listings/${listingId}/reviews`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  updateReview: (id: string, data: Partial<{ rating: number; comment: string | null }>) =>
+    request<MentoringReview>(`/mentoring/reviews/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  deleteReview: (id: string) =>
+    request<void>(`/mentoring/reviews/${id}`, { method: 'DELETE' }),
+
+  getOwnSchedule: () => request<MentorSchedule>('/mentoring/schedule'),
+
+  getUserSchedule: (userId: string) => request<MentorSchedule>(`/mentoring/schedule/${userId}`),
+
+  updateOwnSchedule: (
+    schedule: Record<string, { enabled: boolean; start: string; end: string }>,
+  ) =>
+    request<MentorSchedule>('/mentoring/schedule', {
+      method: 'PUT',
+      body: JSON.stringify(schedule),
+    }),
 };
 
 // ========================================
@@ -1144,10 +1267,13 @@ export const reviewsApi = {
 // ========================================
 
 export const discussionsApi = {
-  list: (category?: DiscussionCategory) =>
-    request<DiscussionPostRecord[]>(
-      category ? `/discussions/?category=${encodeURIComponent(category)}` : '/discussions/',
-    ),
+  list: (params?: { category?: DiscussionCategory; user_id?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.category) query.set('category', params.category);
+    if (params?.user_id) query.set('user_id', params.user_id);
+    const qs = query.toString();
+    return request<DiscussionPostRecord[]>(`/discussions/${qs ? `?${qs}` : ''}`);
+  },
 
   get: (id: string) => request<DiscussionPostRecord>(`/discussions/${id}`),
 
@@ -1171,6 +1297,66 @@ export const discussionsApi = {
     request<DiscussionPostRecord>(`/discussions/${id}/like`, {
       method: 'POST',
     }),
+};
+
+// ========================================
+// SOCIAL GRAPH API (Follow / Unfollow)
+// ========================================
+
+export const socialGraphApi = {
+  getPublicProfile: (userId: string) =>
+    request<PublicProfile>(`/accounts/${userId}/public`),
+
+  getStatus: (userId: string) =>
+    request<FollowStatus>(`/social/${userId}/status`),
+
+  getFollowers: (userId: string) =>
+    request<FollowUser[]>(`/social/${userId}/followers`),
+
+  getFollowing: (userId: string) =>
+    request<FollowUser[]>(`/social/${userId}/following`),
+
+  follow: (userId: string) =>
+    request<{ id: string; follower_id: string; following_id: string }>(
+      `/social/follow/${userId}`,
+      { method: 'POST' },
+    ),
+
+  unfollow: (userId: string) =>
+    request<void>(`/social/follow/${userId}`, { method: 'DELETE' }),
+};
+
+// ========================================
+// ACTIVITY FEED API
+// ========================================
+
+export const activityApi = {
+  /** Feed of the current user plus everyone they follow. */
+  getFeed: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return request<ActivityItem[]>(`/activity/feed${qs ? `?${qs}` : ''}`);
+  },
+
+  /** Platform-wide activity feed, visible to any visitor. */
+  getGlobalFeed: (params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return request<ActivityItem[]>(`/activity/global${qs ? `?${qs}` : ''}`);
+  },
+
+  /** Activity generated by a single user, for their profile page. */
+  getUserFeed: (userId: string, params?: { limit?: number; offset?: number }) => {
+    const query = new URLSearchParams();
+    if (params?.limit != null) query.set('limit', String(params.limit));
+    if (params?.offset != null) query.set('offset', String(params.offset));
+    const qs = query.toString();
+    return request<ActivityItem[]>(`/activity/users/${userId}${qs ? `?${qs}` : ''}`);
+  },
 };
 
 // ========================================
@@ -1897,6 +2083,10 @@ export const api = {
   publications: publicationsApi,
   projects: projectsApi,
   testScores: testScoresApi,
+  discussions: discussionsApi,
+  mentoring: mentoringApi,
+  socialGraph: socialGraphApi,
+  activity: activityApi,
 };
 
 export default api;

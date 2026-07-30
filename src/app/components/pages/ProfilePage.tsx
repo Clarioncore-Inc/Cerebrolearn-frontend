@@ -9,11 +9,16 @@ import {
   honorsApi,
   interestsApi,
   causesApi,
+  skillsApi,
   cognitiveProfileApi,
   patentsApi,
   publicationsApi,
   projectsApi,
   testScoresApi,
+  mentoringApi,
+  discussionsApi,
+  reviewsApi,
+  type DiscussionPostRecord,
 } from '../../utils/api-client';
 import type {
   Education,
@@ -21,11 +26,15 @@ import type {
   Honor,
   Interest,
   Cause,
+  Skill,
   CognitiveProfile,
   Patent,
   Publication,
   Project,
   TestScore,
+  MentoringListing,
+  MentorSchedule,
+  Review,
 } from '../../types/database';
 import {
   Card,
@@ -35,10 +44,18 @@ import {
   CardTitle,
 } from '../ui/card';
 import { Button } from '../ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { Checkbox } from '../ui/checkbox';
+import { Switch } from '../ui/switch';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
@@ -83,6 +100,12 @@ import {
   Trophy,
   ExternalLink,
   Eye,
+  Calendar,
+  DollarSign,
+  MessageSquare,
+  Star,
+  ThumbsUp,
+  MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import {
@@ -113,6 +136,18 @@ interface ProfileFormData {
   cover_photo: string;
   bio: string;
   date_of_birth: string;
+  gender: string;
+  birthplace: string;
+  languages: string;
+  culture: string;
+  official_title: string;
+  licenses_certifications: string;
+  websites: string;
+  social_links_website: string;
+  social_links_linkedin: string;
+  social_links_twitter: string;
+  social_links_instagram: string;
+  social_links_facebook: string;
 }
 
 interface PasswordFormData {
@@ -123,6 +158,14 @@ interface PasswordFormData {
 
 const MBTI_OPTIONS = Object.keys(MBTI_PROFILES) as MBTIType[];
 
+const parseTagList = (value: string): string[] | null => {
+  const items = value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return items.length ? items : null;
+};
+
 const createProfileFormData = (profile: any): ProfileFormData => ({
   full_name: profile?.full_name ?? '',
   email: profile?.email ?? '',
@@ -132,6 +175,18 @@ const createProfileFormData = (profile: any): ProfileFormData => ({
   cover_photo: profile?.cover_photo ?? '',
   bio: profile?.bio ?? '',
   date_of_birth: profile?.date_of_birth ?? '',
+  gender: profile?.gender ?? '',
+  birthplace: profile?.birthplace ?? '',
+  languages: (profile?.languages ?? []).join(', '),
+  culture: profile?.culture ?? '',
+  official_title: profile?.official_title ?? '',
+  licenses_certifications: (profile?.licenses_certifications ?? []).join(', '),
+  websites: (profile?.websites ?? []).join(', '),
+  social_links_website: profile?.social_links?.website ?? '',
+  social_links_linkedin: profile?.social_links?.linkedin ?? '',
+  social_links_twitter: profile?.social_links?.twitter ?? '',
+  social_links_instagram: profile?.social_links?.instagram ?? '',
+  social_links_facebook: profile?.social_links?.facebook ?? '',
 });
 
 interface EducationFormState {
@@ -262,6 +317,84 @@ const emptyTestScoreForm: TestScoreFormState = {
   proof_url: '',
 };
 
+interface MentoringListingFormState {
+  service_name: string;
+  qualifications: string;
+  approved_subjects: string;
+  examples_of_expertise: string;
+  years_in_practice: string;
+  policies: string;
+  price: string;
+  is_active: boolean;
+}
+
+const emptyMentoringListingForm: MentoringListingFormState = {
+  service_name: '',
+  qualifications: '',
+  approved_subjects: '',
+  examples_of_expertise: '',
+  years_in_practice: '',
+  policies: '',
+  price: '',
+  is_active: true,
+};
+
+type DayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
+
+const DAY_LABELS: Record<DayKey, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+};
+
+const DAY_ORDER: DayKey[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+interface MentorDayScheduleForm {
+  enabled: boolean;
+  start: string;
+  end: string;
+}
+
+type MentorScheduleFormState = Record<DayKey, MentorDayScheduleForm>;
+
+const defaultMentorScheduleForm = (): MentorScheduleFormState =>
+  DAY_ORDER.reduce((acc, day) => {
+    acc[day] = { enabled: day !== 'saturday' && day !== 'sunday', start: '10:00', end: '18:00' };
+    return acc;
+  }, {} as MentorScheduleFormState);
+
+const createMentorScheduleForm = (
+  schedule?: MentorSchedule | null,
+): MentorScheduleFormState => {
+  if (!schedule?.schedule) return defaultMentorScheduleForm();
+  return DAY_ORDER.reduce((acc, day) => {
+    const daySchedule = schedule.schedule[day];
+    acc[day] = daySchedule
+      ? { enabled: daySchedule.enabled, start: daySchedule.start, end: daySchedule.end }
+      : { enabled: false, start: '10:00', end: '18:00' };
+    return acc;
+  }, {} as MentorScheduleFormState);
+};
+
 interface CognitiveProfileFormState {
   creative: number;
   logical_perceptual: number;
@@ -279,6 +412,8 @@ interface CognitiveProfileFormState {
   memory_level: string;
   memory_benchmark: string;
   memory_benchmark_proof_url: string;
+  official_iq: string;
+  pi_digits_memorized: string;
 }
 
 const emptyCognitiveProfileForm: CognitiveProfileFormState = {
@@ -298,6 +433,8 @@ const emptyCognitiveProfileForm: CognitiveProfileFormState = {
   memory_level: '',
   memory_benchmark: '',
   memory_benchmark_proof_url: '',
+  official_iq: '',
+  pi_digits_memorized: '',
 };
 
 const createCognitiveProfileForm = (
@@ -319,6 +456,8 @@ const createCognitiveProfileForm = (
   memory_level: profile?.memory_level ?? '',
   memory_benchmark: profile?.memory_benchmark ?? '',
   memory_benchmark_proof_url: profile?.memory_benchmark_proof_url ?? '',
+  official_iq: profile?.official_iq?.toString() ?? '',
+  pi_digits_memorized: profile?.pi_digits_memorized?.toString() ?? '',
 });
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
@@ -380,6 +519,11 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [causesLoading, setCausesLoading] = useState(false);
   const [newCause, setNewCause] = useState('');
 
+  // Skills & Fields of Expertise
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [newSkill, setNewSkill] = useState('');
+
   // Cognitive Profile (11 Intelligence Types + IQ/Memory)
   const [cognitiveProfile, setCognitiveProfile] = useState<CognitiveProfile | null>(null);
   const [cognitiveProfileLoading, setCognitiveProfileLoading] = useState(false);
@@ -418,6 +562,29 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [testScoreDialogOpen, setTestScoreDialogOpen] = useState(false);
   const [editingTestScoreId, setEditingTestScoreId] = useState<string | null>(null);
   const [testScoreForm, setTestScoreForm] = useState<TestScoreFormState>(emptyTestScoreForm);
+
+  // Mentoring Listings
+  const [mentoringListings, setMentoringListings] = useState<MentoringListing[]>([]);
+  const [mentoringListingsLoading, setMentoringListingsLoading] = useState(false);
+  const [mentoringListingDialogOpen, setMentoringListingDialogOpen] = useState(false);
+  const [editingMentoringListingId, setEditingMentoringListingId] = useState<string | null>(null);
+  const [mentoringListingForm, setMentoringListingForm] = useState<MentoringListingFormState>(
+    emptyMentoringListingForm,
+  );
+
+  // Mentor Availability Schedule
+  const [mentorSchedule, setMentorSchedule] = useState<MentorSchedule | null>(null);
+  const [mentorScheduleLoading, setMentorScheduleLoading] = useState(false);
+  const [mentorScheduleSaving, setMentorScheduleSaving] = useState(false);
+  const [mentorScheduleForm, setMentorScheduleForm] = useState<MentorScheduleFormState>(
+    defaultMentorScheduleForm(),
+  );
+
+  // Community (Discussions & Reviews)
+  const [discussionPosts, setDiscussionPosts] = useState<DiscussionPostRecord[]>([]);
+  const [discussionPostsLoading, setDiscussionPostsLoading] = useState(false);
+  const [courseReviews, setCourseReviews] = useState<Review[]>([]);
+  const [courseReviewsLoading, setCourseReviewsLoading] = useState(false);
 
   useEffect(() => {
     setFormData(createProfileFormData(profile));
@@ -462,6 +629,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       .catch((error) => console.error('Error loading causes:', error))
       .finally(() => setCausesLoading(false));
 
+    setSkillsLoading(true);
+    skillsApi
+      .list()
+      .then(setSkills)
+      .catch((error) => console.error('Error loading skills:', error))
+      .finally(() => setSkillsLoading(false));
+
     setCognitiveProfileLoading(true);
     cognitiveProfileApi
       .get()
@@ -499,6 +673,39 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       .then(setTestScores)
       .catch((error) => console.error('Error loading test scores:', error))
       .finally(() => setTestScoresLoading(false));
+
+    setMentoringListingsLoading(true);
+    mentoringApi
+      .listMyListings()
+      .then(setMentoringListings)
+      .catch((error) => console.error('Error loading mentoring listings:', error))
+      .finally(() => setMentoringListingsLoading(false));
+
+    setMentorScheduleLoading(true);
+    mentoringApi
+      .getOwnSchedule()
+      .then((data) => {
+        setMentorSchedule(data);
+        setMentorScheduleForm(createMentorScheduleForm(data));
+      })
+      .catch(() => {
+        // No schedule created yet; keep defaults
+      })
+      .finally(() => setMentorScheduleLoading(false));
+
+    setDiscussionPostsLoading(true);
+    discussionsApi
+      .list({ user_id: profile.id })
+      .then(setDiscussionPosts)
+      .catch((error) => console.error('Error loading discussion posts:', error))
+      .finally(() => setDiscussionPostsLoading(false));
+
+    setCourseReviewsLoading(true);
+    reviewsApi
+      .getForUser(profile.id)
+      .then(setCourseReviews)
+      .catch((error) => console.error('Error loading course reviews:', error))
+      .finally(() => setCourseReviewsLoading(false));
   }, [profile?.id]);
 
   const handleUpdate = async () => {
@@ -514,6 +721,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
     setLoading(true);
     try {
+      const socialLinks: Record<string, string> = {};
+      if (formData.social_links_website.trim()) socialLinks.website = formData.social_links_website.trim();
+      if (formData.social_links_linkedin.trim()) socialLinks.linkedin = formData.social_links_linkedin.trim();
+      if (formData.social_links_twitter.trim()) socialLinks.twitter = formData.social_links_twitter.trim();
+      if (formData.social_links_instagram.trim()) socialLinks.instagram = formData.social_links_instagram.trim();
+      if (formData.social_links_facebook.trim()) socialLinks.facebook = formData.social_links_facebook.trim();
+
       await authApi.updateProfile({
         full_name: formData.full_name.trim(),
         email: formData.email.trim(),
@@ -523,6 +737,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         cover_photo: formData.cover_photo.trim() || null,
         bio: formData.bio.trim() || null,
         date_of_birth: formData.date_of_birth || null,
+        gender: formData.gender.trim() || null,
+        birthplace: formData.birthplace.trim() || null,
+        languages: parseTagList(formData.languages),
+        culture: formData.culture.trim() || null,
+        official_title: formData.official_title.trim() || null,
+        licenses_certifications: parseTagList(formData.licenses_certifications),
+        websites: parseTagList(formData.websites),
+        social_links: Object.keys(socialLinks).length ? socialLinks : null,
       });
 
       if (
@@ -971,6 +1193,30 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     }
   };
 
+  // Skills & Fields of Expertise handlers
+  const handleAddSkill = async () => {
+    const name = newSkill.trim();
+    if (!name) return;
+    try {
+      const created = await skillsApi.create({ name });
+      setSkills((current) => [...current, created]);
+      setNewSkill('');
+    } catch (error) {
+      console.error('Error adding skill:', error);
+      toast.error('Failed to add skill');
+    }
+  };
+
+  const handleDeleteSkill = async (id: string) => {
+    try {
+      await skillsApi.delete(id);
+      setSkills((current) => current.filter((item) => item.id !== id));
+    } catch (error) {
+      console.error('Error deleting skill:', error);
+      toast.error('Failed to delete skill');
+    }
+  };
+
   // Cognitive Profile handlers
   const handleSaveCognitiveProfile = async () => {
     setCognitiveProfileSaving(true);
@@ -997,6 +1243,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         memory_benchmark: cognitiveProfileForm.memory_benchmark.trim() || null,
         memory_benchmark_proof_url:
           cognitiveProfileForm.memory_benchmark_proof_url.trim() || null,
+        official_iq: cognitiveProfileForm.official_iq
+          ? Number(cognitiveProfileForm.official_iq)
+          : null,
+        pi_digits_memorized: cognitiveProfileForm.pi_digits_memorized
+          ? Number(cognitiveProfileForm.pi_digits_memorized)
+          : null,
       };
       const updated = await cognitiveProfileApi.update(payload);
       setCognitiveProfile(updated);
@@ -1265,6 +1517,126 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     }
   };
 
+  // Mentoring Listing handlers
+  const openMentoringListingDialog = (item?: MentoringListing) => {
+    if (item) {
+      setEditingMentoringListingId(item.id);
+      setMentoringListingForm({
+        service_name: item.service_name,
+        qualifications: item.qualifications ?? '',
+        approved_subjects: (item.approved_subjects ?? []).join(', '),
+        examples_of_expertise: item.examples_of_expertise ?? '',
+        years_in_practice: item.years_in_practice ?? '',
+        policies: item.policies ?? '',
+        price: item.price != null ? String(item.price) : '',
+        is_active: item.is_active,
+      });
+    } else {
+      setEditingMentoringListingId(null);
+      setMentoringListingForm(emptyMentoringListingForm);
+    }
+    setMentoringListingDialogOpen(true);
+  };
+
+  const handleSaveMentoringListing = async () => {
+    if (!mentoringListingForm.service_name.trim()) {
+      toast.error('Service name is required');
+      return;
+    }
+    try {
+      const payload = {
+        service_name: mentoringListingForm.service_name.trim(),
+        qualifications: mentoringListingForm.qualifications.trim() || null,
+        approved_subjects: parseTagList(mentoringListingForm.approved_subjects),
+        examples_of_expertise: mentoringListingForm.examples_of_expertise.trim() || null,
+        years_in_practice: mentoringListingForm.years_in_practice.trim() || null,
+        policies: mentoringListingForm.policies.trim() || null,
+        price: mentoringListingForm.price.trim() ? Number(mentoringListingForm.price) : null,
+        is_active: mentoringListingForm.is_active,
+      };
+      if (editingMentoringListingId) {
+        const updated = await mentoringApi.updateListing(editingMentoringListingId, payload);
+        setMentoringListings((current) =>
+          current.map((item) => (item.id === editingMentoringListingId ? updated : item)),
+        );
+        toast.success('Mentoring listing updated');
+      } else {
+        const created = await mentoringApi.createListing(payload);
+        setMentoringListings((current) => [created, ...current]);
+        toast.success('Mentoring listing added');
+      }
+      setMentoringListingDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving mentoring listing:', error);
+      toast.error('Failed to save mentoring listing');
+    }
+  };
+
+  const handleDeleteMentoringListing = async (id: string) => {
+    if (!confirm('Delete this mentoring listing? This action cannot be undone.')) return;
+    try {
+      await mentoringApi.deleteListing(id);
+      setMentoringListings((current) => current.filter((item) => item.id !== id));
+      toast.success('Mentoring listing removed');
+    } catch (error) {
+      console.error('Error deleting mentoring listing:', error);
+      toast.error('Failed to delete mentoring listing');
+    }
+  };
+
+  // Mentor Availability Schedule handlers
+  const handleToggleMentorDay = (day: DayKey) => {
+    setMentorScheduleForm((current) => ({
+      ...current,
+      [day]: { ...current[day], enabled: !current[day].enabled },
+    }));
+  };
+
+  const handleMentorDayTimeChange = (day: DayKey, field: 'start' | 'end', value: string) => {
+    setMentorScheduleForm((current) => ({
+      ...current,
+      [day]: { ...current[day], [field]: value },
+    }));
+  };
+
+  const handleSaveMentorSchedule = async () => {
+    setMentorScheduleSaving(true);
+    try {
+      const updated = await mentoringApi.updateOwnSchedule(mentorScheduleForm);
+      setMentorSchedule(updated);
+      setMentorScheduleForm(createMentorScheduleForm(updated));
+      toast.success('Availability schedule updated');
+    } catch (error) {
+      console.error('Error updating mentor schedule:', error);
+      toast.error('Failed to update availability schedule');
+    } finally {
+      setMentorScheduleSaving(false);
+    }
+  };
+
+  const profileTabClassName =
+    'rounded-none border-0 border-b-2 border-transparent bg-transparent px-4 py-3 text-sm font-semibold text-muted-foreground shadow-none data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none';
+  const profileTabs = [
+    { value: 'about', label: 'About', icon: User },
+    { value: 'experience', label: 'Experience', icon: Briefcase },
+    { value: 'personality', label: 'Cognitive & Personality', icon: Brain },
+    { value: 'portfolio', label: 'Intellectual Portfolio', icon: FolderKanban },
+    { value: 'interests', label: 'Interests', icon: Heart },
+    { value: 'mentoring', label: 'Mentoring', icon: GraduationCap },
+    { value: 'community', label: 'Community', icon: MessageSquare },
+    { value: 'security', label: 'Security', icon: Lock },
+  ];
+  const primaryTabs = profileTabs.slice(0, 5);
+  const overflowTabs = profileTabs.slice(5);
+  const activeTabConfig = profileTabs.find((tab) => tab.value === activeTab) ?? profileTabs[0];
+  const activeOverflowTab = overflowTabs.find((tab) => tab.value === activeTab);
+  const ActiveTabIcon = activeTabConfig.icon;
+  const handleProfileTabChange = (value: string) => {
+    setActiveTab(value);
+    setIsEditing(false);
+    setFormData(createProfileFormData(profile));
+  };
+
   return (
     <div className='container pb-8 space-y-6 max-w-5xl'>
       {/* Profile Header: banner + overlapping avatar */}
@@ -1383,39 +1755,82 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
       <Tabs
         value={activeTab}
-        onValueChange={(value) => {
-          setActiveTab(value);
-          setIsEditing(false);
-          setFormData(createProfileFormData(profile));
-        }}
+        onValueChange={handleProfileTabChange}
         className='space-y-6'
       >
-        <TabsList className='flex h-auto w-full flex-wrap justify-start gap-1'>
-          <TabsTrigger value='about'>
-            <User className='mr-2 h-4 w-4' />
-            About
-          </TabsTrigger>
-          <TabsTrigger value='experience'>
-            <Briefcase className='mr-2 h-4 w-4' />
-            Experience
-          </TabsTrigger>
-          <TabsTrigger value='personality'>
-            <Brain className='mr-2 h-4 w-4' />
-            Cognitive &amp; Personality
-          </TabsTrigger>
-          <TabsTrigger value='portfolio'>
-            <FolderKanban className='mr-2 h-4 w-4' />
-            Intellectual Portfolio
-          </TabsTrigger>
-          <TabsTrigger value='interests'>
-            <Heart className='mr-2 h-4 w-4' />
-            Interests
-          </TabsTrigger>
-          <TabsTrigger value='security'>
-            <Lock className='mr-2 h-4 w-4' />
-            Security
-          </TabsTrigger>
-        </TabsList>
+        <div className='border-b pt-1'>
+          <div className='sm:hidden'>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant='outline' className='mb-3 w-full justify-between gap-3 rounded-xl'>
+                  <span className='flex min-w-0 items-center gap-2'>
+                    <ActiveTabIcon className='h-4 w-4 shrink-0' />
+                    <span className='truncate'>{activeTabConfig.label}</span>
+                  </span>
+                  <MoreHorizontal className='h-4 w-4 shrink-0 text-muted-foreground' />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align='start' className='min-w-[16rem]'>
+                <DropdownMenuRadioGroup value={activeTab} onValueChange={handleProfileTabChange}>
+                  {profileTabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <DropdownMenuRadioItem key={tab.value} value={tab.value}>
+                        <Icon className='h-4 w-4' />
+                        {tab.label}
+                      </DropdownMenuRadioItem>
+                    );
+                  })}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          <div className='hidden flex-wrap items-end gap-3 sm:flex'>
+            <TabsList className='h-auto flex-wrap justify-start rounded-none bg-transparent p-0 text-muted-foreground'>
+              {primaryTabs.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <TabsTrigger key={tab.value} value={tab.value} className={profileTabClassName}>
+                    <Icon className='mr-2 h-4 w-4' />
+                    {tab.label}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+
+            {overflowTabs.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    className={`h-auto rounded-none border-b-2 px-4 py-3 text-sm font-semibold shadow-none hover:bg-transparent ${
+                      activeOverflowTab
+                        ? 'border-primary text-foreground'
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {activeOverflowTab ? activeOverflowTab.label : 'More'}
+                    <MoreHorizontal className='h-4 w-4' />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align='end' className='min-w-[14rem]'>
+                  <DropdownMenuRadioGroup value={activeTab} onValueChange={handleProfileTabChange}>
+                    {overflowTabs.map((tab) => {
+                      const Icon = tab.icon;
+                      return (
+                        <DropdownMenuRadioItem key={tab.value} value={tab.value}>
+                          <Icon className='h-4 w-4' />
+                          {tab.label}
+                        </DropdownMenuRadioItem>
+                      );
+                    })}
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
 
         {/* About Tab */}
         <TabsContent value='about' className='space-y-6'>
@@ -1490,6 +1905,76 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     }
                     disabled={!isEditing}
                   />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='gender'>Gender</Label>
+                  <Input
+                    id='gender'
+                    placeholder='e.g. Male, Female, Non-binary'
+                    value={formData.gender}
+                    onChange={(e) => handleProfileFieldChange('gender', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='birthplace'>Birthplace</Label>
+                  <Input
+                    id='birthplace'
+                    placeholder='e.g. Accra, Ghana'
+                    value={formData.birthplace}
+                    onChange={(e) => handleProfileFieldChange('birthplace', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='languages'>Languages</Label>
+                  <Input
+                    id='languages'
+                    placeholder='e.g. English, French, Twi'
+                    value={formData.languages}
+                    onChange={(e) => handleProfileFieldChange('languages', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                  <p className='text-xs text-muted-foreground'>Comma-separated list</p>
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='culture'>Culture / Ethnicity</Label>
+                  <Input
+                    id='culture'
+                    placeholder='e.g. Akan'
+                    value={formData.culture}
+                    onChange={(e) => handleProfileFieldChange('culture', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='official_title'>Official Title / License</Label>
+                  <Input
+                    id='official_title'
+                    placeholder='e.g. Licensed Clinical Psychologist'
+                    value={formData.official_title}
+                    onChange={(e) => handleProfileFieldChange('official_title', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className='space-y-2 md:col-span-2'>
+                  <Label htmlFor='licenses_certifications'>Licenses &amp; Certifications</Label>
+                  <Input
+                    id='licenses_certifications'
+                    placeholder='e.g. PMP, CFA, Bar Admission'
+                    value={formData.licenses_certifications}
+                    onChange={(e) =>
+                      handleProfileFieldChange('licenses_certifications', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                  <p className='text-xs text-muted-foreground'>Comma-separated list</p>
                 </div>
 
                 <div className='space-y-2 md:col-span-2'>
@@ -1572,6 +2057,147 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <Sparkles className='h-5 w-5 text-primary' />
+                Skills &amp; Fields of Expertise
+              </CardTitle>
+              <CardDescription>
+                Add skills and areas of expertise you want to showcase
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='flex gap-2'>
+                <Input
+                  placeholder='e.g. Calculus, Public Speaking, Data Science...'
+                  value={newSkill}
+                  onChange={(e) => setNewSkill(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSkill();
+                    }
+                  }}
+                />
+                <Button onClick={handleAddSkill} disabled={!newSkill.trim()}>
+                  <Plus className='h-4 w-4' />
+                </Button>
+              </div>
+
+              {skillsLoading ? (
+                <div className='flex justify-center py-4'>
+                  <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+                </div>
+              ) : skills.length === 0 ? (
+                <p className='text-sm text-muted-foreground'>No skills added yet.</p>
+              ) : (
+                <div className='flex flex-wrap gap-2'>
+                  {skills.map((item) => (
+                    <Badge key={item.id} variant='secondary' className='text-sm py-1.5 pl-3 pr-2'>
+                      {item.name}
+                      <button
+                        type='button'
+                        onClick={() => handleDeleteSkill(item.id)}
+                        className='ml-1'
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <X className='h-3 w-3' />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <ExternalLink className='h-5 w-5 text-primary' />
+                Social Links &amp; Websites
+              </CardTitle>
+              <CardDescription>
+                Share where people can find or connect with you online
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='grid gap-4 md:grid-cols-2'>
+                <div className='space-y-2'>
+                  <Label htmlFor='social_links_website'>Website</Label>
+                  <Input
+                    id='social_links_website'
+                    placeholder='https://example.com'
+                    value={formData.social_links_website}
+                    onChange={(e) =>
+                      handleProfileFieldChange('social_links_website', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='social_links_linkedin'>LinkedIn</Label>
+                  <Input
+                    id='social_links_linkedin'
+                    placeholder='https://linkedin.com/in/username'
+                    value={formData.social_links_linkedin}
+                    onChange={(e) =>
+                      handleProfileFieldChange('social_links_linkedin', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='social_links_twitter'>Twitter / X</Label>
+                  <Input
+                    id='social_links_twitter'
+                    placeholder='https://x.com/username'
+                    value={formData.social_links_twitter}
+                    onChange={(e) =>
+                      handleProfileFieldChange('social_links_twitter', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='social_links_instagram'>Instagram</Label>
+                  <Input
+                    id='social_links_instagram'
+                    placeholder='https://instagram.com/username'
+                    value={formData.social_links_instagram}
+                    onChange={(e) =>
+                      handleProfileFieldChange('social_links_instagram', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className='space-y-2'>
+                  <Label htmlFor='social_links_facebook'>Facebook</Label>
+                  <Input
+                    id='social_links_facebook'
+                    placeholder='https://facebook.com/username'
+                    value={formData.social_links_facebook}
+                    onChange={(e) =>
+                      handleProfileFieldChange('social_links_facebook', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </div>
+                <div className='space-y-2 md:col-span-2'>
+                  <Label htmlFor='websites'>Additional Websites</Label>
+                  <Input
+                    id='websites'
+                    placeholder='e.g. https://portfolio.com, https://blog.com'
+                    value={formData.websites}
+                    onChange={(e) => handleProfileFieldChange('websites', e.target.value)}
+                    disabled={!isEditing}
+                  />
+                  <p className='text-xs text-muted-foreground'>Comma-separated list</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2124,6 +2750,36 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       />
                     </div>
                   </div>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div className='space-y-2'>
+                      <Label>Official IQ</Label>
+                      <Input
+                        type='number'
+                        placeholder='Verified/official test score'
+                        value={cognitiveProfileForm.official_iq}
+                        onChange={(e) =>
+                          setCognitiveProfileForm((c) => ({
+                            ...c,
+                            official_iq: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className='space-y-2'>
+                      <Label>Pi Digits Memorized</Label>
+                      <Input
+                        type='number'
+                        placeholder='e.g. 651'
+                        value={cognitiveProfileForm.pi_digits_memorized}
+                        onChange={(e) =>
+                          setCognitiveProfileForm((c) => ({
+                            ...c,
+                            pi_digits_memorized: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
                   <div className='space-y-2'>
                     <Label>Official Memory Level</Label>
                     <Input
@@ -2206,6 +2862,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
                   <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
                     <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
+                      <p className='text-xs text-muted-foreground'>Official IQ</p>
+                      <p className='text-lg font-semibold'>
+                        {cognitiveProfile?.official_iq ?? '—'}
+                      </p>
+                    </div>
+                    <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
                       <p className='text-xs text-muted-foreground'>Current IQ Estimate</p>
                       <p className='text-lg font-semibold'>
                         {cognitiveProfile?.current_iq_estimate ?? '—'}
@@ -2215,6 +2877,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       <p className='text-xs text-muted-foreground'>Potential Max IQ</p>
                       <p className='text-lg font-semibold'>
                         {cognitiveProfile?.potential_max_iq ?? '—'}
+                      </p>
+                    </div>
+                    <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
+                      <p className='text-xs text-muted-foreground'>Pi Digits Memorized</p>
+                      <p className='text-lg font-semibold'>
+                        {cognitiveProfile?.pi_digits_memorized ?? '—'}
                       </p>
                     </div>
                     <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
@@ -2583,6 +3251,257 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                 ))}
               </div>
             )}
+          </div>
+        </TabsContent>
+
+        {/* Mentoring / Tutoring Tab */}
+        <TabsContent value='mentoring' className='space-y-8'>
+          {/* Mentoring Listings */}
+          <div className='space-y-4'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <h3 className='text-lg font-medium flex items-center gap-2'>
+                  <GraduationCap className='h-5 w-5 text-primary' />
+                  Mentoring &amp; Tutoring Services
+                </h3>
+                <p className='text-sm text-muted-foreground'>
+                  Offer mentoring or tutoring services to other learners
+                </p>
+              </div>
+              <Button onClick={() => openMentoringListingDialog()}>
+                <Plus className='mr-2 h-4 w-4' />
+                Add Listing
+              </Button>
+            </div>
+
+            {mentoringListingsLoading ? (
+              <div className='flex justify-center py-8'>
+                <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+              </div>
+            ) : mentoringListings.length === 0 ? (
+              <Card>
+                <CardContent className='py-8 text-center text-sm text-muted-foreground'>
+                  No mentoring listings yet. Click "Add Listing" to get started.
+                </CardContent>
+              </Card>
+            ) : (
+              <div className='space-y-3'>
+                {mentoringListings.map((item) => (
+                  <Card key={item.id}>
+                    <CardContent className='py-4 flex items-start justify-between gap-4'>
+                      <div className='space-y-1'>
+                        <div className='flex items-center gap-2'>
+                          <p className='font-medium'>{item.service_name}</p>
+                          <Badge variant={item.is_active ? 'default' : 'secondary'}>
+                            {item.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                        {item.qualifications && (
+                          <p className='text-sm text-muted-foreground'>{item.qualifications}</p>
+                        )}
+                        {item.approved_subjects && item.approved_subjects.length > 0 && (
+                          <div className='flex flex-wrap gap-1 mt-1'>
+                            {item.approved_subjects.map((subject) => (
+                              <Badge key={subject} variant='outline' className='text-xs'>
+                                {subject}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {item.examples_of_expertise && (
+                          <p className='text-sm mt-1'>{item.examples_of_expertise}</p>
+                        )}
+                        <div className='flex items-center gap-3 text-xs text-muted-foreground mt-1'>
+                          {item.years_in_practice && <span>{item.years_in_practice} experience</span>}
+                          {item.price != null && (
+                            <span className='flex items-center gap-1'>
+                              <DollarSign className='h-3 w-3' />
+                              {item.price}
+                            </span>
+                          )}
+                          <span>
+                            ★ {item.average_rating.toFixed(1)} ({item.total_reviews} reviews)
+                          </span>
+                        </div>
+                        {item.policies && (
+                          <p className='text-xs text-muted-foreground mt-1'>{item.policies}</p>
+                        )}
+                      </div>
+                      <div className='flex gap-1 shrink-0'>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          onClick={() => openMentoringListingDialog(item)}
+                        >
+                          <Pencil className='h-4 w-4' />
+                        </Button>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          onClick={() => handleDeleteMentoringListing(item.id)}
+                        >
+                          <Trash2 className='h-4 w-4' />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Availability Schedule */}
+          <div className='space-y-4'>
+            <div className='flex items-center justify-between'>
+              <div>
+                <h3 className='text-lg font-medium flex items-center gap-2'>
+                  <Calendar className='h-5 w-5 text-primary' />
+                  Weekly Availability
+                </h3>
+                <p className='text-sm text-muted-foreground'>
+                  Set the days and hours you're available for mentoring sessions
+                </p>
+              </div>
+              <Button onClick={handleSaveMentorSchedule} disabled={mentorScheduleSaving}>
+                {mentorScheduleSaving ? (
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                ) : (
+                  <Save className='mr-2 h-4 w-4' />
+                )}
+                Save Schedule
+              </Button>
+            </div>
+
+            {mentorScheduleLoading ? (
+              <div className='flex justify-center py-8'>
+                <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+              </div>
+            ) : (
+              <div className='space-y-3'>
+                {DAY_ORDER.map((day) => {
+                  const daySchedule = mentorScheduleForm[day];
+                  return (
+                    <Card key={day} className={!daySchedule.enabled ? 'opacity-60' : ''}>
+                      <CardContent className='py-4 flex flex-wrap items-center gap-4'>
+                        <div className='flex items-center gap-3 min-w-[140px]'>
+                          <Switch
+                            checked={daySchedule.enabled}
+                            onCheckedChange={() => handleToggleMentorDay(day)}
+                          />
+                          <Label className='font-medium'>{DAY_LABELS[day]}</Label>
+                        </div>
+                        <div className='flex items-center gap-2'>
+                          <Input
+                            type='time'
+                            className='w-32'
+                            value={daySchedule.start}
+                            disabled={!daySchedule.enabled}
+                            onChange={(e) =>
+                              handleMentorDayTimeChange(day, 'start', e.target.value)
+                            }
+                          />
+                          <span className='text-sm text-muted-foreground'>to</span>
+                          <Input
+                            type='time'
+                            className='w-32'
+                            value={daySchedule.end}
+                            disabled={!daySchedule.enabled}
+                            onChange={(e) =>
+                              handleMentorDayTimeChange(day, 'end', e.target.value)
+                            }
+                          />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Community Tab (Discussions & Reviews) */}
+        <TabsContent value='community' className='space-y-6'>
+          <div className='grid gap-6 md:grid-cols-2'>
+            <Card>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2 text-base'>
+                  <MessageSquare className='h-4 w-4 text-primary' />
+                  My Discussion Posts
+                </CardTitle>
+                <CardDescription>Posts you've made in the community forum</CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                {discussionPostsLoading ? (
+                  <div className='flex justify-center py-6'>
+                    <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+                  </div>
+                ) : discussionPosts.length === 0 ? (
+                  <p className='text-sm text-muted-foreground'>No discussion posts yet.</p>
+                ) : (
+                  discussionPosts.map((post) => (
+                    <div key={post.id} className='rounded-lg border p-3 space-y-1'>
+                      <div className='flex items-center justify-between gap-2'>
+                        <p className='text-sm font-medium'>{post.title}</p>
+                        <Badge variant='outline' className='capitalize text-xs'>
+                          {post.category.replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      <p className='text-sm text-muted-foreground line-clamp-3'>{post.content}</p>
+                      <div className='flex items-center gap-3 text-xs text-muted-foreground'>
+                        <span className='flex items-center gap-1'>
+                          <ThumbsUp className='h-3 w-3' />
+                          {post.like_count}
+                        </span>
+                        <span className='flex items-center gap-1'>
+                          <MessageSquare className='h-3 w-3' />
+                          {post.replies?.length ?? 0}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2 text-base'>
+                  <Star className='h-4 w-4 text-primary' />
+                  My Course Reviews
+                </CardTitle>
+                <CardDescription>Reviews you've written for courses</CardDescription>
+              </CardHeader>
+              <CardContent className='space-y-4'>
+                {courseReviewsLoading ? (
+                  <div className='flex justify-center py-6'>
+                    <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+                  </div>
+                ) : courseReviews.length === 0 ? (
+                  <p className='text-sm text-muted-foreground'>No reviews written yet.</p>
+                ) : (
+                  courseReviews.map((review) => (
+                    <div key={review.id} className='rounded-lg border p-3 space-y-1'>
+                      <div className='flex items-center gap-1'>
+                        {Array.from({ length: 5 }).map((_, index) => (
+                          <Star
+                            key={index}
+                            className={`h-3.5 w-3.5 ${
+                              index < review.rating
+                                ? 'fill-primary text-primary'
+                                : 'text-muted-foreground'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      {review.comment && (
+                        <p className='text-sm text-muted-foreground'>{review.comment}</p>
+                      )}
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
@@ -3150,6 +4069,112 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               Cancel
             </Button>
             <Button onClick={handleSaveTestScore}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mentoring Listing Dialog */}
+      <Dialog open={mentoringListingDialogOpen} onOpenChange={setMentoringListingDialogOpen}>
+        <DialogContent className='max-w-lg'>
+          <DialogHeader>
+            <DialogTitle>
+              {editingMentoringListingId ? 'Edit Mentoring Listing' : 'Add Mentoring Listing'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className='space-y-3'>
+            <div className='space-y-2'>
+              <Label>Service Name</Label>
+              <Input
+                placeholder='e.g. Calculus Tutoring'
+                value={mentoringListingForm.service_name}
+                onChange={(e) =>
+                  setMentoringListingForm((c) => ({ ...c, service_name: e.target.value }))
+                }
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>Qualifications</Label>
+              <Textarea
+                value={mentoringListingForm.qualifications}
+                onChange={(e) =>
+                  setMentoringListingForm((c) => ({ ...c, qualifications: e.target.value }))
+                }
+                rows={2}
+              />
+            </div>
+            <div className='space-y-2'>
+              <Label>Approved Subjects</Label>
+              <Input
+                placeholder='e.g. Algebra, Calculus, Statistics'
+                value={mentoringListingForm.approved_subjects}
+                onChange={(e) =>
+                  setMentoringListingForm((c) => ({ ...c, approved_subjects: e.target.value }))
+                }
+              />
+              <p className='text-xs text-muted-foreground'>Comma-separated list</p>
+            </div>
+            <div className='space-y-2'>
+              <Label>Examples of Expertise</Label>
+              <Textarea
+                value={mentoringListingForm.examples_of_expertise}
+                onChange={(e) =>
+                  setMentoringListingForm((c) => ({
+                    ...c,
+                    examples_of_expertise: e.target.value,
+                  }))
+                }
+                rows={2}
+              />
+            </div>
+            <div className='grid grid-cols-2 gap-3'>
+              <div className='space-y-2'>
+                <Label>Years in Practice</Label>
+                <Input
+                  placeholder='e.g. 5 years'
+                  value={mentoringListingForm.years_in_practice}
+                  onChange={(e) =>
+                    setMentoringListingForm((c) => ({ ...c, years_in_practice: e.target.value }))
+                  }
+                />
+              </div>
+              <div className='space-y-2'>
+                <Label>Price</Label>
+                <Input
+                  type='number'
+                  placeholder='e.g. 50'
+                  value={mentoringListingForm.price}
+                  onChange={(e) =>
+                    setMentoringListingForm((c) => ({ ...c, price: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+            <div className='space-y-2'>
+              <Label>Policies</Label>
+              <Textarea
+                value={mentoringListingForm.policies}
+                onChange={(e) =>
+                  setMentoringListingForm((c) => ({ ...c, policies: e.target.value }))
+                }
+                rows={2}
+              />
+            </div>
+            <div className='flex items-center gap-2'>
+              <Checkbox
+                id='mentoring_listing_active'
+                checked={mentoringListingForm.is_active}
+                onCheckedChange={(checked) =>
+                  setMentoringListingForm((c) => ({ ...c, is_active: checked === true }))
+                }
+              />
+              <Label htmlFor='mentoring_listing_active'>Active (visible to learners)</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant='outline' onClick={() => setMentoringListingDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveMentoringListing}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
