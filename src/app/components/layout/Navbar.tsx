@@ -43,6 +43,7 @@ import {
   Target,
   Bookmark,
   Rss,
+  Sparkles,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -114,6 +115,23 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               CerebroLearn
             </span>
           </button>
+
+          {!user && (
+            <div className='hidden md:flex items-center gap-2'>
+              <button
+                onClick={() => onNavigate('personality-database')}
+                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
+                  currentPage === 'personality-database' ||
+                  currentPage === 'personality-db'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+              >
+                <Sparkles className='h-4 w-4' />
+                Personality Database
+              </button>
+            </div>
+          )}
 
           {user && !isIQOnlyUser && (
             <div className='hidden md:flex items-center gap-2'>
@@ -266,6 +284,12 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                     <Calendar className='mr-2 h-4 w-4' />
                     My Sessions
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onNavigate('personality-database')}
+                  >
+                    <Sparkles className='mr-2 h-4 w-4' />
+                    Personality Database
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -404,6 +428,15 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             </div>
           ) : (
             <div className='flex items-center gap-1 sm:gap-2 shrink-0'>
+              <Button
+                variant='ghost'
+                size='icon'
+                onClick={() => onNavigate('personality-database')}
+                className='md:hidden'
+                aria-label='Personality Database'
+              >
+                <Sparkles className='h-5 w-5' />
+              </Button>
               <Button
                 variant='ghost'
                 size='sm'

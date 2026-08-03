@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Mail,
   ChevronDown,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -24,6 +25,7 @@ export function PublicNavbar({ onNavigate, currentPage = 'landing' }: PublicNavb
 
   const navLinks = [
     { label: 'Courses', page: 'catalog', icon: BookOpen },
+    { label: 'Personality DB', page: 'personality-database', icon: Sparkles },
     { label: 'Pricing', page: 'pricing', icon: Award },
     { label: 'About', page: 'about', icon: Users },
   ];

@@ -28,7 +28,7 @@ export function PersonalityTypesPage({ onNavigate }: PersonalityTypesPageProps) 
     <div className='container py-8 space-y-6 max-w-4xl'>
       <BackButton
         label='Back'
-        fallbackPage='profile'
+        fallbackPage='personality-database'
         onNavigate={onNavigate ? (page) => onNavigate(page) : undefined}
         className='px-0 hover:bg-transparent'
       />
