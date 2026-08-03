@@ -59,6 +59,10 @@ import { IQTestResults } from './components/iq-test/IQTestResults';
 import { EnhancedIQTestResults } from './components/iq-test/EnhancedIQTestResults';
 import { IQTestPracticeMode } from './components/iq-test/IQTestPracticeMode';
 import { GeniusDirectory } from './components/genius/GeniusDirectory';
+import { PersonalityDatabaseDirectory } from './components/personality-db/PersonalityDatabaseDirectory';
+import { MBTIQuizLanding } from './components/personality-db/MBTIQuizLanding';
+import { MBTIQuizInterface } from './components/personality-db/MBTIQuizInterface';
+import { MBTIQuizResults } from './components/personality-db/MBTIQuizResults';
 
 // Psychologist imports
 import { SignupChoice } from './components/auth/SignupChoice';
@@ -245,11 +249,17 @@ function AppContent() {
       currentPage !== 'payment' &&
       currentPage !== 'genius-directory' &&
       currentPage !== 'geniuses' &&
+      currentPage !== 'personality-database' &&
+      currentPage !== 'personality-db' &&
+      currentPage !== 'personality-test-landing' &&
+      currentPage !== 'personality-test-interface' &&
+      currentPage !== 'personality-test-results' &&
       currentPage !== 'iq-test-signup' &&
       currentPage !== 'iq-test-payment-success' &&
       currentPage !== 'iq-test-overview' &&
       currentPage !== 'genius-rankings' &&
       currentPage !== 'activity-feed' &&
+      currentPage !== 'personality-types' &&
       currentPage !== 'iq-test-landing' &&
       currentPage !== 'iq-test-practice' &&
       currentPage !== 'iq-test-interface' &&
@@ -453,6 +463,23 @@ function AppContent() {
       case 'genius-directory':
       case 'geniuses':
         return <GeniusDirectory onNavigate={handleNavigate} />;
+
+      case 'personality-database':
+      case 'personality-db':
+        return <PersonalityDatabaseDirectory onNavigate={handleNavigate} />;
+
+      case 'personality-test-landing':
+        return <MBTIQuizLanding onNavigate={handleNavigate} />;
+
+      case 'personality-test-interface':
+        return <MBTIQuizInterface onNavigate={handleNavigate} />;
+
+      case 'personality-test-results':
+        return pageData ? (
+          <MBTIQuizResults onNavigate={handleNavigate} resultId={pageData.resultId} />
+        ) : (
+          <MBTIQuizLanding onNavigate={handleNavigate} />
+        );
 
       case 'catalog':
         return (
