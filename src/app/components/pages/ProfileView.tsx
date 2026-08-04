@@ -171,7 +171,9 @@ export function ProfileView() {
       : null;
   const zodiacSign = profile.date_of_birth ? getZodiacSign(profile.date_of_birth) : null;
   const zodiacProfile = zodiacSign ? ZODIAC_PROFILES[zodiacSign] : null;
-  const headerAccent = personality || profile.role?.replace(/_/g, ' ') || 'Learner';
+  const aliasText =
+    profile.aliases && profile.aliases.length > 0 ? profile.aliases.join(', ') : null;
+  const headerAccent = aliasText || personality || profile.role?.replace(/_/g, ' ') || 'Learner';
   const overviewStats = [
     { label: 'Education', value: educations.length },
     { label: 'Work', value: workExperiences.length },
@@ -231,6 +233,9 @@ export function ProfileView() {
                       <span className='font-normal text-primary/80'>({headerAccent})</span>
                     </h1>
                   </div>
+                  {profile.username && (
+                    <p className='text-base text-muted-foreground'>@{profile.username}</p>
+                  )}
                   <p className='text-base text-muted-foreground'>{profile.email}</p>
                   <div className='flex flex-wrap items-center gap-2 text-sm text-muted-foreground'>
                     <Badge variant='secondary' className='capitalize'>
