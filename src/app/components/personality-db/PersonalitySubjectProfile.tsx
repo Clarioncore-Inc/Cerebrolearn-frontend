@@ -9,23 +9,34 @@ import {
   Sparkles,
   User,
   Brain,
-  MessageSquare,
   Award,
   Lightbulb,
   TrendingUp,
   Calendar,
   MapPin,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Trophy,
 } from 'lucide-react';
-import { PersonalityVotingWidget } from './PersonalityVotingWidget';
-import { CommentSection } from './CommentSection';
 import { SlideInView } from '../pages/SlideInView';
-import { getAvailableSystemsForSubject } from '../../data/personalityDatabaseData';
 import {
   getGeniusById,
   getGeniusExpertise,
   getGeniusAchievements,
   getGeniusContributions,
 } from '../../data/geniusData';
+import {
+  MBTI_FUNCTIONS,
+  MBTI_PROFILES,
+  getCognitiveFunctionImagePath,
+  getMBTITypeImagePath,
+} from '../../data/mbtiData';
+import {
+  ZODIAC_PROFILES,
+  getZodiacAppearanceSummary,
+  getZodiacSign,
+} from '../../data/zodiacData';
 
 interface PersonalitySubjectProfileProps {
   subject: PDBSubject;
@@ -35,33 +46,46 @@ interface PersonalitySubjectProfileProps {
 
 export function PersonalitySubjectProfile({ subject, onBack, onNavigate }: PersonalitySubjectProfileProps) {
   const [imgError, setImgError] = useState(false);
+  const [personalityExpanded, setPersonalityExpanded] = useState(false);
+  const [zodiacExpanded, setZodiacExpanded] = useState(false);
   const showImage = !imgError && !!subject.imageUrl;
-
-  const requireSignIn = () => {
-    onNavigate('auth', {
-      authMode: 'login',
-      postAuthRedirect: {
-        page: 'personality-database',
-        data: { slug: subject.slug },
-      },
-    });
-  };
 
   const genius = subject.geniusId ? getGeniusById(subject.geniusId) : undefined;
   const expertise = subject.geniusId ? getGeniusExpertise(subject.geniusId) : [];
   const achievements = subject.geniusId ? getGeniusAchievements(subject.geniusId) : [];
   const contributions = subject.geniusId ? getGeniusContributions(subject.geniusId) : [];
-  const personalitySystems = useMemo(
-    () => getAvailableSystemsForSubject(subject.id),
-    [subject.id],
-  );
+
+  const primaryMbti = useMemo(() => {
+    if (!subject.mbtiType || !(subject.mbtiType in MBTI_PROFILES)) {
+      return null;
+    }
+
+    return {
+      typeCode: subject.mbtiType,
+      profile: MBTI_PROFILES[subject.mbtiType],
+    };
+  }, [subject.mbtiType]);
+
+  const zodiacSign = useMemo(() => {
+    const fromBirthDate = genius?.birth_date ? getZodiacSign(genius.birth_date) : null;
+    if (fromBirthDate) {
+      return fromBirthDate;
+    }
+
+    const manualSign = genius?.zodiac_sign;
+    if (manualSign && Object.prototype.hasOwnProperty.call(ZODIAC_PROFILES, manualSign)) {
+      return manualSign as keyof typeof ZODIAC_PROFILES;
+    }
+
+    return null;
+  }, [genius?.birth_date, genius?.zodiac_sign]);
 
   const tabs = useMemo(() => {
     const list: { value: string; label: string; icon: typeof User }[] = [
       { value: 'about', label: 'About', icon: User },
     ];
-    if (personalitySystems.length > 0) {
-      list.push({ value: 'personality', label: 'Personality', icon: Brain });
+    if (primaryMbti || zodiacSign) {
+      list.push({ value: 'personality', label: 'Cognitive & Personality', icon: Brain });
     }
     if (genius?.biography) {
       list.push({ value: 'biography', label: 'Biography', icon: Sparkles });
@@ -75,9 +99,8 @@ export function PersonalitySubjectProfile({ subject, onBack, onNavigate }: Perso
     if (contributions.length > 0) {
       list.push({ value: 'contributions', label: 'Contributions', icon: Lightbulb });
     }
-    list.push({ value: 'community', label: 'Discussion', icon: MessageSquare });
     return list;
-  }, [personalitySystems.length, genius, expertise.length, achievements.length, contributions.length]);
+  }, [primaryMbti, zodiacSign, genius, expertise.length, achievements.length, contributions.length]);
 
   const [activeTab, setActiveTab] = useState(tabs[0]?.value ?? 'about');
 
@@ -147,7 +170,7 @@ export function PersonalitySubjectProfile({ subject, onBack, onNavigate }: Perso
 
           <TabsContent value="about" className="pt-6">
             <Card>
-              <CardContent className="p-6 space-y-4">
+              <CardContent className="p-6 space-y-6">
                 <div className="space-y-3">
                   <h3 className="font-semibold text-foreground">About {subject.name}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed">
@@ -155,7 +178,7 @@ export function PersonalitySubjectProfile({ subject, onBack, onNavigate }: Perso
                   </p>
                 </div>
                 {(genius?.birth_place || birthYear) && (
-                  <div className="grid sm:grid-cols-2 gap-4 pt-2 border-t border-border">
+                  <div className="grid sm:grid-cols-2 gap-4 pt-6 border-t border-border">
                     {birthYear && (
                       <div>
                         <div className="text-sm text-muted-foreground mb-1">Life Span</div>
@@ -178,15 +201,299 @@ export function PersonalitySubjectProfile({ subject, onBack, onNavigate }: Perso
                     )}
                   </div>
                 )}
+
+                {(primaryMbti || zodiacSign) && (
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Brain className="w-5 h-5 text-[#395192]" />
+                      Cognitive &amp; Personality
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {primaryMbti && (
+                        <Badge variant="secondary">
+                          {primaryMbti.typeCode} &middot; {primaryMbti.profile.nickname}
+                        </Badge>
+                      )}
+                      {zodiacSign && (
+                        <Badge variant="secondary">
+                          {zodiacSign} &middot; {ZODIAC_PROFILES[zodiacSign].archetype}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {genius?.biography && (
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-[#395192]" />
+                      Biography
+                    </h4>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {genius.biography.length > 260
+                        ? `${genius.biography.slice(0, 260).trim()}...`
+                        : genius.biography}
+                    </p>
+                  </div>
+                )}
+
+                {expertise.length > 0 && (
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <TrendingUp className="w-5 h-5 text-[#10b981]" />
+                      Expertise
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {[...expertise]
+                        .sort((a, b) => b.proficiency_level - a.proficiency_level)
+                        .slice(0, 5)
+                        .map(exp => (
+                          <Badge key={exp.id} variant="outline">
+                            {exp.expertise}
+                          </Badge>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {achievements.length > 0 && (
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Award className="w-5 h-5 text-[#f59e0b]" />
+                      Major Achievements
+                    </h4>
+                    <ul className="space-y-2">
+                      {achievements.slice(0, 3).map(achievement => (
+                        <li key={achievement.id} className="text-sm text-muted-foreground">
+                          <span className="font-medium text-foreground">{achievement.title}</span>
+                          {achievement.year && ` (${achievement.year})`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {contributions.length > 0 && (
+                  <div className="pt-6 border-t border-border space-y-3">
+                    <h4 className="font-semibold text-foreground flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5 text-[#06b6d4]" />
+                      Key Contributions
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      {contributions.length} tracked contribution{contributions.length === 1 ? '' : 's'},
+                      including {contributions[0].field}.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
 
-          {personalitySystems.length > 0 && (
+          {(primaryMbti || zodiacSign) && (
             <TabsContent value="personality" className="pt-6">
-              <SlideInView>
-                <PersonalityVotingWidget subjectId={subject.id} onRequireSignIn={requireSignIn} />
-              </SlideInView>
+              <div className="space-y-6">
+                {primaryMbti && (
+                  <SlideInView delay={100}>
+                    <Card className="overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="p-6">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h3 className="text-lg font-semibold">{primaryMbti.profile.nickname}</h3>
+                              <Badge variant="secondary">{primaryMbti.typeCode}</Badge>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onNavigate('personality-types')}
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              View All Personality Types
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="border-t px-6 py-6 space-y-6">
+                          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+                            {primaryMbti.profile.stack.map((code) => {
+                              const fn = MBTI_FUNCTIONS[code];
+                              return (
+                                <div key={code} className="space-y-3">
+                                  <img
+                                    src={getCognitiveFunctionImagePath(code)}
+                                    alt={`${code} icon`}
+                                    className="h-14 w-14 object-contain"
+                                  />
+                                  <div className="space-y-1.5">
+                                    <p className="text-sm font-semibold">
+                                      ({code}) {fn.name}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      <span className="font-semibold text-foreground">{fn.sublabel}:</span>{' '}
+                                      {fn.description}
+                                    </p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="overflow-hidden rounded-xl border bg-muted/20">
+                              <img
+                                src={getMBTITypeImagePath(primaryMbti.typeCode)}
+                                alt={`Illustration of ${primaryMbti.typeCode}`}
+                                className="w-full h-auto object-cover"
+                              />
+                            </div>
+                            <p className="text-xs italic text-muted-foreground">Image of MBTI Type</p>
+                          </div>
+
+                          <div className="rounded-2xl bg-muted/40 p-6 space-y-4">
+                            {primaryMbti.profile.paragraphs
+                              .slice(0, personalityExpanded ? undefined : 1)
+                              .map((paragraph, index) => (
+                                <p key={index} className="text-sm leading-7 text-muted-foreground">
+                                  {paragraph}
+                                </p>
+                              ))}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setPersonalityExpanded((current) => !current)}
+                            className="text-sm text-primary flex items-center gap-1 ml-auto"
+                          >
+                            {personalityExpanded ? (
+                              <>
+                                Show Less <ChevronUp className="h-4 w-4" />
+                              </>
+                            ) : (
+                              <>
+                                Show More <ChevronDown className="h-4 w-4" />
+                              </>
+                            )}
+                          </button>
+
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-semibold flex items-center gap-2">
+                              <Trophy className="h-4 w-4 text-primary" />
+                              Personality Matchups
+                            </h4>
+                            <p className="text-xs text-muted-foreground">
+                              Notable figures who share this cognitive type
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {primaryMbti.profile.matchups.map((name) => (
+                                <Badge key={name} variant="outline" className="text-sm py-1.5">
+                                  {name}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </SlideInView>
+                )}
+
+                {zodiacSign && (
+                  <SlideInView delay={150}>
+                    <Card className="overflow-hidden">
+                      <CardContent className="p-0">
+                        <div className="p-6 space-y-3">
+                          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                            <div className="space-y-2">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <h3 className="text-lg font-semibold">
+                                  {zodiacSign} ({ZODIAC_PROFILES[zodiacSign].symbolName})
+                                </h3>
+                                <Badge variant="secondary">{ZODIAC_PROFILES[zodiacSign].archetype}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                {ZODIAC_PROFILES[zodiacSign].dateRangeLabel}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                <Badge variant="outline">{ZODIAC_PROFILES[zodiacSign].element}</Badge>
+                                <Badge variant="outline">{ZODIAC_PROFILES[zodiacSign].modality}</Badge>
+                                <Badge variant="outline">
+                                  Ruled by {ZODIAC_PROFILES[zodiacSign].rulingPlanet}
+                                </Badge>
+                                <Badge variant="outline">
+                                  Influenced by {ZODIAC_PROFILES[zodiacSign].influencePlanet}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onNavigate('zodiac-signs')}
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              View All Zodiac Signs
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="border-t px-6 py-6 space-y-6">
+                          <div className="flex items-start gap-4">
+                            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-3">
+                              <img
+                                src={`/assets/${zodiacSign.toLowerCase()}_symbol.png`}
+                                alt={`${zodiacSign} symbol`}
+                                className="max-h-full max-w-full object-contain"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <h4 className="text-base font-semibold">General Physical Appearance</h4>
+                              <p className="text-sm text-muted-foreground">
+                                {getZodiacAppearanceSummary(zodiacSign, ZODIAC_PROFILES[zodiacSign])}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="overflow-hidden rounded-xl border bg-muted/20">
+                              <img
+                                src={`/assets/${zodiacSign.toLowerCase()}.png`}
+                                alt={`Illustration of ${zodiacSign}`}
+                                className="w-full h-auto object-cover"
+                              />
+                            </div>
+                            <p className="text-xs italic text-muted-foreground">Image of a {zodiacSign}</p>
+                          </div>
+
+                          <div className="space-y-3">
+                            <h4 className="text-base font-semibold">General Conscience &amp; Personality</h4>
+                            {ZODIAC_PROFILES[zodiacSign].paragraphs
+                              .slice(0, zodiacExpanded ? undefined : 1)
+                              .map((paragraph, index) => (
+                                <p key={index} className="text-sm text-muted-foreground">
+                                  {paragraph}
+                                </p>
+                              ))}
+                            <button
+                              type="button"
+                              onClick={() => setZodiacExpanded((current) => !current)}
+                              className="text-sm text-primary flex items-center gap-1 ml-auto"
+                            >
+                              {zodiacExpanded ? (
+                                <>
+                                  Show Less <ChevronUp className="h-4 w-4" />
+                                </>
+                              ) : (
+                                <>
+                                  Show More <ChevronDown className="h-4 w-4" />
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </SlideInView>
+                )}
+              </div>
             </TabsContent>
           )}
 
@@ -301,12 +608,6 @@ export function PersonalitySubjectProfile({ subject, onBack, onNavigate }: Perso
               </Card>
             </TabsContent>
           )}
-
-          <TabsContent value="community" className="pt-6">
-            <SlideInView>
-              <CommentSection subjectId={subject.id} onRequireSignIn={requireSignIn} />
-            </SlideInView>
-          </TabsContent>
         </Tabs>
       </div>
     </div>

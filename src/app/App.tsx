@@ -465,7 +465,6 @@ function AppContent() {
         return <GeniusDirectory onNavigate={handleNavigate} />;
 
       case 'personality-database':
-      case 'personality-db':
         return (
           <PersonalityDatabaseDirectory
             onNavigate={handleNavigate}
