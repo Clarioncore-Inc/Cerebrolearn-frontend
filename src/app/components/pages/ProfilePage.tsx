@@ -1619,7 +1619,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const profileTabs = [
     { value: 'about', label: 'About', icon: User },
     { value: 'experience', label: 'Experience', icon: Briefcase },
-    { value: 'personality', label: 'Cognitive & Personality', icon: Brain },
+    { value: 'personality', label: 'Cognitive Personality', icon: Sparkles },
+    { value: 'intelligence', label: 'Intelligence', icon: Brain },
     { value: 'portfolio', label: 'Intellectual Portfolio', icon: FolderKanban },
     { value: 'interests', label: 'Interests', icon: Heart },
     { value: 'mentoring', label: 'Mentoring', icon: GraduationCap },
@@ -2667,7 +2668,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               </CardHeader>
             </Card>
           )}
+        </TabsContent>
 
+        {/* Intelligence Tab (Intelligence Types + IQ/Memory) */}
+        <TabsContent value='intelligence' className='space-y-4'>
           {/* 11 Intelligence Types + IQ/Memory Metrics */}
           <Card>
             <CardHeader>

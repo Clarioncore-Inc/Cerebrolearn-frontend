@@ -190,7 +190,7 @@ export function ProfileView() {
     { value: 'intelligence', label: 'Intelligence', icon: Sparkles },
     { value: 'research', label: 'Research & Development', icon: FolderKanban },
     { value: 'honors', label: 'Honors & Awards', icon: Trophy },
-    { value: 'interests', label: 'Interests', icon: Heart },
+    { value: 'interests', label: 'Causes & Interests', icon: Heart },
     { value: 'community', label: 'Community', icon: MessageSquare },
     { value: 'mentoring', label: 'Mentoring', icon: GraduationCap },
   ];
@@ -510,6 +510,24 @@ export function ProfileView() {
                     )}
                   </CardContent>
                 </Card>
+
+                <div className={panelClassName}>
+                  <h3 className='flex items-center gap-2 text-base font-semibold'>
+                    <Sparkles className='h-4 w-4 text-primary' />
+                    Skills &amp; Fields of Expertise
+                  </h3>
+                  {skills.length === 0 ? (
+                    <p className='mt-4 text-sm text-muted-foreground'>No skills added yet.</p>
+                  ) : (
+                    <div className='mt-4 flex flex-wrap gap-2'>
+                      {skills.map((item) => (
+                        <Badge key={item.id} variant='secondary'>
+                          {item.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               <TabsContent value='personality' className='space-y-6'>
@@ -831,7 +849,7 @@ export function ProfileView() {
 
               <TabsContent value='interests' className='space-y-6'>
                 <div className={panelClassName}>
-                  <div className='grid gap-6 xl:grid-cols-3'>
+                  <div className='grid gap-6 xl:grid-cols-2'>
                     <div className='space-y-4'>
                       <h3 className='flex items-center gap-2 text-base font-semibold'>
                         <HandHeart className='h-4 w-4 text-primary' />
@@ -860,24 +878,6 @@ export function ProfileView() {
                       ) : (
                         <div className='flex flex-wrap gap-2'>
                           {interests.map((item) => (
-                            <Badge key={item.id} variant='secondary'>
-                              {item.name}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className='space-y-4 border-t pt-6 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-6'>
-                      <h3 className='flex items-center gap-2 text-base font-semibold'>
-                        <Sparkles className='h-4 w-4 text-primary' />
-                        Skills &amp; Fields of Expertise
-                      </h3>
-                      {skills.length === 0 ? (
-                        <p className='text-sm text-muted-foreground'>No skills added yet.</p>
-                      ) : (
-                        <div className='flex flex-wrap gap-2'>
-                          {skills.map((item) => (
                             <Badge key={item.id} variant='secondary'>
                               {item.name}
                             </Badge>
