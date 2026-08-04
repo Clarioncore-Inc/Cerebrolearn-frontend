@@ -466,7 +466,12 @@ function AppContent() {
 
       case 'personality-database':
       case 'personality-db':
-        return <PersonalityDatabaseDirectory onNavigate={handleNavigate} />;
+        return (
+          <PersonalityDatabaseDirectory
+            onNavigate={handleNavigate}
+            initialSlug={pageData?.slug}
+          />
+        );
 
       case 'personality-test-landing':
         return <MBTIQuizLanding onNavigate={handleNavigate} />;

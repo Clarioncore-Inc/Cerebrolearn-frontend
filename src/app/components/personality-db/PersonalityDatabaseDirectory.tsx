@@ -11,6 +11,7 @@ import { SlideInView } from '../pages/SlideInView';
 
 interface PersonalityDatabaseDirectoryProps {
   onNavigate: (page: string, data?: any) => void;
+  initialSlug?: string;
 }
 
 const CATEGORIES: Array<SubjectCategory | 'all'> = [
@@ -27,8 +28,8 @@ const CATEGORY_LABELS: Record<SubjectCategory | 'all', string> = {
   Athlete: 'Athletes',
 };
 
-export function PersonalityDatabaseDirectory({ onNavigate }: PersonalityDatabaseDirectoryProps) {
-  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+export function PersonalityDatabaseDirectory({ onNavigate, initialSlug }: PersonalityDatabaseDirectoryProps) {
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(initialSlug ?? null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<SubjectCategory | 'all'>('all');
   const [subcategory, setSubcategory] = useState<string>('all');
@@ -48,6 +49,12 @@ export function PersonalityDatabaseDirectory({ onNavigate }: PersonalityDatabase
       setSubcategory('all');
     }
   }, [availableSubcategories, subcategory]);
+
+  useEffect(() => {
+    if (initialSlug) {
+      setSelectedSlug(initialSlug);
+    }
+  }, [initialSlug]);
 
   const results = useMemo(() => {
     let list = [...PDB_SUBJECTS];
@@ -71,7 +78,13 @@ export function PersonalityDatabaseDirectory({ onNavigate }: PersonalityDatabase
       setSelectedSlug(null);
       return null;
     }
-    return <PersonalitySubjectProfile subject={subject} onBack={() => setSelectedSlug(null)} />;
+    return (
+      <PersonalitySubjectProfile
+        subject={subject}
+        onBack={() => setSelectedSlug(null)}
+        onNavigate={onNavigate}
+      />
+    );
   }
 
   return (
@@ -94,7 +107,7 @@ export function PersonalityDatabaseDirectory({ onNavigate }: PersonalityDatabase
                 </span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                A crowd-sourced wiki for MBTI, Enneagram, and more — anonymous voting welcome.
+                A crowd-sourced wiki for MBTI, Enneagram, and more — sign in to vote and join the discussion.
               </p>
               <div className="flex flex-col items-center justify-center gap-3 pt-1 sm:flex-row">
                 <Button size="lg" onClick={() => onNavigate('personality-test-landing')}>

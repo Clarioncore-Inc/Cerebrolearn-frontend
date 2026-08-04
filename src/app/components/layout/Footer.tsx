@@ -22,8 +22,8 @@ export function Footer({ onNavigate, hasSidebar }: FooterProps) {
     <footer className={`w-full bg-gradient-to-br from-background via-primary/5 to-secondary/5 border-t border-border/50 ${hasSidebar ? 'lg:ml-64' : ''}`}>
       {/* Main Footer Section */}
       <section className="border-t border-border/50">
-        <div className="py-20 px-6 md:px-8 lg:px-12">
-          <div className="max-w-7xl mx-auto">
+        <div className="container py-20">
+          <div className="w-full">
             {/* Footer Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-10 gap-16 mb-16">
               {/* Logo and Description Column */}

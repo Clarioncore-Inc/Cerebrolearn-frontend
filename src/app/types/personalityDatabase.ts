@@ -2,7 +2,21 @@
 // Standalone module: subjects can be linked to an existing Genius profile
 // (via geniusId) or exist independently as custom entries.
 
-export type PersonalitySystemId = 'mbti' | 'enneagram' | 'temperament';
+export type PersonalitySystemId =
+  | 'mbti'
+  | 'enneagram'
+  | 'instinctualVariant'
+  | 'tritype'
+  | 'classicJungian'
+  | 'socionics'
+  | 'attitudinalPsyche'
+  | 'temperament'
+  | 'big5Extraversion'
+  | 'big5Neuroticism'
+  | 'big5Agreeableness'
+  | 'big5Conscientiousness'
+  | 'big5Openness'
+  | 'big5Sloan';
 
 export interface PersonalitySystemMeta {
   id: PersonalitySystemId;
@@ -59,6 +73,7 @@ export interface PDBComment {
   text: string;
   createdAt: string;
   upvotes: number;
+  downvotes?: number;
 }
 
 export interface PDBCommentNode extends PDBComment {

@@ -5,16 +5,72 @@ import {
   PDBCommentNode,
   PDBTypeResult,
   PersonalitySystemMeta,
+  PersonalitySystemId,
 } from '../types/personalityDatabase';
 import { MBTIType, MBTI_PROFILES } from './mbtiData';
 import { getGeniusById } from './geniusData';
 
 // ---- Personality systems (pluggable, MBTI is priority but not the only one) ----
+const ENNEAGRAM_TYPE_NAMES: Record<string, string> = {
+  '1': 'The Reformer',
+  '2': 'The Helper',
+  '3': 'The Achiever',
+  '4': 'The Individualist',
+  '5': 'The Investigator',
+  '6': 'The Loyalist',
+  '7': 'The Enthusiast',
+  '8': 'The Challenger',
+  '9': 'The Peacemaker',
+};
+
+const CLASSIC_JUNGIAN_NAMES: Record<string, string> = {
+  Ni: 'Introverted Intuition',
+  Ne: 'Extraverted Intuition',
+  Si: 'Introverted Sensing',
+  Se: 'Extraverted Sensing',
+  Ti: 'Introverted Thinking',
+  Te: 'Extraverted Thinking',
+  Fi: 'Introverted Feeling',
+  Fe: 'Extraverted Feeling',
+};
+
+const BIG5_BUCKET_CODES = ['25%', '50%', '75%', '100%'];
+const INSTINCTUAL_VARIANTS = ['sp/so', 'sp/sx', 'so/sp', 'so/sx', 'sx/sp', 'sx/so'];
+const TRITYPE_CODES = ['125', '136', '145', '154', '163', '217', '259', '268', '279', '317', '358', '368', '378', '459', '469', '478', '514', '531', '541', '584', '592', '629', '641', '648', '728', '749', '793', '826', '837', '853', '946', '962', '973'];
+const SOCIONICS_CODES = ['ILE', 'LII', 'ESE', 'SEI', 'SLE', 'LSI', 'IEI', 'EIE', 'LIE', 'ILI', 'LSE', 'SLI', 'SEE', 'ESI', 'IEE', 'EII'];
+
+function blankTypeNames(codes: string[]): Record<string, string> {
+  return Object.fromEntries(codes.map(code => [code, '']));
+}
+
+function buildAttitudinalPsycheCodes(chars: string[] = ['V', 'L', 'E', 'F']): string[] {
+  if (chars.length === 1) return chars;
+  return chars.flatMap((char, index) =>
+    buildAttitudinalPsycheCodes(chars.filter((_, innerIndex) => innerIndex !== index)).map(rest => `${char}${rest}`),
+  );
+}
+
+function buildSloanCodes(): string[] {
+  const codes: string[] = [];
+  ['S', 'R'].forEach(extraversion => {
+    ['C', 'L'].forEach(neuroticism => {
+      ['O', 'U'].forEach(conscientiousness => {
+        ['A', 'E'].forEach(agreeableness => {
+          ['I', 'N'].forEach(openness => {
+            codes.push(`${extraversion}${neuroticism}${conscientiousness}${agreeableness}${openness}`);
+          });
+        });
+      });
+    });
+  });
+  return codes;
+}
+
 export const PERSONALITY_SYSTEMS: PersonalitySystemMeta[] = [
   {
     id: 'mbti',
-    label: 'Myers-Briggs (MBTI)',
-    shortLabel: 'MBTI',
+    label: 'Four Letter',
+    shortLabel: 'Four Letter',
     typeCodes: Object.keys(MBTI_PROFILES),
     typeNames: Object.fromEntries(
       Object.entries(MBTI_PROFILES).map(([code, p]) => [code, p.nickname]),
@@ -25,21 +81,94 @@ export const PERSONALITY_SYSTEMS: PersonalitySystemMeta[] = [
     label: 'Enneagram',
     shortLabel: 'Enneagram',
     typeCodes: ['1', '2', '3', '4', '5', '6', '7', '8', '9'],
-    typeNames: {
-      '1': 'The Reformer', '2': 'The Helper', '3': 'The Achiever',
-      '4': 'The Individualist', '5': 'The Investigator', '6': 'The Loyalist',
-      '7': 'The Enthusiast', '8': 'The Challenger', '9': 'The Peacemaker',
-    },
+    typeNames: ENNEAGRAM_TYPE_NAMES,
+  },
+  {
+    id: 'instinctualVariant',
+    label: 'Instinctual Variant',
+    shortLabel: 'IV',
+    typeCodes: INSTINCTUAL_VARIANTS,
+    typeNames: blankTypeNames(INSTINCTUAL_VARIANTS),
+  },
+  {
+    id: 'tritype',
+    label: 'Tritype',
+    shortLabel: 'Tritype',
+    typeCodes: TRITYPE_CODES,
+    typeNames: blankTypeNames(TRITYPE_CODES),
+  },
+  {
+    id: 'classicJungian',
+    label: 'Classic Jungian',
+    shortLabel: 'Jungian',
+    typeCodes: Object.keys(CLASSIC_JUNGIAN_NAMES),
+    typeNames: CLASSIC_JUNGIAN_NAMES,
+  },
+  {
+    id: 'socionics',
+    label: 'Socionics',
+    shortLabel: 'Socionics',
+    typeCodes: SOCIONICS_CODES,
+    typeNames: blankTypeNames(SOCIONICS_CODES),
+  },
+  {
+    id: 'attitudinalPsyche',
+    label: 'Attitudinal Psyche',
+    shortLabel: 'AP',
+    typeCodes: buildAttitudinalPsycheCodes(),
+    typeNames: {},
   },
   {
     id: 'temperament',
-    label: 'Four Temperaments',
-    shortLabel: 'Temperament',
+    label: 'Temperaments',
+    shortLabel: 'Temperaments',
     typeCodes: ['Sanguine', 'Choleric', 'Melancholic', 'Phlegmatic'],
     typeNames: {
       Sanguine: 'Sanguine', Choleric: 'Choleric',
       Melancholic: 'Melancholic', Phlegmatic: 'Phlegmatic',
     },
+  },
+  {
+    id: 'big5Extraversion',
+    label: 'Big 5 - Extraversion',
+    shortLabel: 'Big 5 - E',
+    typeCodes: BIG5_BUCKET_CODES,
+    typeNames: blankTypeNames(BIG5_BUCKET_CODES),
+  },
+  {
+    id: 'big5Neuroticism',
+    label: 'Big 5 - Neuroticism',
+    shortLabel: 'Big 5 - N',
+    typeCodes: BIG5_BUCKET_CODES,
+    typeNames: blankTypeNames(BIG5_BUCKET_CODES),
+  },
+  {
+    id: 'big5Agreeableness',
+    label: 'Big 5 - Agreeableness',
+    shortLabel: 'Big 5 - A',
+    typeCodes: BIG5_BUCKET_CODES,
+    typeNames: blankTypeNames(BIG5_BUCKET_CODES),
+  },
+  {
+    id: 'big5Conscientiousness',
+    label: 'Big 5 - Conscientiousness',
+    shortLabel: 'Big 5 - C',
+    typeCodes: BIG5_BUCKET_CODES,
+    typeNames: blankTypeNames(BIG5_BUCKET_CODES),
+  },
+  {
+    id: 'big5Openness',
+    label: 'Big 5 - Openness',
+    shortLabel: 'Big 5 - O',
+    typeCodes: BIG5_BUCKET_CODES,
+    typeNames: blankTypeNames(BIG5_BUCKET_CODES),
+  },
+  {
+    id: 'big5Sloan',
+    label: 'Big 5 (SLOAN)',
+    shortLabel: 'SLOAN',
+    typeCodes: buildSloanCodes(),
+    typeNames: {},
   },
 ];
 
@@ -153,16 +282,360 @@ function tallies(subjectId: string, systemId: PDBVoteTally['systemId'], dist: Re
   return Object.entries(dist).map(([typeCode, votes]) => ({ subjectId, systemId, typeCode, votes }));
 }
 
+const MBTI_FUNCTION_STACKS: Record<MBTIType, [string, string, string, string]> = {
+  INTJ: ['Ni', 'Te', 'Fi', 'Se'],
+  INTP: ['Ti', 'Ne', 'Si', 'Fe'],
+  ENTJ: ['Te', 'Ni', 'Se', 'Fi'],
+  ENTP: ['Ne', 'Ti', 'Fe', 'Si'],
+  INFJ: ['Ni', 'Fe', 'Ti', 'Se'],
+  INFP: ['Fi', 'Ne', 'Si', 'Te'],
+  ENFJ: ['Fe', 'Ni', 'Se', 'Ti'],
+  ENFP: ['Ne', 'Fi', 'Te', 'Si'],
+  ISTJ: ['Si', 'Te', 'Fi', 'Ne'],
+  ISFJ: ['Si', 'Fe', 'Ti', 'Ne'],
+  ESTJ: ['Te', 'Si', 'Ne', 'Fi'],
+  ESFJ: ['Fe', 'Si', 'Ne', 'Ti'],
+  ISTP: ['Ti', 'Se', 'Ni', 'Fe'],
+  ISFP: ['Fi', 'Se', 'Ni', 'Te'],
+  ESTP: ['Se', 'Ti', 'Fe', 'Ni'],
+  ESFP: ['Se', 'Fi', 'Te', 'Ni'],
+};
+
+const MBTI_TO_ENNEAGRAM: Record<MBTIType, Array<[string, number]>> = {
+  INTJ: [['5', 0.45], ['1', 0.3], ['8', 0.25]],
+  INTP: [['5', 0.5], ['9', 0.25], ['4', 0.25]],
+  ENTJ: [['3', 0.4], ['8', 0.35], ['1', 0.25]],
+  ENTP: [['7', 0.4], ['5', 0.35], ['3', 0.25]],
+  INFJ: [['4', 0.35], ['1', 0.35], ['9', 0.3]],
+  INFP: [['4', 0.45], ['9', 0.3], ['6', 0.25]],
+  ENFJ: [['2', 0.4], ['3', 0.3], ['9', 0.3]],
+  ENFP: [['7', 0.35], ['4', 0.35], ['2', 0.3]],
+  ISTJ: [['1', 0.4], ['6', 0.35], ['5', 0.25]],
+  ISFJ: [['2', 0.35], ['6', 0.35], ['9', 0.3]],
+  ESTJ: [['3', 0.35], ['8', 0.35], ['1', 0.3]],
+  ESFJ: [['2', 0.45], ['3', 0.3], ['9', 0.25]],
+  ISTP: [['5', 0.4], ['9', 0.3], ['8', 0.3]],
+  ISFP: [['4', 0.45], ['9', 0.3], ['2', 0.25]],
+  ESTP: [['8', 0.4], ['7', 0.35], ['3', 0.25]],
+  ESFP: [['7', 0.4], ['3', 0.3], ['2', 0.3]],
+};
+
+const MBTI_TO_TEMPERAMENT: Record<MBTIType, Array<[string, number]>> = {
+  INTJ: [['Melancholic', 0.45], ['Choleric', 0.35], ['Phlegmatic', 0.2]],
+  INTP: [['Phlegmatic', 0.4], ['Melancholic', 0.4], ['Sanguine', 0.2]],
+  ENTJ: [['Choleric', 0.5], ['Melancholic', 0.3], ['Sanguine', 0.2]],
+  ENTP: [['Sanguine', 0.4], ['Choleric', 0.35], ['Phlegmatic', 0.25]],
+  INFJ: [['Melancholic', 0.4], ['Phlegmatic', 0.35], ['Sanguine', 0.25]],
+  INFP: [['Phlegmatic', 0.4], ['Melancholic', 0.35], ['Sanguine', 0.25]],
+  ENFJ: [['Sanguine', 0.4], ['Phlegmatic', 0.35], ['Choleric', 0.25]],
+  ENFP: [['Sanguine', 0.5], ['Phlegmatic', 0.3], ['Choleric', 0.2]],
+  ISTJ: [['Melancholic', 0.45], ['Phlegmatic', 0.35], ['Choleric', 0.2]],
+  ISFJ: [['Phlegmatic', 0.45], ['Melancholic', 0.3], ['Sanguine', 0.25]],
+  ESTJ: [['Choleric', 0.45], ['Melancholic', 0.35], ['Sanguine', 0.2]],
+  ESFJ: [['Sanguine', 0.4], ['Phlegmatic', 0.35], ['Choleric', 0.25]],
+  ISTP: [['Phlegmatic', 0.35], ['Choleric', 0.35], ['Melancholic', 0.3]],
+  ISFP: [['Phlegmatic', 0.4], ['Sanguine', 0.35], ['Melancholic', 0.25]],
+  ESTP: [['Sanguine', 0.45], ['Choleric', 0.4], ['Phlegmatic', 0.15]],
+  ESFP: [['Sanguine', 0.5], ['Phlegmatic', 0.25], ['Choleric', 0.25]],
+};
+
+const MBTI_TO_SOCIONICS: Record<MBTIType, string> = {
+  INTJ: 'ILI',
+  INTP: 'LII',
+  ENTJ: 'LIE',
+  ENTP: 'ILE',
+  INFJ: 'IEI',
+  INFP: 'EII',
+  ENFJ: 'EIE',
+  ENFP: 'IEE',
+  ISTJ: 'LSI',
+  ISFJ: 'ESI',
+  ESTJ: 'LSE',
+  ESFJ: 'ESE',
+  ISTP: 'SLI',
+  ISFP: 'SEI',
+  ESTP: 'SLE',
+  ESFP: 'SEE',
+};
+
+const MBTI_TO_ATTITUDINAL_PSYCHE: Record<MBTIType, Array<[string, number]>> = {
+  INTJ: [['VLFE', 1], ['VLEF', 0.68], ['LVEF', 0.42]],
+  INTP: [['LVEF', 1], ['LVFE', 0.68], ['VELF', 0.42]],
+  ENTJ: [['VLFE', 1], ['VFLE', 0.68], ['VLEF', 0.42]],
+  ENTP: [['VELF', 1], ['EVLF', 0.68], ['VLEF', 0.42]],
+  INFJ: [['ELVF', 1], ['LEVF', 0.68], ['LVEF', 0.42]],
+  INFP: [['FLEV', 1], ['FELV', 0.68], ['ELFV', 0.42]],
+  ENFJ: [['EVFL', 1], ['VEFL', 0.68], ['ELFV', 0.42]],
+  ENFP: [['EFVL', 1], ['EVFL', 0.68], ['FELV', 0.42]],
+  ISTJ: [['LVFE', 1], ['LFVE', 0.68], ['VLFE', 0.42]],
+  ISFJ: [['FLEV', 1], ['FVEL', 0.68], ['FLVE', 0.42]],
+  ESTJ: [['VLFE', 1], ['VFLE', 0.68], ['LFVE', 0.42]],
+  ESFJ: [['VEFL', 1], ['FEVL', 0.68], ['FVEL', 0.42]],
+  ISTP: [['LVFE', 1], ['VLFE', 0.68], ['LVEF', 0.42]],
+  ISFP: [['FLEV', 1], ['FVLE', 0.68], ['FVEL', 0.42]],
+  ESTP: [['VFLE', 1], ['VFEL', 0.68], ['VELF', 0.42]],
+  ESFP: [['FEVL', 1], ['FVEL', 0.68], ['EFVL', 0.42]],
+};
+
+const ENNEAGRAM_TO_INSTINCTUAL_VARIANT: Record<string, [string, string, string]> = {
+  '1': ['sp/so', 'so/sp', 'sp/sx'],
+  '2': ['so/sx', 'sx/so', 'so/sp'],
+  '3': ['so/sp', 'sp/so', 'sx/so'],
+  '4': ['sx/sp', 'sp/sx', 'sx/so'],
+  '5': ['sp/sx', 'sp/so', 'sx/sp'],
+  '6': ['sp/so', 'so/sp', 'sx/so'],
+  '7': ['so/sx', 'sx/so', 'sp/sx'],
+  '8': ['sx/sp', 'sp/sx', 'so/sx'],
+  '9': ['sp/so', 'sx/sp', 'so/sp'],
+};
+
+const ENNEAGRAM_TO_TRITYPE: Record<string, [string, string, string]> = {
+  '1': ['163', '154', '136'],
+  '2': ['279', '217', '268'],
+  '3': ['378', '317', '358'],
+  '4': ['459', '478', '469'],
+  '5': ['541', '514', '531'],
+  '6': ['629', '641', '648'],
+  '7': ['793', '728', '749'],
+  '8': ['837', '853', '826'],
+  '9': ['946', '962', '973'],
+};
+
+function sumVotes(dist: Record<string, number>): number {
+  return Object.values(dist).reduce((sum, votes) => sum + votes, 0);
+}
+
+function normalizeDistribution(entries: Array<[string, number]>, totalVotes: number): Record<string, number> {
+  if (entries.length === 0 || totalVotes <= 0) return {};
+  const totalWeight = entries.reduce((sum, [, weight]) => sum + weight, 0);
+  const raw = entries.map(([code, weight]) => ({ code, rawVotes: (weight / totalWeight) * totalVotes }));
+  const rounded = raw.map(item => ({
+    code: item.code,
+    votes: Math.max(1, Math.floor(item.rawVotes)),
+    remainder: item.rawVotes - Math.floor(item.rawVotes),
+  }));
+
+  let remaining = totalVotes - rounded.reduce((sum, item) => sum + item.votes, 0);
+  if (remaining > 0) {
+    rounded
+      .sort((a, b) => b.remainder - a.remainder)
+      .forEach(item => {
+        if (remaining > 0) {
+          item.votes += 1;
+          remaining -= 1;
+        }
+      });
+  } else if (remaining < 0) {
+    rounded
+      .sort((a, b) => b.votes - a.votes)
+      .forEach(item => {
+        while (remaining < 0 && item.votes > 1) {
+          item.votes -= 1;
+          remaining += 1;
+        }
+      });
+  }
+
+  return Object.fromEntries(rounded.map(item => [item.code, item.votes]));
+}
+
+function aggregateMappedDistribution<T extends string>(
+  sourceDist: Record<string, number>,
+  mapping: Record<T, Array<[string, number]>>,
+  targetTotal: number,
+): Record<string, number> {
+  const aggregate: Record<string, number> = {};
+  Object.entries(sourceDist).forEach(([code, votes]) => {
+    const mapped = mapping[code as T];
+    mapped?.forEach(([targetCode, weight]) => {
+      if (!Number.isFinite(weight)) return;
+      aggregate[targetCode] = (aggregate[targetCode] ?? 0) + votes * weight;
+    });
+  });
+
+  return normalizeDistribution(
+    Object.entries(aggregate).sort((a, b) => b[1] - a[1]).slice(0, 4),
+    targetTotal,
+  );
+}
+
+function dominantCode(dist: Record<string, number>): string {
+  return Object.entries(dist).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '5';
+}
+
+function clampScore(value: number): number {
+  return Math.max(5, Math.min(95, Math.round(value)));
+}
+
+function shareForLetter(dist: Record<string, number>, index: number, letter: string): number {
+  const total = sumVotes(dist);
+  if (total === 0) return 50;
+  const matching = Object.entries(dist)
+    .filter(([code]) => code[index] === letter)
+    .reduce((sum, [, votes]) => sum + votes, 0);
+  return (matching / total) * 100;
+}
+
+function deriveEnneagramFromMbti(mbtiDist: Record<string, number>): Record<string, number> {
+  return aggregateMappedDistribution(
+    mbtiDist,
+    MBTI_TO_ENNEAGRAM,
+    Math.max(160, Math.round(sumVotes(mbtiDist) * 0.38)),
+  );
+}
+
+function deriveTemperamentFromMbti(mbtiDist: Record<string, number>): Record<string, number> {
+  return aggregateMappedDistribution(
+    mbtiDist,
+    MBTI_TO_TEMPERAMENT,
+    Math.max(150, Math.round(sumVotes(mbtiDist) * 0.32)),
+  );
+}
+
+function deriveClassicJungian(mbtiDist: Record<string, number>): Record<string, number> {
+  const aggregate: Record<string, number> = {};
+  Object.entries(mbtiDist).forEach(([code, votes]) => {
+    const stack = MBTI_FUNCTION_STACKS[code as MBTIType];
+    if (!stack) return;
+    [1, 0.7, 0.45, 0.2].forEach((weight, index) => {
+      const functionCode = stack[index];
+      aggregate[functionCode] = (aggregate[functionCode] ?? 0) + votes * weight;
+    });
+  });
+
+  return normalizeDistribution(
+    Object.entries(aggregate).sort((a, b) => b[1] - a[1]).slice(0, 4),
+    Math.max(170, Math.round(sumVotes(mbtiDist) * 0.42)),
+  );
+}
+
+function deriveSocionics(mbtiDist: Record<string, number>): Record<string, number> {
+  const aggregate: Record<string, number> = {};
+  Object.entries(mbtiDist).forEach(([code, votes]) => {
+    const socionics = MBTI_TO_SOCIONICS[code as MBTIType];
+    if (!socionics) return;
+    aggregate[socionics] = (aggregate[socionics] ?? 0) + votes;
+  });
+
+  return normalizeDistribution(
+    Object.entries(aggregate).sort((a, b) => b[1] - a[1]).slice(0, 4),
+    Math.max(150, Math.round(sumVotes(mbtiDist) * 0.34)),
+  );
+}
+
+function deriveAttitudinalPsyche(mbtiDist: Record<string, number>): Record<string, number> {
+  return aggregateMappedDistribution(
+    mbtiDist,
+    MBTI_TO_ATTITUDINAL_PSYCHE,
+    Math.max(120, Math.round(sumVotes(mbtiDist) * 0.26)),
+  );
+}
+
+function deriveInstinctualVariant(enneagramDist: Record<string, number>): Record<string, number> {
+  const dominant = dominantCode(enneagramDist);
+  return normalizeDistribution(
+    ENNEAGRAM_TO_INSTINCTUAL_VARIANT[dominant].map((code, index) => [code, [1, 0.65, 0.35][index]]),
+    Math.max(110, Math.round(sumVotes(enneagramDist) * 0.36)),
+  );
+}
+
+function deriveTritype(enneagramDist: Record<string, number>): Record<string, number> {
+  const dominant = dominantCode(enneagramDist);
+  return normalizeDistribution(
+    ENNEAGRAM_TO_TRITYPE[dominant].map((code, index) => [code, [1, 0.7, 0.4][index]]),
+    Math.max(100, Math.round(sumVotes(enneagramDist) * 0.3)),
+  );
+}
+
+function big5Scores(mbtiDist: Record<string, number>, enneagramDist: Record<string, number>) {
+  const dominantEnneagram = dominantCode(enneagramDist);
+  const extraversion = clampScore(
+    shareForLetter(mbtiDist, 0, 'E') + ({ '2': 8, '3': 10, '7': 12, '8': 10, '5': -12, '9': -10, '4': -6 }[dominantEnneagram] ?? 0),
+  );
+  const openness = clampScore(
+    shareForLetter(mbtiDist, 1, 'N') + ({ '4': 10, '5': 8, '7': 8, '1': -4, '6': -6 }[dominantEnneagram] ?? 0),
+  );
+  const agreeableness = clampScore(
+    shareForLetter(mbtiDist, 2, 'F') + ({ '2': 15, '9': 12, '6': 8, '8': -12, '3': -8, '5': -6 }[dominantEnneagram] ?? 0),
+  );
+  const conscientiousness = clampScore(
+    shareForLetter(mbtiDist, 3, 'J') + ({ '1': 15, '3': 12, '6': 10, '7': -10, '9': -8, '4': -4 }[dominantEnneagram] ?? 0),
+  );
+  const neuroticism = clampScore(
+    45 + ({ '4': 22, '6': 18, '9': 4, '2': 6, '8': -10, '3': -8, '7': -6, '1': 4, '5': 2 }[dominantEnneagram] ?? 0)
+      + (shareForLetter(mbtiDist, 2, 'F') - 50) * 0.15,
+  );
+
+  return { extraversion, neuroticism, agreeableness, conscientiousness, openness };
+}
+
+function deriveBig5Dimension(score: number, totalVotes: number): Record<string, number> {
+  return normalizeDistribution(
+    BIG5_BUCKET_CODES.map(code => {
+      const bucketValue = Number.parseInt(code, 10);
+      return [code, Math.max(1, 110 - Math.abs(score - bucketValue) * 2)];
+    }),
+    totalVotes,
+  );
+}
+
+function flipSloanLetter(code: string, index: number): string {
+  const pairs: Record<string, string> = { S: 'R', R: 'S', C: 'L', L: 'C', O: 'U', U: 'O', A: 'E', E: 'A', I: 'N', N: 'I' };
+  return `${code.slice(0, index)}${pairs[code[index]]}${code.slice(index + 1)}`;
+}
+
+function deriveSloan(scores: ReturnType<typeof big5Scores>, totalVotes: number): Record<string, number> {
+  const primary = `${scores.extraversion >= 50 ? 'S' : 'R'}${scores.neuroticism >= 50 ? 'L' : 'C'}${scores.conscientiousness >= 50 ? 'O' : 'U'}${scores.agreeableness >= 50 ? 'A' : 'E'}${scores.openness >= 50 ? 'I' : 'N'}`;
+  const confidence = [
+    Math.abs(scores.extraversion - 50),
+    Math.abs(scores.neuroticism - 50),
+    Math.abs(scores.conscientiousness - 50),
+    Math.abs(scores.agreeableness - 50),
+    Math.abs(scores.openness - 50),
+  ];
+  const weakestIndices = confidence
+    .map((value, index) => ({ value, index }))
+    .sort((a, b) => a.value - b.value)
+    .map(item => item.index);
+  const alternateOne = flipSloanLetter(primary, weakestIndices[0]);
+  const alternateTwo = flipSloanLetter(alternateOne, weakestIndices[1] ?? weakestIndices[0]);
+  return normalizeDistribution(
+    [[primary, 1], [alternateOne, 0.6], [alternateTwo, 0.35]],
+    totalVotes,
+  );
+}
+
 function buildVoteTallies(seed: {
   subjectId: string;
   mbti: Record<string, number>;
   enneagram?: Record<string, number>;
   temperament?: Record<string, number>;
 }): PDBVoteTally[] {
+  const enneagram = seed.enneagram ?? deriveEnneagramFromMbti(seed.mbti);
+  const temperament = seed.temperament ?? deriveTemperamentFromMbti(seed.mbti);
+  const scores = big5Scores(seed.mbti, enneagram);
+  const mbtiTotal = sumVotes(seed.mbti);
+  const systemVotes: Partial<Record<PersonalitySystemId, Record<string, number>>> = {
+    mbti: seed.mbti,
+    enneagram,
+    instinctualVariant: deriveInstinctualVariant(enneagram),
+    tritype: deriveTritype(enneagram),
+    classicJungian: deriveClassicJungian(seed.mbti),
+    socionics: deriveSocionics(seed.mbti),
+    attitudinalPsyche: deriveAttitudinalPsyche(seed.mbti),
+    temperament,
+    big5Extraversion: deriveBig5Dimension(scores.extraversion, Math.max(85, Math.round(mbtiTotal * 0.14))),
+    big5Neuroticism: deriveBig5Dimension(scores.neuroticism, Math.max(85, Math.round(mbtiTotal * 0.14))),
+    big5Agreeableness: deriveBig5Dimension(scores.agreeableness, Math.max(85, Math.round(mbtiTotal * 0.14))),
+    big5Conscientiousness: deriveBig5Dimension(scores.conscientiousness, Math.max(85, Math.round(mbtiTotal * 0.14))),
+    big5Openness: deriveBig5Dimension(scores.openness, Math.max(85, Math.round(mbtiTotal * 0.14))),
+    big5Sloan: deriveSloan(scores, Math.max(95, Math.round(mbtiTotal * 0.18))),
+  };
+
   return [
-    ...tallies(seed.subjectId, 'mbti', seed.mbti),
-    ...(seed.enneagram ? tallies(seed.subjectId, 'enneagram', seed.enneagram) : []),
-    ...(seed.temperament ? tallies(seed.subjectId, 'temperament', seed.temperament) : []),
+    ...Object.entries(systemVotes).flatMap(([systemId, dist]) =>
+      dist ? tallies(seed.subjectId, systemId as PersonalitySystemId, dist) : [],
+    ),
   ];
 }
 
@@ -262,37 +735,94 @@ export const PDB_COMMENTS: PDBComment[] = [
     id: 'c-1', subjectId: 'albert-einstein', parentId: null,
     authorName: 'Anonymous', isAnonymous: true,
     text: "INTP fits his obsession with theory over practical application. Classic Ti-Ne loop.",
-    createdAt: '2026-07-20T10:00:00.000Z', upvotes: 24,
+    createdAt: '2026-07-20T10:00:00.000Z', upvotes: 24, downvotes: 3,
   },
   {
     id: 'c-2', subjectId: 'albert-einstein', parentId: 'c-1',
     authorName: 'mbti_nerd', isAnonymous: false,
     text: "Disagree, his focus on grand unifying theories over abstract logic games feels more Ni than Ti.",
-    createdAt: '2026-07-20T11:15:00.000Z', upvotes: 9,
+    createdAt: '2026-07-20T11:15:00.000Z', upvotes: 9, downvotes: 1,
   },
   {
     id: 'c-3', subjectId: 'albert-einstein', parentId: null,
     authorName: 'Anonymous', isAnonymous: true,
     text: "Enneagram 5 is obvious here — total withdrawal into the mind, detachment from material needs.",
-    createdAt: '2026-07-21T08:30:00.000Z', upvotes: 15,
+    createdAt: '2026-07-21T08:30:00.000Z', upvotes: 15, downvotes: 2,
   },
   {
     id: 'c-4', subjectId: 'sherlock-holmes', parentId: null,
     authorName: 'deduction_fan', isAnonymous: false,
     text: "Ti-dom all day. He builds his own internal logic system and tests reality against it, not the other way around.",
-    createdAt: '2026-07-22T09:00:00.000Z', upvotes: 31,
+    createdAt: '2026-07-22T09:00:00.000Z', upvotes: 31, downvotes: 4,
   },
   {
     id: 'c-5', subjectId: 'sherlock-holmes', parentId: null,
     authorName: 'Anonymous', isAnonymous: true,
     text: "Can't rule out INTP given how much he enjoys the puzzle itself over the actual justice served.",
-    createdAt: '2026-07-22T12:00:00.000Z', upvotes: 12,
+    createdAt: '2026-07-22T12:00:00.000Z', upvotes: 12, downvotes: 2,
   },
 ];
 
+function buildMockDiscussionSeed(subjectId: string): PDBComment[] {
+  const subject = getSubjectBySlug(subjectId);
+  const name = subject?.name ?? 'this personality';
+  const primaryMbti = getVoteResults(subjectId, 'mbti')[0];
+  const secondaryMbti = getVoteResults(subjectId, 'mbti')[1];
+  const primaryEnneagram = getVoteResults(subjectId, 'enneagram')[0];
+  const primarySocionics = getVoteResults(subjectId, 'socionics')[0];
+  const primaryTemperament = getVoteResults(subjectId, 'temperament')[0];
+
+  const mbtiLead = primaryMbti?.typeCode ?? 'INTJ';
+  const mbtiAlt = secondaryMbti?.typeCode ?? 'INFJ';
+  const enneagramLead = primaryEnneagram?.typeCode ?? '5';
+  const socionicsLead = primarySocionics?.typeCode ?? mbtiLead;
+  const temperamentLead = primaryTemperament?.typeCode ?? 'Phlegmatic';
+
+  return [
+    {
+      id: `${subjectId}-mock-1`,
+      subjectId,
+      parentId: null,
+      authorName: 'typewatcher',
+      isAnonymous: false,
+      text: `${mbtiLead} still makes the most sense for ${name}. The ${enneagramLead} fix explains the intensity way better than the usual ${mbtiAlt} arguments people keep making.`,
+      createdAt: '2026-07-24T14:10:00.000Z',
+      upvotes: 18,
+      downvotes: 2,
+    },
+    {
+      id: `${subjectId}-mock-2`,
+      subjectId,
+      parentId: `${subjectId}-mock-1`,
+      authorName: 'patternseeker',
+      isAnonymous: false,
+      text: `I can also see the ${socionicsLead} case. The public style feels more deliberate than people expect, especially once you compare it with the runner-up types.`,
+      createdAt: '2026-07-24T16:25:00.000Z',
+      upvotes: 7,
+      downvotes: 1,
+    },
+    {
+      id: `${subjectId}-mock-3`,
+      subjectId,
+      parentId: null,
+      authorName: 'contextmatters',
+      isAnonymous: false,
+      text: `Temperament-wise I lean ${temperamentLead}. The overall energy reads consistent there, even if the exact subtype debates are still all over the place.`,
+      createdAt: '2026-07-25T09:40:00.000Z',
+      upvotes: 11,
+      downvotes: 1,
+    },
+  ];
+}
+
+export function getCommentsForSubject(subjectId: string, allComments: PDBComment[] = PDB_COMMENTS): PDBComment[] {
+  const subjectComments = allComments.filter(comment => comment.subjectId === subjectId);
+  return subjectComments.length > 0 ? subjectComments : buildMockDiscussionSeed(subjectId);
+}
+
 // Build a threaded tree of comments for a given subject
 export function getCommentTree(subjectId: string, allComments: PDBComment[] = PDB_COMMENTS): PDBCommentNode[] {
-  const forSubject = allComments.filter(c => c.subjectId === subjectId);
+  const forSubject = getCommentsForSubject(subjectId, allComments);
   const nodes = new Map<string, PDBCommentNode>();
   forSubject.forEach(c => nodes.set(c.id, { ...c, replies: [] }));
 
