@@ -25,6 +25,8 @@ export interface User {
   id: string;
   email: string;
   full_name: string;
+  username?: string | null;
+  aliases?: string[] | null;
   role: UserRole;
   org_id: string | null;
   avatar: string | null;
@@ -479,6 +481,7 @@ export interface TestScore {
 export interface MentoringListingUser {
   id: string;
   full_name: string;
+  username?: string | null;
   role: string;
   xp: number;
   streak: number;
@@ -548,6 +551,8 @@ export interface Share {
 export interface PublicProfile {
   id: string;
   full_name: string;
+  username?: string | null;
+  aliases?: string[] | null;
   role: string;
   xp: number;
   streak: number;
@@ -571,6 +576,7 @@ export interface PublicProfile {
 export interface FollowUser {
   id: string;
   full_name: string;
+  username?: string | null;
   role: string;
   xp: number;
   streak: number;
