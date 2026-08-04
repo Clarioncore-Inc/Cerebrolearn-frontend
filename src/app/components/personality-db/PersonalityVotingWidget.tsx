@@ -1,26 +1,28 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
-import { PersonalityVoteBar } from './PersonalityVoteBar';
+import { Button } from '../ui/button';
 import { Vote } from 'lucide-react';
+import { PersonalityVoteBar } from './PersonalityVoteBar';
 import {
   getAvailableSystemsForSubject,
   getVoteResults,
   getTotalVotes,
 } from '../../data/personalityDatabaseData';
 import { PDBVoteTally } from '../../types/personalityDatabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PersonalityVotingWidgetProps {
   subjectId: string;
+  onRequireSignIn: () => void;
 }
 
 /**
- * Self-contained voting widget backed by mock data. Anonymous votes are
- * simulated in local component state only (no backend yet).
+ * Self-contained voting widget backed by mock data. Votes require a signed
+ * in user; anonymous voting is no longer supported.
  */
-export function PersonalityVotingWidget({ subjectId }: PersonalityVotingWidgetProps) {
+export function PersonalityVotingWidget({ subjectId, onRequireSignIn }: PersonalityVotingWidgetProps) {
+  const { user } = useAuth();
   const systems = useMemo(() => getAvailableSystemsForSubject(subjectId), [subjectId]);
-  const [activeSystemId, setActiveSystemId] = useState(systems[0]?.id ?? 'mbti');
   const [localVotes, setLocalVotes] = useState<PDBVoteTally[]>([]);
   const [myVotes, setMyVotes] = useState<Record<string, string>>({});
 
@@ -29,6 +31,11 @@ export function PersonalityVotingWidget({ subjectId }: PersonalityVotingWidgetPr
   }
 
   const handleVote = (systemId: string, typeCode: string) => {
+    if (!user) {
+      onRequireSignIn();
+      return;
+    }
+
     const alreadyVotedFor = myVotes[systemId];
     if (alreadyVotedFor === typeCode) return; // no-op, already voted this type
 
@@ -75,37 +82,57 @@ export function PersonalityVotingWidget({ subjectId }: PersonalityVotingWidgetPr
     return base + local;
   };
 
+  const totalCommunityVotes = systems.reduce((sum, system) => sum + getTotalWithLocal(system.id), 0);
+  const formattedTotalVotes = new Intl.NumberFormat('en', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(totalCommunityVotes);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Vote className="w-5 h-5 text-[#395192]" />
-          Community Personality Vote
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Cast your vote below — no account needed.
-        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <Vote className="w-5 h-5 text-[#395192]" />
+              Community Personality Vote
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {formattedTotalVotes} votes across {systems.length} systems
+            </p>
+          </div>
+
+          {!user ? (
+            <Button onClick={onRequireSignIn} className="w-full sm:w-auto bg-[#395192] hover:bg-[#395192]/90 text-white">
+              <Vote className="w-4 h-4" />
+              Vote / Comment
+            </Button>
+          ) : (
+            <p className="text-sm text-muted-foreground">Click any type card below to cast your vote.</p>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
-        <Tabs value={activeSystemId} onValueChange={setActiveSystemId}>
-          <TabsList className="w-full flex-wrap h-auto">
-            {systems.map(system => (
-              <TabsTrigger key={system.id} value={system.id} className="flex-1">
-                {system.shortLabel}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        <div className="grid gap-4 md:grid-cols-2">
           {systems.map(system => (
-            <TabsContent key={system.id} value={system.id} className="pt-4">
+            <div key={system.id} className="rounded-xl border bg-muted/20 p-4">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-foreground">{system.label}</h3>
+                  <p className="text-xs text-muted-foreground">{getTotalWithLocal(system.id).toLocaleString()} votes</p>
+                </div>
+              </div>
+
               <PersonalityVoteBar
-                results={getResultsWithLocal(system.id)}
+                results={getResultsWithLocal(system.id).slice(0, 4)}
                 totalVotes={getTotalWithLocal(system.id)}
                 selectedType={myVotes[system.id] ?? null}
                 onVote={typeCode => handleVote(system.id, typeCode)}
+                interactive={!!user}
               />
-            </TabsContent>
+            </div>
           ))}
-        </Tabs>
+        </div>
       </CardContent>
     </Card>
   );
