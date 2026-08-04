@@ -2051,114 +2051,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           <Card>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
-                <HandHeart className='h-5 w-5 text-primary' />
-                Causes &amp; Philanthropy
-              </CardTitle>
-              <CardDescription>
-                Highlight the social causes you care about and support
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='flex gap-2'>
-                <Input
-                  placeholder='e.g. STEM Education, Mental Health, Animal Welfare...'
-                  value={newCause}
-                  onChange={(e) => setNewCause(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddCause();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddCause} disabled={!newCause.trim()}>
-                  <Plus className='h-4 w-4' />
-                </Button>
-              </div>
-
-              {causesLoading ? (
-                <div className='flex justify-center py-4'>
-                  <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
-                </div>
-              ) : causes.length === 0 ? (
-                <p className='text-sm text-muted-foreground'>No causes added yet.</p>
-              ) : (
-                <div className='flex flex-wrap gap-2'>
-                  {causes.map((item) => (
-                    <Badge key={item.id} variant='secondary' className='text-sm py-1.5 pl-3 pr-2'>
-                      {item.name}
-                      <button
-                        type='button'
-                        onClick={() => handleDeleteCause(item.id)}
-                        className='ml-1'
-                        aria-label={`Remove ${item.name}`}
-                      >
-                        <X className='h-3 w-3' />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <Sparkles className='h-5 w-5 text-primary' />
-                Skills &amp; Fields of Expertise
-              </CardTitle>
-              <CardDescription>
-                Add skills and areas of expertise you want to showcase
-              </CardDescription>
-            </CardHeader>
-            <CardContent className='space-y-4'>
-              <div className='flex gap-2'>
-                <Input
-                  placeholder='e.g. Calculus, Public Speaking, Data Science...'
-                  value={newSkill}
-                  onChange={(e) => setNewSkill(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddSkill();
-                    }
-                  }}
-                />
-                <Button onClick={handleAddSkill} disabled={!newSkill.trim()}>
-                  <Plus className='h-4 w-4' />
-                </Button>
-              </div>
-
-              {skillsLoading ? (
-                <div className='flex justify-center py-4'>
-                  <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
-                </div>
-              ) : skills.length === 0 ? (
-                <p className='text-sm text-muted-foreground'>No skills added yet.</p>
-              ) : (
-                <div className='flex flex-wrap gap-2'>
-                  {skills.map((item) => (
-                    <Badge key={item.id} variant='secondary' className='text-sm py-1.5 pl-3 pr-2'>
-                      {item.name}
-                      <button
-                        type='button'
-                        onClick={() => handleDeleteSkill(item.id)}
-                        className='ml-1'
-                        aria-label={`Remove ${item.name}`}
-                      >
-                        <X className='h-3 w-3' />
-                      </button>
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
                 <ExternalLink className='h-5 w-5 text-primary' />
                 Social Links &amp; Websites
               </CardTitle>
@@ -2417,6 +2309,60 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             </div>
           )}
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <Sparkles className='h-5 w-5 text-primary' />
+                Skills &amp; Fields of Expertise
+              </CardTitle>
+              <CardDescription>
+                Add skills and areas of expertise you want to showcase
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='flex gap-2'>
+                <Input
+                  placeholder='e.g. Calculus, Public Speaking, Data Science...'
+                  value={newSkill}
+                  onChange={(e) => setNewSkill(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddSkill();
+                    }
+                  }}
+                />
+                <Button onClick={handleAddSkill} disabled={!newSkill.trim()}>
+                  <Plus className='h-4 w-4' />
+                </Button>
+              </div>
+
+              {skillsLoading ? (
+                <div className='flex justify-center py-4'>
+                  <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+                </div>
+              ) : skills.length === 0 ? (
+                <p className='text-sm text-muted-foreground'>No skills added yet.</p>
+              ) : (
+                <div className='flex flex-wrap gap-2'>
+                  {skills.map((item) => (
+                    <Badge key={item.id} variant='secondary' className='text-sm py-1.5 pl-3 pr-2'>
+                      {item.name}
+                      <button
+                        type='button'
+                        onClick={() => handleDeleteSkill(item.id)}
+                        className='ml-1'
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <X className='h-3 w-3' />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Personality (Mental Diagnosis) Tab */}
@@ -2961,6 +2907,60 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
         {/* Interests Tab */}
         <TabsContent value='interests' className='space-y-4'>
+          <Card>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <HandHeart className='h-5 w-5 text-primary' />
+                Causes &amp; Philanthropy
+              </CardTitle>
+              <CardDescription>
+                Highlight the social causes you care about and support
+              </CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-4'>
+              <div className='flex gap-2'>
+                <Input
+                  placeholder='e.g. STEM Education, Mental Health, Animal Welfare...'
+                  value={newCause}
+                  onChange={(e) => setNewCause(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddCause();
+                    }
+                  }}
+                />
+                <Button onClick={handleAddCause} disabled={!newCause.trim()}>
+                  <Plus className='h-4 w-4' />
+                </Button>
+              </div>
+
+              {causesLoading ? (
+                <div className='flex justify-center py-4'>
+                  <Loader2 className='h-5 w-5 animate-spin text-muted-foreground' />
+                </div>
+              ) : causes.length === 0 ? (
+                <p className='text-sm text-muted-foreground'>No causes added yet.</p>
+              ) : (
+                <div className='flex flex-wrap gap-2'>
+                  {causes.map((item) => (
+                    <Badge key={item.id} variant='secondary' className='text-sm py-1.5 pl-3 pr-2'>
+                      {item.name}
+                      <button
+                        type='button'
+                        onClick={() => handleDeleteCause(item.id)}
+                        className='ml-1'
+                        aria-label={`Remove ${item.name}`}
+                      >
+                        <X className='h-3 w-3' />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Interests</CardTitle>

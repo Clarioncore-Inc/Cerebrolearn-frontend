@@ -191,7 +191,7 @@ export function ProfileView() {
     { value: 'personality', label: 'Personality', icon: Sparkles },
     { value: 'intelligence', label: 'Intelligence', icon: Brain },
     { value: 'research', label: 'Research & Development', icon: FolderKanban },
-    { value: 'honors', label: 'Honors & Awards', icon: Trophy },
+    { value: 'honors', label: 'Honors', icon: Trophy },
     { value: 'interests', label: 'Causes & Interests', icon: Heart },
     { value: 'community', label: 'Community', icon: MessageSquare },
     { value: 'mentoring', label: 'Mentoring', icon: GraduationCap },
