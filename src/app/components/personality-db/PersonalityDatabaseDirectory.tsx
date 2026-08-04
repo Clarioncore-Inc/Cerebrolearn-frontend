@@ -3,8 +3,8 @@ import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Brain, Search, Sparkles, Users, Vote } from 'lucide-react';
-import { PDB_SUBJECTS, getTotalVotes, getAvailableSystemsForSubject } from '../../data/personalityDatabaseData';
+import { Brain, Search, Sparkles } from 'lucide-react';
+import { PDB_SUBJECTS } from '../../data/personalityDatabaseData';
 import { SubjectCategory } from '../../types/personalityDatabase';
 import { PersonalitySubjectProfile } from './PersonalitySubjectProfile';
 import { SlideInView } from '../pages/SlideInView';
@@ -97,17 +97,17 @@ export function PersonalityDatabaseDirectory({ onNavigate, initialSlug }: Person
           <SlideInView>
             <div className="text-center space-y-5 max-w-3xl mx-auto">
               <Badge className="bg-[#395192] text-white border-0 shadow-lg">
-                <Vote className="w-4 h-4 mr-1.5" />
+                <Brain className="w-4 h-4 mr-1.5" />
                 Personality Database
               </Badge>
               <h1 className="text-4xl md:text-5xl font-bold">
-                <span className="block gradient-ai-text mb-2">Who Do You Think They Are?</span>
+                <span className="block gradient-ai-text mb-2">Explore Cognitive &amp; Personality Profiles</span>
                 <span className="block text-foreground text-2xl md:text-3xl font-medium">
-                  Vote & discuss personality types for real and fictional people
+                  Discover MBTI, zodiac, enneagram, and related profile markers
                 </span>
               </h1>
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-                A crowd-sourced wiki for MBTI, Enneagram, and more — sign in to vote and join the discussion.
+                Browse read-only personality snapshots for real and fictional people, with profile-style cognitive details.
               </p>
               <div className="flex flex-col items-center justify-center gap-3 pt-1 sm:flex-row">
                 <Button size="lg" onClick={() => onNavigate('personality-test-landing')}>
@@ -206,8 +206,6 @@ export function PersonalityDatabaseDirectory({ onNavigate, initialSlug }: Person
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {results.map((subject, index) => {
-            const systems = getAvailableSystemsForSubject(subject.id);
-            const totalVotes = systems.reduce((sum, s) => sum + getTotalVotes(subject.id, s.id), 0);
             return (
               <div
                 key={subject.id}
@@ -244,8 +242,8 @@ export function PersonalityDatabaseDirectory({ onNavigate, initialSlug }: Person
                     </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">{subject.subtitle}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground pt-1 border-t">
-                      <Users className="w-3.5 h-3.5" />
-                      {totalVotes.toLocaleString()} community votes
+                      <Brain className="w-3.5 h-3.5" />
+                      {subject.mbtiType ? `MBTI: ${subject.mbtiType}` : 'Profile available'}
                       <Sparkles className="w-3.5 h-3.5 ml-auto text-[#f59e0b]" />
                     </div>
                   </CardContent>
