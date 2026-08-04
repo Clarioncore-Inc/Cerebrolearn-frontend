@@ -129,6 +129,8 @@ interface ProfilePageProps {
 
 interface ProfileFormData {
   full_name: string;
+  username: string;
+  aliases: string;
   email: string;
   phone_number: string;
   location: string;
@@ -168,6 +170,8 @@ const parseTagList = (value: string): string[] | null => {
 
 const createProfileFormData = (profile: any): ProfileFormData => ({
   full_name: profile?.full_name ?? '',
+  username: profile?.username ?? '',
+  aliases: (profile?.aliases ?? []).join(', '),
   email: profile?.email ?? '',
   phone_number: profile?.phone_number ?? '',
   location: profile?.location ?? '',
@@ -730,6 +734,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
       await authApi.updateProfile({
         full_name: formData.full_name.trim(),
+        username: formData.username.trim() || null,
+        aliases: parseTagList(formData.aliases),
         email: formData.email.trim(),
         phone_number: formData.phone_number.trim() || null,
         location: formData.location.trim() || null,
@@ -1713,6 +1719,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               {profile?.role?.replace('_', ' ') || 'Learner'}
             </Badge>
           </div>
+          {formData.username && (
+            <p className='text-sm text-muted-foreground'>@{formData.username}</p>
+          )}
+          {formData.aliases && (
+            <p className='text-sm text-muted-foreground'>
+              Also known as: {formData.aliases}
+            </p>
+          )}
           <p className='text-sm text-muted-foreground'>{formData.email}</p>
         </div>
 
@@ -1853,6 +1867,33 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     }
                     disabled={!isEditing}
                   />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='username'>Username</Label>
+                  <Input
+                    id='username'
+                    placeholder='e.g. jane_doe'
+                    value={formData.username}
+                    onChange={(e) =>
+                      handleProfileFieldChange('username', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                </div>
+
+                <div className='space-y-2'>
+                  <Label htmlFor='aliases'>Alias(es)</Label>
+                  <Input
+                    id='aliases'
+                    placeholder='e.g. Janey, JD'
+                    value={formData.aliases}
+                    onChange={(e) =>
+                      handleProfileFieldChange('aliases', e.target.value)
+                    }
+                    disabled={!isEditing}
+                  />
+                  <p className='text-xs text-muted-foreground'>Comma-separated list</p>
                 </div>
 
                 <div className='space-y-2'>

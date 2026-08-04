@@ -9,6 +9,8 @@ interface UserProfile {
   id: string;
   email: string;
   full_name: string;
+  username?: string | null;
+  aliases?: string[] | null;
   role:
     | 'learner'
     | 'iq_user'
