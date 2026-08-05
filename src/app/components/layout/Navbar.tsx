@@ -43,7 +43,6 @@ import {
   Target,
   Bookmark,
   Rss,
-  Sparkles,
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -119,16 +118,15 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
           {!user && (
             <div className='hidden md:flex items-center gap-2'>
               <button
-                onClick={() => onNavigate('personality-database')}
+                onClick={() => onNavigate('public-rankings')}
                 className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
-                  currentPage === 'personality-database' ||
-                  currentPage === 'personality-db'
+                  currentPage === 'public-rankings'
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
-                <Sparkles className='h-4 w-4' />
-                Personality Database
+                <Brain className='h-4 w-4' />
+                Public User Rankings
               </button>
             </div>
           )}
@@ -285,10 +283,10 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                     My Sessions
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => onNavigate('personality-database')}
+                    onClick={() => onNavigate('public-rankings')}
                   >
-                    <Sparkles className='mr-2 h-4 w-4' />
-                    Personality Database
+                    <Brain className='mr-2 h-4 w-4' />
+                    Public User Rankings
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -431,11 +429,11 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               <Button
                 variant='ghost'
                 size='icon'
-                onClick={() => onNavigate('personality-database')}
+                onClick={() => onNavigate('public-rankings')}
                 className='md:hidden'
-                aria-label='Personality Database'
+                aria-label='Public User Rankings'
               >
-                <Sparkles className='h-5 w-5' />
+                <Brain className='h-5 w-5' />
               </Button>
               <Button
                 variant='ghost'

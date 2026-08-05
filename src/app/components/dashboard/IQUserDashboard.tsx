@@ -35,7 +35,14 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
-import { psychologistApi, publicGeniusApi, type GeniusApiResponse } from '../../utils/api-client';
+import {
+  psychologistApi,
+  publicGeniusApi,
+  officialIqApi,
+  cognitiveProfileApi,
+  type GeniusApiResponse,
+  type IQTestCandidate,
+} from '../../utils/api-client';
 import { formatIQTestType, isIQTestType, type IQTestType } from '../../utils/iqTestTypes';
 import { calculateIQScoreFromCognitiveProfile } from './IQCertificate';
 import type {
@@ -48,7 +55,19 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { Skeleton } from '../ui/skeleton';
+import { Switch } from '../ui/switch';
+import { Label } from '../ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { toast } from 'sonner';
 
 interface IQUserDashboardProps {
@@ -341,6 +360,11 @@ export function IQUserDashboard({
   const [geniusProfiles, setGeniusProfiles] = useState<DashboardGeniusProfile[]>([]);
   const [geniusLoading, setGeniusLoading] = useState(true);
   const [geniusError, setGeniusError] = useState<string | null>(null);
+  const [iqTestCandidates, setIqTestCandidates] = useState<IQTestCandidate[]>([]);
+  const [publicRankingOptIn, setPublicRankingOptIn] = useState(false);
+  const [isSwitchingOfficialTest, setIsSwitchingOfficialTest] = useState(false);
+  const [isTogglingOptIn, setIsTogglingOptIn] = useState(false);
+  const [showConsentDialog, setShowConsentDialog] = useState(false);
   const [activeSessionTab, setActiveSessionTab] = useState<'upcoming' | 'past'>(initialSessionTab);
   const [visibleSessionCounts, setVisibleSessionCounts] = useState<Record<'upcoming' | 'past', number>>({
     upcoming: SESSIONS_PAGE_SIZE,
@@ -826,6 +850,82 @@ export function IQUserDashboard({
       isMounted = false;
     };
   }, []);
+
+  const reloadIqTestCandidates = async () => {
+    try {
+      const candidates = await officialIqApi.listCandidates();
+      setIqTestCandidates(candidates || []);
+    } catch (error) {
+      setIqTestCandidates([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    let isMounted = true;
+
+    const loadOfficialIqState = async () => {
+      try {
+        const [candidates, cognitiveProfile] = await Promise.all([
+          officialIqApi.listCandidates(),
+          cognitiveProfileApi.get(),
+        ]);
+        if (!isMounted) return;
+        setIqTestCandidates(candidates || []);
+        setPublicRankingOptIn(!!cognitiveProfile?.public_ranking_opt_in);
+      } catch (error) {
+        if (!isMounted) return;
+        setIqTestCandidates([]);
+      }
+    };
+
+    loadOfficialIqState();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const handleSelectOfficialTest = async (bookingId: string) => {
+    setIsSwitchingOfficialTest(true);
+    try {
+      await officialIqApi.select(bookingId);
+      await reloadIqTestCandidates();
+      toast.success('Official IQ test updated.');
+    } catch (error: any) {
+      toast.error(error?.message || 'Failed to update official IQ test.');
+    } finally {
+      setIsSwitchingOfficialTest(false);
+    }
+  };
+
+  const handleTogglePublicRanking = (checked: boolean) => {
+    if (checked) {
+      // Opting in requires reviewing and acknowledging the disclosure notice first.
+      setShowConsentDialog(true);
+      return;
+    }
+    void applyPublicRankingConsent(false, false);
+  };
+
+  const applyPublicRankingConsent = async (optIn: boolean, consentAcknowledged: boolean) => {
+    setIsTogglingOptIn(true);
+    const previous = publicRankingOptIn;
+    setPublicRankingOptIn(optIn);
+    try {
+      await officialIqApi.setPublicRankingConsent(optIn, consentAcknowledged);
+    } catch (error: any) {
+      setPublicRankingOptIn(previous);
+      toast.error(error?.message || 'Failed to update public ranking preference.');
+    } finally {
+      setIsTogglingOptIn(false);
+    }
+  };
+
+  const handleConfirmPublicRankingConsent = () => {
+    setShowConsentDialog(false);
+    void applyPublicRankingConsent(true, true);
+  };
 
   useEffect(() => {
     if (focusSection === 'sessions') {
@@ -1389,6 +1489,77 @@ export function IQUserDashboard({
                         <p className='mt-2 text-xs text-muted-foreground text-gray-700'>
                           * Genius profile IQ values here are published estimates, so this benchmark aligns positions across the two scales instead of comparing raw IQ numbers directly.
                         </p>
+
+                        {iqTestCandidates.length > 0 ? (
+                          <div className='mt-5 space-y-4 rounded-xl border border-border/40 bg-muted/20 p-4'>
+                            {iqTestCandidates.length > 1 ? (
+                              <div className='space-y-2'>
+                                <p className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+                                  Choose your official test
+                                </p>
+                                <div className='flex flex-wrap gap-2'>
+                                  {iqTestCandidates.map((candidate) => (
+                                    <Button
+                                      key={candidate.booking_id}
+                                      size='sm'
+                                      variant={candidate.is_current_official ? 'default' : 'outline'}
+                                      disabled={isSwitchingOfficialTest || candidate.is_current_official}
+                                      onClick={() => handleSelectOfficialTest(candidate.booking_id)}
+                                    >
+                                      IQ {candidate.computed_iq}
+                                      {candidate.test_date ? ` · ${candidate.test_date}` : ''}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            <div className='flex items-center justify-between gap-3'>
+                              <Label htmlFor='public-ranking-opt-in' className='cursor-pointer text-sm'>
+                                Show me on Public Rankings
+                              </Label>
+                              <Switch
+                                id='public-ranking-opt-in'
+                                checked={publicRankingOptIn}
+                                disabled={isTogglingOptIn}
+                                onCheckedChange={handleTogglePublicRanking}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <AlertDialog open={showConsentDialog} onOpenChange={setShowConsentDialog}>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Join the Public Rankings?</AlertDialogTitle>
+                              <AlertDialogDescription asChild>
+                                <div className='space-y-3 text-left'>
+                                  <p>
+                                    Turning this on makes your profile visible to anyone, including
+                                    people who aren't logged in. Specifically, the following will be
+                                    shown publicly:
+                                  </p>
+                                  <ul className='list-disc space-y-1 pl-5'>
+                                    <li>Your name, username, and avatar</li>
+                                    <li>Your verified official IQ score</li>
+                                    <li>Your bio and location, if you've added them</li>
+                                    <li>Your education, work history, honors, and skills, if you've added them</li>
+                                  </ul>
+                                  <p>
+                                    You can turn this off at any time, which will remove your profile
+                                    from the public rankings.
+                                  </p>
+                                </div>
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={handleConfirmPublicRankingConsent}>
+                                I Agree, Show My Profile
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                         {/* <div className='grid gap-4'>
                       {geniusComparisonCards.map((item) => {

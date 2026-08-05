@@ -420,7 +420,10 @@ export interface CognitiveProfile {
   memory_benchmark?: string | null;
   memory_benchmark_proof_url?: string | null;
   official_iq?: number | null;
+  official_iq_booking_id?: string | null;
   pi_digits_memorized?: number | null;
+  public_ranking_opt_in: boolean;
+  public_ranking_consented_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -683,4 +686,27 @@ export interface LeaderboardResponse extends ApiResponse<User[]> {
 
 export interface BookmarksResponse extends ApiResponse<Bookmark[]> {
   bookmarks?: Bookmark[];
+}
+
+export interface PublicRankingEntry {
+  user_id: string;
+  full_name: string;
+  username?: string | null;
+  avatar?: string | null;
+  location?: string | null;
+  official_iq: number;
+}
+
+export interface PublicRankedProfile extends PublicProfile {
+  educations: Education[];
+  work_experiences: WorkExperience[];
+  honors: Honor[];
+  interests: Interest[];
+  causes: Cause[];
+  skills: Skill[];
+  cognitive_profile: CognitiveProfile | null;
+  patents: Patent[];
+  publications: Publication[];
+  projects: Project[];
+  test_scores: TestScore[];
 }

@@ -416,7 +416,6 @@ interface CognitiveProfileFormState {
   memory_level: string;
   memory_benchmark: string;
   memory_benchmark_proof_url: string;
-  official_iq: string;
   pi_digits_memorized: string;
 }
 
@@ -437,7 +436,6 @@ const emptyCognitiveProfileForm: CognitiveProfileFormState = {
   memory_level: '',
   memory_benchmark: '',
   memory_benchmark_proof_url: '',
-  official_iq: '',
   pi_digits_memorized: '',
 };
 
@@ -460,7 +458,6 @@ const createCognitiveProfileForm = (
   memory_level: profile?.memory_level ?? '',
   memory_benchmark: profile?.memory_benchmark ?? '',
   memory_benchmark_proof_url: profile?.memory_benchmark_proof_url ?? '',
-  official_iq: profile?.official_iq?.toString() ?? '',
   pi_digits_memorized: profile?.pi_digits_memorized?.toString() ?? '',
 });
 
@@ -1249,9 +1246,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         memory_benchmark: cognitiveProfileForm.memory_benchmark.trim() || null,
         memory_benchmark_proof_url:
           cognitiveProfileForm.memory_benchmark_proof_url.trim() || null,
-        official_iq: cognitiveProfileForm.official_iq
-          ? Number(cognitiveProfileForm.official_iq)
-          : null,
         pi_digits_memorized: cognitiveProfileForm.pi_digits_memorized
           ? Number(cognitiveProfileForm.pi_digits_memorized)
           : null,
@@ -2744,17 +2738,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <div className='grid grid-cols-2 gap-3'>
                     <div className='space-y-2'>
                       <Label>Official IQ</Label>
-                      <Input
-                        type='number'
-                        placeholder='Verified/official test score'
-                        value={cognitiveProfileForm.official_iq}
-                        onChange={(e) =>
-                          setCognitiveProfileForm((c) => ({
-                            ...c,
-                            official_iq: e.target.value,
-                          }))
-                        }
-                      />
+                      <p className='text-sm text-muted-foreground'>
+                        {cognitiveProfile?.official_iq ?? '—'} (verified from a
+                        completed psychologist test — not editable here)
+                      </p>
                     </div>
                     <div className='space-y-2'>
                       <Label>Pi Digits Memorized</Label>

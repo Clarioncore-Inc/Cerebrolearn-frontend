@@ -18,6 +18,7 @@ import {
   mentoringApi,
   socialGraphApi,
   activityApi,
+  rankingsApi,
   type DiscussionPostRecord,
 } from '../../utils/api-client';
 import type {
@@ -37,6 +38,7 @@ import type {
   FollowStatus,
   FollowUser,
   ActivityItem,
+  PublicRankedProfile,
 } from '../../types/database';
 import { ActivityFeedList } from '../social/ActivityFeedList';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -88,9 +90,16 @@ import {
 } from '../../data/zodiacData';
 import { INTELLIGENCE_TYPES, INTELLIGENCE_TYPE_KEYS } from '../../data/intelligenceTypesData';
 
-export function ProfileView() {
-  const { profile } = useAuth();
+interface ProfileViewProps {
+  userId?: string;
+}
+
+export function ProfileView({ userId }: ProfileViewProps = {}) {
+  const { profile: authProfile } = useAuth();
   const navigate = useNavigate();
+
+  const targetUserId = userId || authProfile?.id;
+  const isViewingSelf = !userId || userId === authProfile?.id;
 
   const [educations, setEducations] = useState<Education[]>([]);
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
@@ -111,43 +120,71 @@ export function ProfileView() {
   const [listUsers, setListUsers] = useState<FollowUser[]>([]);
   const [listLoading, setListLoading] = useState(false);
   const [networkFeed, setNetworkFeed] = useState<ActivityItem[]>([]);
+  const [publicProfileRecord, setPublicProfileRecord] = useState<PublicRankedProfile | null>(null);
+  const [publicProfileNotFound, setPublicProfileNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('activity');
 
   useEffect(() => {
-    if (!profile) return;
+    if (!targetUserId) return;
     setLoading(true);
-    Promise.allSettled([
-      educationApi.list().then(setEducations),
-      workExperienceApi.list().then(setWorkExperiences),
-      honorsApi.list().then(setHonors),
-      interestsApi.list().then(setInterests),
-      causesApi.list().then(setCauses),
-      skillsApi.list().then(setSkills),
-      cognitiveProfileApi.get().then(setCognitiveProfile),
-      patentsApi.list().then(setPatents),
-      publicationsApi.list().then(setPublications),
-      projectsApi.list().then(setProjects),
-      testScoresApi.list().then(setTestScores),
-      discussionsApi.list({ user_id: profile.id }).then(setDiscussionPosts),
-      reviewsApi.getForUser(profile.id).then(setCourseReviews),
-      mentoringApi
-        .listListings({ user_id: profile.id })
-        .then(setMentoringListings),
-      socialGraphApi.getStatus(profile.id).then(setFollowStatus),
-      activityApi.getFeed().then(setNetworkFeed),
-    ]).finally(() => setLoading(false));
-  }, [profile?.id]);
+    setPublicProfileNotFound(false);
+
+    if (isViewingSelf) {
+      Promise.allSettled([
+        educationApi.list().then(setEducations),
+        workExperienceApi.list().then(setWorkExperiences),
+        honorsApi.list().then(setHonors),
+        interestsApi.list().then(setInterests),
+        causesApi.list().then(setCauses),
+        skillsApi.list().then(setSkills),
+        cognitiveProfileApi.get().then(setCognitiveProfile),
+        patentsApi.list().then(setPatents),
+        publicationsApi.list().then(setPublications),
+        projectsApi.list().then(setProjects),
+        testScoresApi.list().then(setTestScores),
+        discussionsApi.list({ user_id: targetUserId }).then(setDiscussionPosts),
+        reviewsApi.getForUser(targetUserId).then(setCourseReviews),
+        mentoringApi
+          .listListings({ user_id: targetUserId })
+          .then(setMentoringListings),
+        socialGraphApi.getStatus(targetUserId).then(setFollowStatus),
+        activityApi.getFeed().then(setNetworkFeed),
+      ]).finally(() => setLoading(false));
+    } else {
+      rankingsApi
+        .getPublicProfile(targetUserId)
+        .then((data) => {
+          setPublicProfileRecord(data);
+          setEducations(data.educations || []);
+          setWorkExperiences(data.work_experiences || []);
+          setHonors(data.honors || []);
+          setInterests(data.interests || []);
+          setCauses(data.causes || []);
+          setSkills(data.skills || []);
+          setCognitiveProfile(data.cognitive_profile || null);
+          setPatents(data.patents || []);
+          setPublications(data.publications || []);
+          setProjects(data.projects || []);
+          setTestScores(data.test_scores || []);
+        })
+        .catch(() => {
+          setPublicProfileRecord(null);
+          setPublicProfileNotFound(true);
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [targetUserId, isViewingSelf]);
 
   const openList = async (kind: 'followers' | 'following') => {
-    if (!profile) return;
+    if (!targetUserId) return;
     setListDialog(kind);
     setListLoading(true);
     try {
       const users =
         kind === 'followers'
-          ? await socialGraphApi.getFollowers(profile.id)
-          : await socialGraphApi.getFollowing(profile.id);
+          ? await socialGraphApi.getFollowers(targetUserId)
+          : await socialGraphApi.getFollowing(targetUserId);
       setListUsers(users || []);
     } catch {
       setListUsers([]);
@@ -156,10 +193,26 @@ export function ProfileView() {
     }
   };
 
-  if (!profile || loading) {
+  // Cast to `any`: self-view uses the authenticated User shape (has email,
+  // phone_number, etc.) while public-view uses PublicRankedProfile, which
+  // deliberately omits private fields (e.g. email). Render logic below
+  // already falls back to '—' for any field that may be absent.
+  const profile: any = isViewingSelf ? authProfile : publicProfileRecord;
+
+  if (loading) {
     return (
       <div className='flex justify-center py-24'>
         <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className='flex flex-col items-center gap-2 py-24 text-center'>
+        <p className='text-lg font-medium'>
+          {publicProfileNotFound ? 'This profile is not available.' : 'Profile not found.'}
+        </p>
       </div>
     );
   }
@@ -236,7 +289,9 @@ export function ProfileView() {
                   {profile.username && (
                     <p className='text-base text-muted-foreground'>@{profile.username}</p>
                   )}
-                  <p className='text-base text-muted-foreground'>{profile.email}</p>
+                  {profile.email && (
+                    <p className='text-base text-muted-foreground'>{profile.email}</p>
+                  )}
                   <div className='flex flex-wrap items-center gap-2 text-sm text-muted-foreground'>
                     <Badge variant='secondary' className='capitalize'>
                       <Sparkles className='mr-1 h-3 w-3' />
@@ -335,20 +390,24 @@ export function ProfileView() {
                   <div className='space-y-4'>
                     <h3 className='text-base font-semibold'>Personal Information</h3>
                     <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
-                    <div className='space-y-1'>
-                      <p className='text-xs text-muted-foreground'>Email Address</p>
-                      <p className='flex items-center gap-2 text-sm'>
-                        <Mail className='h-4 w-4 text-primary' />
-                        {profile.email || '—'}
-                      </p>
-                    </div>
-                    <div className='space-y-1'>
-                      <p className='text-xs text-muted-foreground'>Phone Number</p>
-                      <p className='flex items-center gap-2 text-sm'>
-                        <Phone className='h-4 w-4 text-primary' />
-                        {profile.phone_number || '—'}
-                      </p>
-                    </div>
+                    {isViewingSelf && (
+                      <div className='space-y-1'>
+                        <p className='text-xs text-muted-foreground'>Email Address</p>
+                        <p className='flex items-center gap-2 text-sm'>
+                          <Mail className='h-4 w-4 text-primary' />
+                          {profile.email || '—'}
+                        </p>
+                      </div>
+                    )}
+                    {isViewingSelf && (
+                      <div className='space-y-1'>
+                        <p className='text-xs text-muted-foreground'>Phone Number</p>
+                        <p className='flex items-center gap-2 text-sm'>
+                          <Phone className='h-4 w-4 text-primary' />
+                          {profile.phone_number || '—'}
+                        </p>
+                      </div>
+                    )}
                     <div className='space-y-1'>
                       <p className='text-xs text-muted-foreground'>Location</p>
                       <p className='flex items-center gap-2 text-sm'>

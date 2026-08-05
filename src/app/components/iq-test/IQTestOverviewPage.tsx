@@ -26,33 +26,12 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
-import { publicGeniusApi, type GeniusApiResponse } from '../../utils/api-client';
+import { rankingsApi } from '../../utils/api-client';
+import type { PublicRankingEntry } from '../../types/database';
 
 interface IQTestOverviewPageProps {
   onNavigate: (page: string, data?: any) => void;
 }
-
-interface TopGeniusPreview {
-  id: string;
-  name: string;
-  iq: number | null;
-  field: string;
-}
-
-const formatGeniusProfileType = (value?: string) => {
-  if (!value) return 'Profile';
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-};
-
-const mapTopGeniusPreview = (profile: GeniusApiResponse): TopGeniusPreview => ({
-  id: profile.id,
-  name: profile.full_name,
-  iq: profile.iq_score,
-  field: formatGeniusProfileType(profile.profile_type),
-});
 
 const benefits = [
   {
@@ -68,7 +47,7 @@ const benefits = [
   {
     icon: Award,
     title: 'Compare Rankings',
-    description: 'See how you rank against the general population and historical geniuses'
+    description: 'See how you rank against the general population and other verified members'
   },
   {
     icon: Lightbulb,
@@ -158,36 +137,36 @@ const psychologistBookingProcess = [
 
 export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
   const [hoveredBenefit, setHoveredBenefit] = useState<number | null>(null);
-  const [topGeniuses, setTopGeniuses] = useState<TopGeniusPreview[]>([]);
-  const [isLoadingTopGeniuses, setIsLoadingTopGeniuses] = useState(true);
+  const [topRankings, setTopRankings] = useState<PublicRankingEntry[]>([]);
+  const [isLoadingTopRankings, setIsLoadingTopRankings] = useState(true);
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
 
   useEffect(() => {
     let isMounted = true;
 
-    const loadTopGeniuses = async () => {
-      setIsLoadingTopGeniuses(true);
+    const loadTopRankings = async () => {
+      setIsLoadingTopRankings(true);
 
       try {
-        const response = await publicGeniusApi.list();
+        const response = await rankingsApi.getPublicRankings();
         if (!isMounted) return;
 
-        const rankedProfiles = (response.items || [])
-          .map(mapTopGeniusPreview)
-          .sort((a, b) => (b.iq ?? -1) - (a.iq ?? -1))
+        const rankedProfiles = (response || [])
+          .slice()
+          .sort((a, b) => (b.official_iq ?? -1) - (a.official_iq ?? -1))
           .slice(0, 5);
 
-        setTopGeniuses(rankedProfiles);
+        setTopRankings(rankedProfiles);
       } catch (error) {
-        console.error('[IQTestOverviewPage] Failed to load top genius profiles:', error);
-        if (isMounted) setTopGeniuses([]);
+        console.error('[IQTestOverviewPage] Failed to load public rankings:', error);
+        if (isMounted) setTopRankings([]);
       } finally {
-        if (isMounted) setIsLoadingTopGeniuses(false);
+        if (isMounted) setIsLoadingTopRankings(false);
       }
     };
 
-    loadTopGeniuses();
+    loadTopRankings();
 
     return () => {
       isMounted = false;
@@ -250,27 +229,27 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               </div>
             </div>
 
-            {/* Right Column - Top Geniuses Preview */}
+            {/* Right Column - Top Public Rankings Preview */}
             <div>
               <Card className="border-white/20 bg-white/10 backdrop-blur dark:border-white/10 dark:bg-slate-900/75">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2 text-2xl text-white dark:text-slate-50">
                     <Trophy className="w-6 h-6 text-yellow-300" />
-                    Top 5 Genius Rankings
+                    Top 5 Public Rankings
                   </CardTitle>
                   <CardDescription className="text-white/80 dark:text-slate-300">
-                    See how you compare to history's greatest minds
+                    See how you compare to verified members who chose to share their results
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {isLoadingTopGeniuses ? (
+                  {isLoadingTopRankings ? (
                     <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-white/80 dark:bg-white/5 dark:text-slate-300">
-                      Loading genius profiles…
+                      Loading rankings…
                     </div>
-                  ) : topGeniuses.length > 0 ? (
-                    topGeniuses.map((genius, index) => (
-                    <div 
-                      key={genius.id}
+                  ) : topRankings.length > 0 ? (
+                    topRankings.map((entry, index) => (
+                    <div
+                      key={entry.user_id}
                       className="flex items-center gap-4 rounded-lg bg-white/5 p-3 transition-colors hover:bg-white/10 dark:bg-white/5 dark:hover:bg-white/10"
                     >
                       <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold ${
@@ -282,24 +261,26 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <p className="font-semibold text-white dark:text-slate-100">{genius.name}</p>
-                        <p className="text-sm text-white/70 dark:text-slate-400">{genius.field}</p>
+                        <p className="font-semibold text-white dark:text-slate-100">{entry.full_name}</p>
+                        <p className="text-sm text-white/70 dark:text-slate-400">
+                          {entry.username ? `@${entry.username}` : entry.location || 'Ranked Member'}
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-white dark:text-slate-100">{genius.iq ?? '—'}</p>
+                        <p className="text-2xl font-bold text-white dark:text-slate-100">{entry.official_iq ?? '—'}</p>
                         <p className="text-xs text-white/70 dark:text-slate-400">IQ Score</p>
                       </div>
                     </div>
                     ))
                   ) : (
                     <div className="rounded-lg bg-white/5 p-4 text-center text-sm text-white/80 dark:bg-white/5 dark:text-slate-300">
-                      Genius profiles are not available yet.
+                      No public rankings available yet.
                     </div>
                   )}
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     className="mt-4 w-full border-white/30 bg-transparent text-white hover:bg-white/10 dark:border-white/15 dark:text-slate-100 dark:hover:bg-white/5"
-                    onClick={() => onNavigate('genius-rankings')}
+                    onClick={() => onNavigate('public-rankings')}
                   >
                     View Full Rankings
                     <ChevronRight className="w-4 h-4 ml-2" />
@@ -460,8 +441,8 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
                   <div className="flex items-start gap-3">
                     <CheckCircle className="w-5 h-5 text-success flex-shrink-0 mt-1" />
                     <div>
-                      <p className="font-semibold mb-1">Compare with Geniuses</p>
-                      <p className="text-sm text-muted-foreground">See how you rank against historical figures</p>
+                      <p className="font-semibold mb-1">Join the Public Rankings</p>
+                      <p className="text-sm text-muted-foreground">See how you rank against verified members</p>
                     </div>
                   </div>
                 </CardContent>

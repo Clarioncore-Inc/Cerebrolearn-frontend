@@ -161,9 +161,9 @@ export function MBTIQuizResults({ onNavigate, resultId }: MBTIQuizResultsProps) 
             <RefreshCw className="w-4 h-4 mr-2" />
             Retake the Test
           </Button>
-          <Button size="lg" onClick={() => onNavigate('personality-database')}>
+          <Button size="lg" onClick={() => onNavigate('public-rankings')}>
             <Users className="w-4 h-4 mr-2" />
-            Explore the Personality Database
+            Explore Public User Rankings
           </Button>
           <Button size="lg" variant="secondary" onClick={() => toast.success('Result sharing coming soon!')}>
             <Share2 className="w-4 h-4 mr-2" />

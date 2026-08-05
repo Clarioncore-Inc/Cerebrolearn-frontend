@@ -35,6 +35,8 @@ import type {
   FollowUser,
   FollowStatus,
   ActivityItem,
+  PublicRankingEntry,
+  PublicRankedProfile,
 } from '../types/database';
 
 export interface PaginatedResponse<T> {
@@ -986,7 +988,6 @@ export interface CognitiveProfileUpdatePayload {
   memory_level?: string | null;
   memory_benchmark?: string | null;
   memory_benchmark_proof_url?: string | null;
-  official_iq?: number | null;
   pi_digits_memorized?: number | null;
 }
 
@@ -997,6 +998,30 @@ export const cognitiveProfileApi = {
     request<CognitiveProfile>('/profile/cognitive-profile', {
       method: 'PUT',
       body: JSON.stringify(data),
+    }),
+};
+
+export interface IQTestCandidate {
+  booking_id: string;
+  computed_iq: number;
+  test_date?: string | null;
+  psychologist_name?: string | null;
+  test_type?: string | null;
+  is_current_official: boolean;
+}
+
+export const officialIqApi = {
+  listCandidates: () =>
+    request<IQTestCandidate[]>('/profile/iq-test-candidates'),
+  select: (bookingId: string) =>
+    request<CognitiveProfile>('/profile/official-iq', {
+      method: 'PUT',
+      body: JSON.stringify({ booking_id: bookingId }),
+    }),
+  setPublicRankingConsent: (optIn: boolean, consentAcknowledged: boolean) =>
+    request<CognitiveProfile>('/profile/public-ranking-consent', {
+      method: 'PUT',
+      body: JSON.stringify({ opt_in: optIn, consent_acknowledged: consentAcknowledged }),
     }),
 };
 
@@ -1297,6 +1322,17 @@ export const discussionsApi = {
     request<DiscussionPostRecord>(`/discussions/${id}/like`, {
       method: 'POST',
     }),
+};
+
+// ========================================
+// PUBLIC USER RANKINGS API (unauthenticated)
+// ========================================
+
+export const rankingsApi = {
+  getPublicRankings: () =>
+    request<PublicRankingEntry[]>('/rankings/public'),
+  getPublicProfile: (userId: string) =>
+    request<PublicRankedProfile>(`/rankings/public-profile/${userId}`),
 };
 
 // ========================================
@@ -2079,6 +2115,7 @@ export const api = {
   interests: interestsApi,
   causes: causesApi,
   cognitiveProfile: cognitiveProfileApi,
+  officialIq: officialIqApi,
   patents: patentsApi,
   publications: publicationsApi,
   projects: projectsApi,
@@ -2087,6 +2124,7 @@ export const api = {
   mentoring: mentoringApi,
   socialGraph: socialGraphApi,
   activity: activityApi,
+  rankings: rankingsApi,
 };
 
 export default api;

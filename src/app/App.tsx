@@ -59,7 +59,7 @@ import { IQTestResults } from './components/iq-test/IQTestResults';
 import { EnhancedIQTestResults } from './components/iq-test/EnhancedIQTestResults';
 import { IQTestPracticeMode } from './components/iq-test/IQTestPracticeMode';
 import { GeniusDirectory } from './components/genius/GeniusDirectory';
-import { PersonalityDatabaseDirectory } from './components/personality-db/PersonalityDatabaseDirectory';
+import { PublicUserRankingsPage } from './components/iq-test/PublicUserRankingsPage';
 import { MBTIQuizLanding } from './components/personality-db/MBTIQuizLanding';
 import { MBTIQuizInterface } from './components/personality-db/MBTIQuizInterface';
 import { MBTIQuizResults } from './components/personality-db/MBTIQuizResults';
@@ -249,7 +249,8 @@ function AppContent() {
       currentPage !== 'payment' &&
       currentPage !== 'genius-directory' &&
       currentPage !== 'geniuses' &&
-      currentPage !== 'personality-database' &&
+      currentPage !== 'public-rankings' &&
+      currentPage !== 'public-profile' &&
       currentPage !== 'personality-db' &&
       currentPage !== 'personality-test-landing' &&
       currentPage !== 'personality-test-interface' &&
@@ -464,13 +465,8 @@ function AppContent() {
       case 'geniuses':
         return <GeniusDirectory onNavigate={handleNavigate} />;
 
-      case 'personality-database':
-        return (
-          <PersonalityDatabaseDirectory
-            onNavigate={handleNavigate}
-            initialSlug={pageData?.slug}
-          />
-        );
+      case 'public-rankings':
+        return <PublicUserRankingsPage onNavigate={handleNavigate} />;
 
       case 'personality-test-landing':
         return <MBTIQuizLanding onNavigate={handleNavigate} />;
@@ -644,6 +640,13 @@ function AppContent() {
           <UserProfilePage userId={pageData.userId} onNavigate={handleNavigate} />
         ) : (
           <ProfileView />
+        );
+
+      case 'public-profile':
+        return pageData?.userId ? (
+          <ProfileView userId={pageData.userId} />
+        ) : (
+          <PublicUserRankingsPage onNavigate={handleNavigate} />
         );
 
       case 'activity-feed':
