@@ -4,9 +4,10 @@ import { Footer } from './Footer';
 interface DynamicFooterProps {
   onNavigate?: (page: string) => void;
   hasSidebar?: boolean;
+  fullWidth?: boolean;
 }
 
-export function DynamicFooter({ onNavigate, hasSidebar }: DynamicFooterProps) {
+export function DynamicFooter({ onNavigate, hasSidebar, fullWidth = false }: DynamicFooterProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export function DynamicFooter({ onNavigate, hasSidebar }: DynamicFooterProps) {
 
   return (
     <div className={`transition-all duration-300 ${marginClass}`}>
-      <Footer onNavigate={onNavigate} hasSidebar={false} />
+      <Footer onNavigate={onNavigate} hasSidebar={false} fullWidth={fullWidth} />
     </div>
   );
 }

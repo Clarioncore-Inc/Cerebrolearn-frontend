@@ -7,9 +7,10 @@ import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
 interface FooterProps {
   onNavigate?: (page: string) => void;
   hasSidebar?: boolean;
+  fullWidth?: boolean;
 }
 
-export function Footer({ onNavigate, hasSidebar }: FooterProps) {
+export function Footer({ onNavigate, hasSidebar, fullWidth = false }: FooterProps) {
   const { showCourseFeatures, showLearnerFeatures, showInstructorFeatures } =
     useFeatureFlags();
   const handleNavigation = (page: string) => {
@@ -22,7 +23,7 @@ export function Footer({ onNavigate, hasSidebar }: FooterProps) {
     <footer className={`w-full bg-gradient-to-br from-background via-primary/5 to-secondary/5 border-t border-border/50 ${hasSidebar ? 'lg:ml-64' : ''}`}>
       {/* Main Footer Section */}
       <section className="border-t border-border/50">
-        <div className="container py-20">
+        <div className={fullWidth ? 'w-full px-0 py-20 md:px-6' : 'container py-20'}>
           <div className="w-full">
             {/* Footer Content Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-10 gap-16 mb-16">

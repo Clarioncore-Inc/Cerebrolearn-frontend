@@ -38,6 +38,7 @@ import { Leaderboard } from './components/pages/Leaderboard';
 import { PaymentPage } from './components/pages/PaymentPage';
 import { ProfilePage } from './components/pages/ProfilePage';
 import { ProfileView } from './components/pages/ProfileView';
+import { PublicProfileView } from './components/pages/PublicProfileView';
 import { UserProfilePage } from './components/pages/UserProfilePage';
 import { ActivityFeedPage } from './components/pages/ActivityFeedPage';
 import { ZodiacSignsPage } from './components/pages/ZodiacSignsPage';
@@ -644,7 +645,7 @@ function AppContent() {
 
       case 'public-profile':
         return pageData?.userId ? (
-          <ProfileView userId={pageData.userId} />
+          <PublicProfileView userId={pageData.userId} />
         ) : (
           <PublicUserRankingsPage onNavigate={handleNavigate} />
         );
@@ -1072,6 +1073,7 @@ function AppContent() {
       <DynamicFooter
         onNavigate={handleNavigate}
         hasSidebar={currentPage.startsWith('creator-')}
+        fullWidth={currentPage === 'public-profile'}
       />
       <Toaster />
     </div>
