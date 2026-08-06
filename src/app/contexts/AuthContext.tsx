@@ -3,6 +3,8 @@ import { authApi } from '../../../utils/api-client';
 import type { User } from '../types/database';
 
 let googleIdentityScriptPromise: Promise<any> | null = null;
+let googleIdentityInitialized = false;
+let googleCredentialHandler: ((credential: string) => void) | null = null;
 let facebookSdkPromise: Promise<any> | null = null;
 
 interface UserProfile {
@@ -362,15 +364,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const google = await loadGoogleIdentityServices();
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response: { credential?: string }) => {
-        if (!response.credential) {
-          return;
-        }
-        onCredential(response.credential);
-      },
-    });
+    googleCredentialHandler = onCredential;
+
+    if (!googleIdentityInitialized) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response: { credential?: string }) => {
+          if (!response.credential) {
+            return;
+          }
+          googleCredentialHandler?.(response.credential);
+        },
+      });
+      googleIdentityInitialized = true;
+    }
 
     container.replaceChildren();
     google.accounts.id.renderButton(container, {

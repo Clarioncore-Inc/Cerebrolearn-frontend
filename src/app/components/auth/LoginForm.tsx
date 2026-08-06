@@ -58,6 +58,7 @@ export function LoginForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const googleButtonRef = useRef<HTMLDivElement | null>(null);
+  const googleButtonRefreshTimeoutRef = useRef<number | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string;
     password?: string;
@@ -102,6 +103,16 @@ export function LoginForm({
     }
   };
 
+  const refreshGoogleButtonRef = useRef<() => Promise<void>>();
+  refreshGoogleButtonRef.current = async () => {
+    if (!googleButtonRef.current) return;
+    setGoogleButtonReady(false);
+    await renderGoogleButton(googleButtonRef.current, (credential) => {
+      void handleGoogleCredentialRef.current?.(credential);
+    });
+    setGoogleButtonReady(true);
+  };
+
   // Initialize the Google button once on mount. google.accounts.id.initialize()
   // must only be called a single time per page load, so this intentionally
   // does not re-run when the AuthContext callbacks are recreated on re-render.
@@ -109,15 +120,8 @@ export function LoginForm({
     let isMounted = true;
 
     const initializeGoogleButton = async () => {
-      if (!googleButtonRef.current) return;
       try {
-        setGoogleButtonReady(false);
-        await renderGoogleButton(googleButtonRef.current, (credential) => {
-          void handleGoogleCredentialRef.current?.(credential);
-        });
-        if (isMounted) {
-          setGoogleButtonReady(true);
-        }
+        await refreshGoogleButtonRef.current?.();
       } catch (err) {
         if (isMounted) {
           setGoogleButtonReady(false);
@@ -132,8 +136,37 @@ export function LoginForm({
 
     void initializeGoogleButton();
 
+    const scheduleGoogleButtonRefresh = () => {
+      if (googleButtonRefreshTimeoutRef.current !== null) {
+        window.clearTimeout(googleButtonRefreshTimeoutRef.current);
+      }
+
+      googleButtonRefreshTimeoutRef.current = window.setTimeout(() => {
+        if (!isMounted) return;
+        void initializeGoogleButton();
+      }, 150);
+    };
+
+    const handleWindowFocus = () => {
+      scheduleGoogleButtonRefresh();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleGoogleButtonRefresh();
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       isMounted = false;
+      if (googleButtonRefreshTimeoutRef.current !== null) {
+        window.clearTimeout(googleButtonRefreshTimeoutRef.current);
+      }
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
