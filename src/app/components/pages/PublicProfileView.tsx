@@ -95,6 +95,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [activeTab, setActiveTab] = useState('about');
+  const [isHeaderCondensed, setIsHeaderCondensed] = useState(false);
   const [showFullMbtiDescription, setShowFullMbtiDescription] = useState(false);
   const [showFullZodiacDescription, setShowFullZodiacDescription] = useState(false);
   const [showAllEducation, setShowAllEducation] = useState(false);
@@ -105,6 +106,8 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   const [showAllScores, setShowAllScores] = useState(false);
 
   const headerRef = useRef<HTMLDivElement>(null);
+  const headerHeightRef = useRef(0);
+  const isHeaderCondensedRef = useRef(false);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const [headerHeight, setHeaderHeight] = useState(0);
 
@@ -138,18 +141,45 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    const update = () => setHeaderHeight(el.offsetHeight);
+    let frameId = 0;
+    const update = () => {
+      cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        const nextHeight = Math.round(el.getBoundingClientRect().height);
+        headerHeightRef.current = nextHeight;
+        setHeaderHeight((currentHeight) =>
+          currentHeight === nextHeight ? currentHeight : nextHeight,
+        );
+      });
+    };
     update();
     const observer = new ResizeObserver(update);
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [profile]);
+    return () => {
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
+    };
+  }, [profile?.id]);
+
+  useEffect(() => {
+    isHeaderCondensedRef.current = isHeaderCondensed;
+  }, [isHeaderCondensed]);
 
   useEffect(() => {
     let frameId = 0;
 
     const updateActiveSection = () => {
-      const activationLine = headerHeight + 140;
+      const scrollY = window.scrollY;
+      const nextCondensedState = isHeaderCondensedRef.current
+        ? scrollY > 24
+        : scrollY > 72;
+
+      if (isHeaderCondensedRef.current !== nextCondensedState) {
+        isHeaderCondensedRef.current = nextCondensedState;
+        setIsHeaderCondensed(nextCondensedState);
+      }
+
+      const activationLine = headerHeightRef.current + 140;
       let nextActiveTab = PROFILE_TABS[0].value;
 
       for (const tab of PROFILE_TABS) {
@@ -183,7 +213,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onScroll);
     };
-  }, [headerHeight]);
+  }, [profile?.id]);
 
   useEffect(() => {
     setShowFullMbtiDescription(false);
@@ -231,7 +261,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   const discussionPosts = EMPTY_DISCUSSION_POSTS;
   const courseReviews = EMPTY_REVIEWS;
   const mentoringListings = EMPTY_MENTORING_LISTINGS;
-  const navTopOffset = 96;
+  const navTopOffset = headerHeight + 96;
   const contentScrollOffset = headerHeight + 112;
   const sideTabClassName =
     'flex w-full shrink-0 items-center justify-start gap-2 rounded-xl px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors';
@@ -306,9 +336,102 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
 
   return (
     <div className='min-h-screen bg-muted/20'>
-      <div className='w-full px-0 pb-6 md:px-6 md:pb-8'>
+      <div className='container pb-6 md:pb-8'>
         <div className='grid items-start gap-6 md:grid-cols-[240px_minmax(0,1fr)]'>
-          <aside className='md:sticky' style={{ top: `${navTopOffset}px` }}>
+          {/* Sticky header: cover image + avatar + profile info */}
+          <div
+            ref={headerRef}
+            className='sticky top-20 z-30 overflow-hidden rounded-3xl border bg-background shadow-sm md:col-span-2'
+          >
+            <div className='overflow-hidden bg-background'>
+              <div
+                className={`relative overflow-hidden transition-[height] duration-300 ease-in-out ${
+                  isHeaderCondensed ? 'h-24 md:h-32' : 'h-40 md:h-56'
+                }`}
+              >
+                {profile.cover_photo ? (
+                  <img
+                    src={profile.cover_photo}
+                    alt={`${profile.full_name || 'Profile'} cover`}
+                    className='absolute inset-0 h-full w-full object-cover'
+                  />
+                ) : (
+                  <>
+                    <div className='absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500' />
+                    <div className='absolute inset-0 bg-black/20' />
+                  </>
+                )}
+              </div>
+
+              <div
+                className={`relative flex flex-col items-start transition-[gap,padding] duration-300 ease-in-out md:flex-row md:items-center ${
+                  isHeaderCondensed
+                    ? 'gap-3 px-4 pb-3 md:gap-4 md:px-6'
+                    : 'gap-4 px-4 pb-4 md:gap-6 md:px-8'
+                }`}
+              >
+                <Avatar
+                  className={`transition-all duration-300 ease-in-out ${
+                    isHeaderCondensed
+                      ? '-mt-6 h-16 w-16 md:-mt-8 md:h-20 md:w-20'
+                      : '-mt-10 h-24 w-24 md:-mt-12 md:h-28 md:w-28'
+                  } shrink-0 border-4 border-background shadow-xl`}
+                >
+                  <AvatarImage src={profile.avatar || undefined} />
+                  <AvatarFallback className='text-3xl'>
+                    {profile.full_name?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div
+                  className={`min-w-0 transition-all duration-300 ease-in-out ${
+                    isHeaderCondensed ? 'space-y-0' : 'space-y-1.5'
+                  }`}
+                >
+                  <h1
+                    className={`font-semibold leading-tight text-foreground transition-all duration-300 ease-in-out ${
+                      isHeaderCondensed ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl'
+                    }`}
+                  >
+                    {profile.full_name || 'Profile'}{' '}
+                    {headerAccent && (
+                      <span
+                        className={`font-normal text-primary/80 transition-all duration-300 ease-in-out ${
+                          isHeaderCondensed ? 'text-base md:text-lg' : ''
+                        }`}
+                      >
+                        ({headerAccent})
+                      </span>
+                    )}
+                  </h1>
+                  {(profile.username || profile.location) && (
+                    <div
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                        isHeaderCondensed ? 'max-h-0 opacity-0' : 'max-h-16 opacity-100'
+                      }`}
+                    >
+                      {profile.username && (
+                        <p className='text-sm text-muted-foreground'>@{profile.username}</p>
+                      )}
+                      <div className='flex flex-wrap items-center gap-2 text-sm text-muted-foreground'>
+                        {profile.location && (
+                          <span className='flex items-center gap-1'>
+                            <MapPin className='h-3.5 w-3.5' />
+                            {profile.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside
+            className='z-20 md:sticky md:self-start md:transition-[top] md:duration-200'
+            style={{ top: `${navTopOffset}px` }}
+          >
             <div className='rounded-3xl border bg-background p-2 shadow-sm'>
               <div className='flex gap-1 overflow-x-auto md:flex-col md:overflow-visible'>
                 {PROFILE_TABS.map((tab) => {
@@ -337,58 +460,6 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
           </aside>
 
           <div className='min-w-0 space-y-6'>
-            {/* Sticky header: cover image + avatar + profile info */}
-            <div
-              ref={headerRef}
-              className='sticky top-20 z-30 overflow-hidden rounded-3xl border bg-background shadow-sm'
-            >
-              <div className='overflow-hidden bg-background'>
-                <div className='relative h-40 overflow-hidden md:h-56'>
-                  {profile.cover_photo ? (
-                    <img
-                      src={profile.cover_photo}
-                      alt={`${profile.full_name || 'Profile'} cover`}
-                      className='absolute inset-0 h-full w-full object-cover'
-                    />
-                  ) : (
-                    <>
-                      <div className='absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-700 to-slate-500' />
-                      <div className='absolute inset-0 bg-black/20' />
-                    </>
-                  )}
-                </div>
-
-                <div className='relative flex flex-col items-start gap-4 px-4 pb-4 md:flex-row md:items-center md:gap-6 md:px-8'>
-                  <Avatar className='-mt-10 h-24 w-24 shrink-0 border-4 border-background shadow-xl md:-mt-12 md:h-28 md:w-28'>
-                    <AvatarImage src={profile.avatar || undefined} />
-                    <AvatarFallback className='text-3xl'>
-                      {profile.full_name?.charAt(0).toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-
-                  <div className='min-w-0 space-y-1.5'>
-                    <h1 className='text-2xl font-semibold leading-tight text-foreground md:text-3xl'>
-                      {profile.full_name || 'Profile'}{' '}
-                      {headerAccent && (
-                        <span className='font-normal text-primary/80'>({headerAccent})</span>
-                      )}
-                    </h1>
-                    {profile.username && (
-                      <p className='text-sm text-muted-foreground'>@{profile.username}</p>
-                    )}
-                    <div className='flex flex-wrap items-center gap-2 text-sm text-muted-foreground'>
-                      {profile.location && (
-                        <span className='flex items-center gap-1'>
-                          <MapPin className='h-3.5 w-3.5' />
-                          {profile.location}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div className='min-w-0 space-y-6'>
               <section
                 id='about'
@@ -840,11 +911,11 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                           {mbtiProfile.stack.map((code) => {
                             const fn = MBTI_FUNCTIONS[code];
                             return (
-                              <div key={code} className='space-y-3'>
+                              <div key={code} className='space-y-3 text-center'>
                                 <img
                                   src={getCognitiveFunctionImagePath(code)}
                                   alt={`${code} icon`}
-                                  className='h-14 w-14 object-contain'
+                                  className='mx-auto h-10 w-10 object-contain md:h-12 md:w-12'
                                 />
                                 <div className='space-y-1.5'>
                                   <p className='text-sm font-semibold'>
@@ -859,11 +930,11 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                             );
                           })}
                         </div>
-                        <div className='overflow-hidden rounded-xl border bg-muted/20'>
+                        <div className='mx-auto w-fit max-w-[90%] overflow-hidden rounded-xl border bg-muted/20'>
                           <img
                             src={getMBTITypeImagePath(personality as MBTIType)}
                             alt={`Illustration of ${personality}`}
-                            className='h-auto w-full object-cover'
+                            className='h-auto w-[26rem] max-w-full object-contain sm:w-[32rem] md:w-[38rem] lg:w-[42rem]'
                           />
                         </div>
                         <div className='space-y-2'>
@@ -903,8 +974,8 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                           <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
                         </div>
 
-                        <div className='flex items-start gap-4'>
-                          <div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-3'>
+                        <div className='flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left'>
+                          <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-2.5 md:h-16 md:w-16'>
                             <img
                               src={`/assets/${zodiacSign.toLowerCase()}_symbol.png`}
                               alt={`${zodiacSign} symbol`}
@@ -920,14 +991,16 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                         </div>
 
                         <div className='space-y-3'>
-                          <div className='overflow-hidden rounded-xl border bg-muted/20'>
+                          <div className='mx-auto w-fit max-w-[90%] overflow-hidden rounded-xl border bg-muted/20'>
                             <img
                               src={`/assets/${zodiacSign.toLowerCase()}.png`}
                               alt={`Illustration of ${zodiacSign}`}
-                              className='h-auto w-full object-cover'
+                              className='h-auto w-[26rem] max-w-full object-contain sm:w-[32rem] md:w-[38rem] lg:w-[42rem]'
                             />
                           </div>
-                          <p className='text-xs italic text-muted-foreground'>Image of a {zodiacSign}</p>
+                          <p className='text-center text-xs italic text-muted-foreground'>
+                            Image of a {zodiacSign}
+                          </p>
                         </div>
 
                         <div className='space-y-3'>

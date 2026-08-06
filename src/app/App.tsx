@@ -1073,7 +1073,6 @@ function AppContent() {
       <DynamicFooter
         onNavigate={handleNavigate}
         hasSidebar={currentPage.startsWith('creator-')}
-        fullWidth={currentPage === 'public-profile'}
       />
       <Toaster />
     </div>
