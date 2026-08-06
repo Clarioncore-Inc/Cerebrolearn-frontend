@@ -341,13 +341,13 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
-  googleLogin: (data: { credential: string; role?: string }) =>
+  googleLogin: (data: { access_token: string; role?: string }) =>
     request<{ access_token: string; token_type: string; user: User; is_first_login: boolean }>('/auth/google', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  googleLookup: (data: { credential: string }) =>
+  googleLookup: (data: { access_token: string }) =>
     request<{ exists: boolean; role?: string | null }>('/auth/google/lookup', {
       method: 'POST',
       body: JSON.stringify(data),

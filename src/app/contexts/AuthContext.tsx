@@ -3,8 +3,8 @@ import { authApi } from '../../../utils/api-client';
 import type { User } from '../types/database';
 
 let googleIdentityScriptPromise: Promise<any> | null = null;
-let googleIdentityInitialized = false;
-let googleCredentialHandler: ((credential: string) => void) | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let googleTokenClient: any = null;
 let facebookSdkPromise: Promise<any> | null = null;
 
 interface UserProfile {
@@ -55,12 +55,9 @@ interface AuthContextType {
     user: User;
     is_first_login: boolean;
   }) => void;
-  renderGoogleButton: (
-    container: HTMLElement,
-    onCredential: (credential: string) => void,
-  ) => Promise<void>;
+  getGoogleAccessToken: () => Promise<string>;
   getFacebookAccessToken: () => Promise<string>;
-  lookupGoogleAccount: (credential: string) => Promise<{
+  lookupGoogleAccount: (accessToken: string) => Promise<{
     exists: boolean;
     role?: string | null;
   }>;
@@ -68,7 +65,7 @@ interface AuthContextType {
     exists: boolean;
     role?: string | null;
   }>;
-  completeGoogleSignIn: (credential: string, role?: string) => Promise<void>;
+  completeGoogleSignIn: (accessToken: string, role?: string) => Promise<void>;
   completeFacebookSignIn: (accessToken: string, role?: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -221,7 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).google?.accounts?.id) {
+    if ((window as any).google?.accounts?.oauth2) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return (window as any).google;
     }
@@ -235,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const handleLoad = () => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const google = (window as any).google;
-          if (google?.accounts?.id) {
+          if (google?.accounts?.oauth2) {
             resolve(google);
           } else {
             googleIdentityScriptPromise = null;
@@ -350,10 +347,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return facebookSdkPromise;
   };
 
-  const renderGoogleButton = async (
-    container: HTMLElement,
-    onCredential: (credential: string) => void,
-  ): Promise<void> => {
+  const getGoogleAccessToken = async (): Promise<string> => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
       | string
       | undefined;
@@ -364,34 +358,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const google = await loadGoogleIdentityServices();
-    googleCredentialHandler = onCredential;
 
-    if (!googleIdentityInitialized) {
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response: { credential?: string }) => {
-          if (!response.credential) {
-            return;
-          }
-          googleCredentialHandler?.(response.credential);
-        },
-      });
-      googleIdentityInitialized = true;
-    }
+    return new Promise<string>((resolve, reject) => {
+      if (!googleTokenClient) {
+        googleTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'email profile',
+          callback: () => {
+            /* overridden per-request below */
+          },
+          error_callback: () => {
+            /* overridden per-request below */
+          },
+        });
+      }
 
-    container.replaceChildren();
-    google.accounts.id.renderButton(container, {
-      theme: 'filled_blue',
-      size: 'large',
-      text: 'continue_with',
-      shape: 'pill',
-      logo_alignment: 'left',
-      width: Math.max(Math.min(Math.round(container.getBoundingClientRect().width || 320), 400), 240),
+      googleTokenClient.callback = (response: {
+        access_token?: string;
+        error?: string;
+      }) => {
+        if (!response.access_token) {
+          reject(
+            new Error(
+              'Google sign-in was cancelled or could not be completed.',
+            ),
+          );
+          return;
+        }
+        resolve(response.access_token);
+      };
+
+      googleTokenClient.error_callback = () => {
+        reject(
+          new Error('Google sign-in was cancelled or could not be completed.'),
+        );
+      };
+
+      // A user gesture (the button click that led here) is required for the
+      // popup to open reliably, so this must be called synchronously from
+      // that click handler's async chain without awaiting anything first.
+      googleTokenClient.requestAccessToken();
     });
   };
 
-  const lookupGoogleAccount = async (credential: string) => {
-    return authApi.googleLookup({ credential });
+  const lookupGoogleAccount = async (accessToken: string) => {
+    return authApi.googleLookup({ access_token: accessToken });
   };
 
   const getFacebookAccessToken = async (): Promise<string> => {
@@ -420,11 +431,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const completeGoogleSignIn = async (
-    credential: string,
+    accessToken: string,
     role = 'learner',
   ): Promise<void> => {
     const result = await authApi.googleLogin({
-      credential,
+      access_token: accessToken,
       role: getSocialSignupRole(role),
     });
     applyAuthResult(result);
@@ -458,7 +469,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut,
         loginWithToken,
-        renderGoogleButton,
+        getGoogleAccessToken,
         getFacebookAccessToken,
         lookupGoogleAccount,
         lookupFacebookAccount,
