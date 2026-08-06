@@ -148,11 +148,15 @@ export function LoginForm({
     };
 
     const handleWindowFocus = () => {
+      // Disable the button immediately so a click landing before the
+      // debounced refresh completes can't hit the stale Google button.
+      setGoogleButtonReady(false);
       scheduleGoogleButtonRefresh();
     };
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        setGoogleButtonReady(false);
         scheduleGoogleButtonRefresh();
       }
     };
