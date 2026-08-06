@@ -338,8 +338,11 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
 
           <div className='min-w-0 space-y-6'>
             {/* Sticky header: cover image + avatar + profile info */}
-            <div className='overflow-hidden rounded-3xl border bg-background shadow-sm'>
-              <div ref={headerRef} className='sticky top-20 z-30 overflow-hidden bg-background'>
+            <div
+              ref={headerRef}
+              className='sticky top-20 z-30 overflow-hidden rounded-3xl border bg-background shadow-sm'
+            >
+              <div className='overflow-hidden bg-background'>
                 <div className='relative h-40 overflow-hidden md:h-56'>
                   {profile.cover_photo ? (
                     <img
