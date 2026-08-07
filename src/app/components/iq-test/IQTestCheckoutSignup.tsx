@@ -90,9 +90,9 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
             </div>
 
             <div className='rounded-2xl border border-border/60 bg-background/80 p-4'>
-              <p className='font-semibold text-foreground'>Why this flow is simplified</p>
+              <p className='font-semibold text-foreground'>Your IQ-test point</p>
               <p className='mt-2'>
-                This path is dedicated to booking a one-on-one session with a certified psychologist.
+                Book a one-on-one session with a certified psychologist.
               </p>
             </div>
           </CardContent>

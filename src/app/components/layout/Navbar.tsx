@@ -53,8 +53,12 @@ interface NavbarProps {
 export function Navbar({ onNavigate, currentPage }: NavbarProps) {
   const { user, profile, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { showCourseFeatures, showLearnerFeatures, showInstructorFeatures } =
-    useFeatureFlags();
+  const {
+    showCourseFeatures,
+    showLearnerFeatures,
+    showInstructorFeatures,
+    isIQOnlyMode,
+  } = useFeatureFlags();
   const isMobile = useIsMobile();
   const isIQOnlyUser =
     Boolean(user) &&
@@ -445,7 +449,11 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
               </Button>
               <Button
                 size='sm'
-                onClick={() => onNavigate('auth')}
+                onClick={() =>
+                  isIQOnlyMode
+                    ? onNavigate('iq-test-signup')
+                    : onNavigate('auth')
+                }
                 className='px-2 sm:px-4 whitespace-nowrap'
               >
                 Get Started

@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from '../ui/card';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { Alert, AlertDescription } from '../ui/alert';
 import {
   Dialog,
@@ -84,6 +85,13 @@ export function LoginForm({
         if (onSignedIn) {
           await onSignedIn();
         }
+      } else if (isIQOnlyMode) {
+        // No free accounts in IQ-only mode: send new signups through the paid
+        // checkout flow instead of creating an account here.
+        toast.error(
+          'No account found for this Google account. Please sign up to get started.',
+        );
+        onToggleMode();
       } else {
         setPendingSocialCredential(accessToken);
         setPendingSocialProvider('google');
@@ -215,6 +223,13 @@ export function LoginForm({
         if (onSignedIn) {
           await onSignedIn();
         }
+      } else if (isIQOnlyMode) {
+        // No free accounts in IQ-only mode: send new signups through the paid
+        // checkout flow instead of creating an account here.
+        toast.error(
+          'No account found for this Facebook account. Please sign up to get started.',
+        );
+        onToggleMode();
       } else {
         setPendingSocialCredential(accessToken);
         setPendingSocialProvider('facebook');
@@ -425,6 +440,7 @@ export function LoginForm({
         </p>
       </CardFooter>
 
+      {!isIQOnlyMode && (
       <Dialog open={socialRoleDialogOpen} onOpenChange={handleSocialRoleDialogChange}>
         <DialogContent className='sm:max-w-md'>
           <DialogHeader>
@@ -464,6 +480,7 @@ export function LoginForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </Card>
   );
 }

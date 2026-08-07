@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { FeatureFlagProvider } from './contexts/FeatureFlagContext';
+import { FeatureFlagProvider, useFeatureFlags } from './contexts/FeatureFlagContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { DynamicFooter } from './components/layout/DynamicFooter';
@@ -186,6 +186,7 @@ function pageToPath(page: string): string {
 
 function AppContent() {
   const { user, profile, loading } = useAuth();
+  const { isIQOnlyMode } = useFeatureFlags();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -281,6 +282,20 @@ function AppContent() {
     postAuthRedirect,
     setPostAuthRedirect,
   ]);
+
+  // In IQ-only mode, signup must go through the paid checkout flow
+  // (IQTestCheckoutSignup) instead of the free SignupForm/SignupChoice —
+  // otherwise a user can create an account and take the test for free.
+  useEffect(() => {
+    if (
+      isIQOnlyMode &&
+      !user &&
+      currentPage === 'auth' &&
+      authMode !== 'login'
+    ) {
+      navigate(pageToPath('iq-test-signup'), { replace: true });
+    }
+  }, [isIQOnlyMode, user, currentPage, authMode, navigate]);
 
   const handleNavigate = (page: string, data?: any) => {
     if (page === 'auth') {
