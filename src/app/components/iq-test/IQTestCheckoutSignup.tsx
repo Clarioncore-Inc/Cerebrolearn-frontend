@@ -12,9 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 
 interface IQTestCheckoutSignupProps {
   onNavigate: (page: string, data?: any) => void;
+  onBack?: () => void;
 }
 
-export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) {
+export function IQTestCheckoutSignup({ onNavigate, onBack }: IQTestCheckoutSignupProps) {
   const { user } = useAuth();
   const [mode, setMode] = useState<'signup' | 'login'>(user ? 'login' : 'signup');
   const [redirecting, setRedirecting] = useState(false);
@@ -25,7 +26,9 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
     setRedirecting(true);
 
     try {
-      const session = await paymentsApi.createIQTestCheckoutSession();
+      const session = await paymentsApi.createIQTestCheckoutSession({
+        cancel_path: window.location.pathname,
+      });
       window.location.assign(session.checkout_url);
     } catch (err) {
       setRedirecting(false);
@@ -53,6 +56,7 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
         email,
         password,
         full_name: fullName,
+        cancel_path: window.location.pathname,
       });
       window.location.assign(session.checkout_url);
     } catch (err) {
@@ -63,9 +67,13 @@ export function IQTestCheckoutSignup({ onNavigate }: IQTestCheckoutSignupProps) 
 
   return (
     <div className='container max-w-6xl py-12'>
-      <Button variant='ghost' className='mb-6' onClick={() => onNavigate('iq-test-overview')}>
+      <Button
+        variant='ghost'
+        className='mb-6'
+        onClick={() => (onBack ? onBack() : onNavigate('iq-test-overview'))}
+      >
         <ArrowLeft className='mr-2 h-4 w-4' />
-        Back to session overview
+        Back
       </Button>
 
       <div className='grid gap-8 lg:grid-cols-[1.1fr_0.9fr]'>

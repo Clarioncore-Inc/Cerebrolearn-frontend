@@ -727,7 +727,12 @@ function AppContent() {
         return <GeniusRankingsPage onNavigate={handleNavigate} />;
 
       case 'iq-test-signup':
-        return <IQTestCheckoutSignup onNavigate={handleNavigate} />;
+        return (
+          <IQTestCheckoutSignup
+            onNavigate={handleNavigate}
+            onBack={() => navigate(-1)}
+          />
+        );
 
       case 'iq-test-payment-success':
         return <IQTestCheckoutSuccess onNavigate={handleNavigate} />;

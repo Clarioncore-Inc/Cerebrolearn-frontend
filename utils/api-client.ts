@@ -1513,9 +1513,10 @@ export const paymentsApi = {
       body: JSON.stringify(data),
     }),
 
-  createIQTestCheckoutSession: () =>
+  createIQTestCheckoutSession: (data?: { cancel_path?: string }) =>
     request<{ checkout_url: string; session_id: string }>('/payments/iq-test/checkout-session', {
       method: 'POST',
+      body: JSON.stringify(data ?? {}),
     }),
 
   createIQTestGuestCheckoutSession: (data: {
@@ -1523,6 +1524,7 @@ export const paymentsApi = {
     password: string;
     full_name: string;
     org_id?: string;
+    cancel_path?: string;
   }) =>
     request<{ checkout_url: string; session_id: string }>('/payments/iq-test/guest-checkout-session', {
       method: 'POST',

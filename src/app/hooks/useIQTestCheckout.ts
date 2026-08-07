@@ -21,7 +21,9 @@ export function useIQTestCheckout(onNavigate?: NavigateHandler) {
     setIsStartingCheckout(true);
 
     try {
-      const session = await paymentsApi.createIQTestCheckoutSession();
+      const session = await paymentsApi.createIQTestCheckoutSession({
+        cancel_path: window.location.pathname,
+      });
       window.location.assign(session.checkout_url);
       return true;
     } catch (err) {
