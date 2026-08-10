@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import {
+  sortByDateRangeDesc,
+  sortBySingleDateDesc,
+  isDateRangeValid,
+  formatMonthYear,
+  formatDateRange,
+} from '../../utils/profileSort';
+import {
   authApi,
   psychologistApi,
   storageApi,
@@ -598,21 +605,21 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
     setEducationLoading(true);
     educationApi
       .list()
-      .then(setEducations)
+      .then((data) => setEducations(sortByDateRangeDesc(data)))
       .catch((error) => console.error('Error loading education:', error))
       .finally(() => setEducationLoading(false));
 
     setWorkLoading(true);
     workExperienceApi
       .list()
-      .then(setWorkExperiences)
+      .then((data) => setWorkExperiences(sortByDateRangeDesc(data)))
       .catch((error) => console.error('Error loading work experience:', error))
       .finally(() => setWorkLoading(false));
 
     setHonorsLoading(true);
     honorsApi
       .list()
-      .then(setHonors)
+      .then((data) => setHonors(sortBySingleDateDesc(data)))
       .catch((error) => console.error('Error loading honors:', error))
       .finally(() => setHonorsLoading(false));
 
@@ -984,6 +991,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       toast.error('School is required');
       return;
     }
+    if (
+      !educationForm.is_current &&
+      !isDateRangeValid(educationForm.start_date, educationForm.end_date)
+    ) {
+      toast.error('Start date cannot be after end date');
+      return;
+    }
     try {
       const payload = {
         school: educationForm.school.trim(),
@@ -997,12 +1011,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       if (editingEducationId) {
         const updated = await educationApi.update(editingEducationId, payload);
         setEducations((current) =>
-          current.map((item) => (item.id === editingEducationId ? updated : item)),
+          sortByDateRangeDesc(
+            current.map((item) => (item.id === editingEducationId ? updated : item)),
+          ),
         );
         toast.success('Education updated');
       } else {
         const created = await educationApi.create(payload);
-        setEducations((current) => [created, ...current]);
+        setEducations((current) => sortByDateRangeDesc([created, ...current]));
         toast.success('Education added');
       }
       setEducationDialogOpen(false);
@@ -1049,6 +1065,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       toast.error('Company is required');
       return;
     }
+    if (!workForm.is_current && !isDateRangeValid(workForm.start_date, workForm.end_date)) {
+      toast.error('Start date cannot be after end date');
+      return;
+    }
     try {
       const payload = {
         company: workForm.company.trim(),
@@ -1062,12 +1082,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       if (editingWorkId) {
         const updated = await workExperienceApi.update(editingWorkId, payload);
         setWorkExperiences((current) =>
-          current.map((item) => (item.id === editingWorkId ? updated : item)),
+          sortByDateRangeDesc(
+            current.map((item) => (item.id === editingWorkId ? updated : item)),
+          ),
         );
         toast.success('Work experience updated');
       } else {
         const created = await workExperienceApi.create(payload);
-        setWorkExperiences((current) => [created, ...current]);
+        setWorkExperiences((current) => sortByDateRangeDesc([created, ...current]));
         toast.success('Work experience added');
       }
       setWorkDialogOpen(false);
@@ -1121,12 +1143,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       if (editingHonorId) {
         const updated = await honorsApi.update(editingHonorId, payload);
         setHonors((current) =>
-          current.map((item) => (item.id === editingHonorId ? updated : item)),
+          sortBySingleDateDesc(
+            current.map((item) => (item.id === editingHonorId ? updated : item)),
+          ),
         );
         toast.success('Honor updated');
       } else {
         const created = await honorsApi.create(payload);
-        setHonors((current) => [created, ...current]);
+        setHonors((current) => sortBySingleDateDesc([created, ...current]));
         toast.success('Honor added');
       }
       setHonorDialogOpen(false);
@@ -1288,6 +1312,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
       toast.error('Title is required');
       return;
     }
+    if (!isDateRangeValid(patentForm.filing_date, patentForm.grant_date)) {
+      toast.error('Filing date cannot be after grant date');
+      return;
+    }
     try {
       const payload = {
         title: patentForm.title.trim(),
@@ -1412,6 +1440,13 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const handleSaveProject = async () => {
     if (!projectForm.title.trim()) {
       toast.error('Title is required');
+      return;
+    }
+    if (
+      !projectForm.is_current &&
+      !isDateRangeValid(projectForm.start_date, projectForm.end_date)
+    ) {
+      toast.error('Start date cannot be after end date');
       return;
     }
     try {
@@ -1908,7 +1943,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <Label htmlFor='phone_number'>Phone Number</Label>
                   <Input
                     id='phone_number'
-                    placeholder='+233 20 000 0000'
+                    placeholder='+1 234 567 8900'
                     value={formData.phone_number}
                     onChange={(e) =>
                       handleProfileFieldChange('phone_number', e.target.value)
@@ -1921,7 +1956,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <Label htmlFor='location'>Location</Label>
                   <Input
                     id='location'
-                    placeholder='Accra, Ghana'
+                    placeholder='e.g. New York, USA'
                     value={formData.location}
                     onChange={(e) =>
                       handleProfileFieldChange('location', e.target.value)
@@ -1958,7 +1993,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <Label htmlFor='birthplace'>Birthplace</Label>
                   <Input
                     id='birthplace'
-                    placeholder='e.g. Accra, Ghana'
+                    placeholder='e.g. New York, USA'
                     value={formData.birthplace}
                     onChange={(e) => handleProfileFieldChange('birthplace', e.target.value)}
                     disabled={!isEditing}
@@ -1969,7 +2004,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <Label htmlFor='languages'>Languages</Label>
                   <Input
                     id='languages'
-                    placeholder='e.g. English, French, Twi'
+                    placeholder='e.g. English, French, Spanish'
                     value={formData.languages}
                     onChange={(e) => handleProfileFieldChange('languages', e.target.value)}
                     disabled={!isEditing}
@@ -1981,7 +2016,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                   <Label htmlFor='culture'>Culture / Ethnicity</Label>
                   <Input
                     id='culture'
-                    placeholder='e.g. Akan'
+                    placeholder='e.g. Hispanic, Asian, African American'
                     value={formData.culture}
                     onChange={(e) => handleProfileFieldChange('culture', e.target.value)}
                     disabled={!isEditing}
@@ -2170,7 +2205,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                         <p className='text-sm text-muted-foreground'>{item.location}</p>
                       )}
                       <p className='text-xs text-muted-foreground'>
-                        {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                        {formatDateRange(item.start_date, item.end_date, item.is_current)}
                       </p>
                       {item.description && (
                         <p className='text-sm mt-1'>{item.description}</p>
@@ -2228,7 +2263,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                         </p>
                       )}
                       <p className='text-xs text-muted-foreground'>
-                        {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                        {formatDateRange(item.start_date, item.end_date, item.is_current)}
                       </p>
                       {item.description && (
                         <p className='text-sm mt-1'>{item.description}</p>
@@ -2282,7 +2317,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       <p className='font-medium'>{item.title}</p>
                       {(item.issuer || item.date_awarded) && (
                         <p className='text-sm text-muted-foreground'>
-                          {[item.issuer, item.date_awarded].filter(Boolean).join(' · ')}
+                          {[item.issuer, formatMonthYear(item.date_awarded)]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </p>
                       )}
                       {item.description && (
@@ -3041,7 +3078,8 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                           </p>
                         )}
                         <p className='text-xs text-muted-foreground'>
-                          {item.filing_date || '—'} - {item.grant_date || '—'}
+                          {formatMonthYear(item.filing_date) || '—'} -{' '}
+                          {formatMonthYear(item.grant_date) || '—'}
                         </p>
                         {item.description && (
                           <p className='text-sm mt-1'>{item.description}</p>
@@ -3109,7 +3147,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                         <p className='font-medium'>{item.title}</p>
                         {(item.publisher || item.publication_date) && (
                           <p className='text-sm text-muted-foreground'>
-                            {[item.publisher, item.publication_date].filter(Boolean).join(' · ')}
+                            {[item.publisher, formatMonthYear(item.publication_date)]
+                              .filter(Boolean)
+                              .join(' · ')}
                           </p>
                         )}
                         {item.description && (
@@ -3180,8 +3220,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                           {item.title}
                         </p>
                         <p className='text-xs text-muted-foreground'>
-                          {item.start_date || '—'} -{' '}
-                          {item.is_current ? 'Present' : item.end_date || '—'}
+                          {formatDateRange(item.start_date, item.end_date, item.is_current)}
                         </p>
                         {item.description && (
                           <p className='text-sm mt-1'>{item.description}</p>
@@ -3656,7 +3695,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Start Date</Label>
                 <Input
-                  placeholder='e.g. Sep 2018'
+                  type='date'
                   value={educationForm.start_date}
                   onChange={(e) => setEducationForm((c) => ({ ...c, start_date: e.target.value }))}
                 />
@@ -3664,8 +3703,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>End Date</Label>
                 <Input
-                  placeholder='e.g. Jun 2022'
+                  type='date'
                   value={educationForm.end_date}
+                  min={educationForm.start_date || undefined}
                   disabled={educationForm.is_current}
                   onChange={(e) => setEducationForm((c) => ({ ...c, end_date: e.target.value }))}
                 />
@@ -3733,7 +3773,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Start Date</Label>
                 <Input
-                  placeholder='e.g. Jan 2021'
+                  type='date'
                   value={workForm.start_date}
                   onChange={(e) => setWorkForm((c) => ({ ...c, start_date: e.target.value }))}
                 />
@@ -3741,8 +3781,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>End Date</Label>
                 <Input
-                  placeholder='e.g. Dec 2023'
+                  type='date'
                   value={workForm.end_date}
+                  min={workForm.start_date || undefined}
                   disabled={workForm.is_current}
                   onChange={(e) => setWorkForm((c) => ({ ...c, end_date: e.target.value }))}
                 />
@@ -3801,7 +3842,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Date Awarded</Label>
                 <Input
-                  placeholder='e.g. May 2023'
+                  type='date'
                   value={honorForm.date_awarded}
                   onChange={(e) => setHonorForm((c) => ({ ...c, date_awarded: e.target.value }))}
                 />
@@ -3861,7 +3902,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Filing Date</Label>
                 <Input
-                  placeholder='e.g. Jan 2020'
+                  type='date'
                   value={patentForm.filing_date}
                   onChange={(e) => setPatentForm((c) => ({ ...c, filing_date: e.target.value }))}
                 />
@@ -3869,8 +3910,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Grant Date</Label>
                 <Input
-                  placeholder='e.g. Jun 2022'
+                  type='date'
                   value={patentForm.grant_date}
+                  min={patentForm.filing_date || undefined}
                   onChange={(e) => setPatentForm((c) => ({ ...c, grant_date: e.target.value }))}
                 />
               </div>
@@ -3927,7 +3969,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Publication Date</Label>
                 <Input
-                  placeholder='e.g. Mar 2023'
+                  type='date'
                   value={publicationForm.publication_date}
                   onChange={(e) =>
                     setPublicationForm((c) => ({ ...c, publication_date: e.target.value }))
@@ -3989,7 +4031,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>Start Date</Label>
                 <Input
-                  placeholder='e.g. Jan 2022'
+                  type='date'
                   value={projectForm.start_date}
                   onChange={(e) => setProjectForm((c) => ({ ...c, start_date: e.target.value }))}
                 />
@@ -3997,8 +4039,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
               <div className='space-y-2'>
                 <Label>End Date</Label>
                 <Input
-                  placeholder='e.g. Dec 2022'
+                  type='date'
                   value={projectForm.end_date}
+                  min={projectForm.start_date || undefined}
                   disabled={projectForm.is_current}
                   onChange={(e) => setProjectForm((c) => ({ ...c, end_date: e.target.value }))}
                 />

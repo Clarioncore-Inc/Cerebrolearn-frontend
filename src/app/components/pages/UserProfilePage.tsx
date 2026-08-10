@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { sortByDateRangeDesc, formatDateRange } from '../../utils/profileSort';
 import {
   socialGraphApi,
   discussionsApi,
@@ -97,8 +98,8 @@ export function UserProfilePage({ userId, onNavigate }: UserProfilePageProps) {
       discussionsApi.list({ user_id: userId }).then(setDiscussionPosts),
       reviewsApi.getForUser(userId).then(setCourseReviews),
       mentoringApi.listListings({ user_id: userId }).then(setMentoringListings),
-      educationApi.list(userId).then(setEducations),
-      workExperienceApi.list(userId).then(setWorkExperiences),
+      educationApi.list(userId).then((data) => setEducations(sortByDateRangeDesc(data))),
+      workExperienceApi.list(userId).then((data) => setWorkExperiences(sortByDateRangeDesc(data))),
       interestsApi.list(userId).then(setInterests),
       skillsApi.list(userId).then(setSkills),
       activityApi.getUserFeed(userId).then(setActivityItems),
@@ -412,7 +413,7 @@ export function UserProfilePage({ userId, onNavigate }: UserProfilePageProps) {
                             </p>
                           )}
                           <p className='text-xs text-muted-foreground'>
-                            {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                            {formatDateRange(item.start_date, item.end_date, item.is_current)}
                           </p>
                           {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
                         </div>
@@ -444,7 +445,7 @@ export function UserProfilePage({ userId, onNavigate }: UserProfilePageProps) {
                             <p className='text-sm text-muted-foreground'>{item.location}</p>
                           )}
                           <p className='text-xs text-muted-foreground'>
-                            {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                            {formatDateRange(item.start_date, item.end_date, item.is_current)}
                           </p>
                           {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
                         </div>

@@ -1,5 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { rankingsApi, type DiscussionPostRecord } from '../../utils/api-client';
+import {
+  sortByDateRangeDesc,
+  sortBySingleDateDesc,
+  formatMonthYear,
+  formatDateRange,
+} from '../../utils/profileSort';
 import type {
   Education,
   WorkExperience,
@@ -119,9 +125,9 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
       .getPublicProfile(userId)
       .then((data) => {
         setProfile(data);
-        setEducations(data.educations || []);
-        setWorkExperiences(data.work_experiences || []);
-        setHonors(data.honors || []);
+        setEducations(sortByDateRangeDesc(data.educations || []));
+        setWorkExperiences(sortByDateRangeDesc(data.work_experiences || []));
+        setHonors(sortBySingleDateDesc(data.honors || []));
         setInterests(data.interests || []);
         setCauses(data.causes || []);
         setSkills(data.skills || []);
@@ -277,12 +283,6 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   if (profile.social_links?.facebook)
     socialLinks.push({ label: 'Facebook', url: profile.social_links.facebook });
   (profile.websites || []).forEach((url) => socialLinks.push({ label: url, url }));
-
-  const formatDateRange = (
-    startDate?: string | null,
-    endDate?: string | null,
-    isCurrent?: boolean | null,
-  ) => `${startDate || '—'} - ${isCurrent ? 'Present' : endDate || '—'}`;
 
   const topIntelligenceTypes = INTELLIGENCE_TYPE_KEYS.map((key) => ({
     key,
@@ -788,7 +788,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                               </p>
                             )}
                             <p className='text-xs text-muted-foreground'>
-                              {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                              {formatDateRange(item.start_date, item.end_date, item.is_current)}
                             </p>
                             {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
                           </div>
@@ -834,7 +834,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                               <p className='text-sm text-muted-foreground'>{item.location}</p>
                             )}
                             <p className='text-xs text-muted-foreground'>
-                              {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                              {formatDateRange(item.start_date, item.end_date, item.is_current)}
                             </p>
                             {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
                           </div>
@@ -1163,7 +1163,9 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                                 <p className='font-medium'>{item.title}</p>
                                 {(item.publisher || item.publication_date) && (
                                   <p className='text-sm text-muted-foreground'>
-                                    {[item.publisher, item.publication_date].filter(Boolean).join(' · ')}
+                                    {[item.publisher, formatMonthYear(item.publication_date)]
+                                      .filter(Boolean)
+                                      .join(' · ')}
                                   </p>
                                 )}
                                 {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
@@ -1196,7 +1198,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                                   {item.title}
                                 </p>
                                 <p className='text-xs text-muted-foreground'>
-                                  {item.start_date || '—'} - {item.is_current ? 'Present' : item.end_date || '—'}
+                                  {formatDateRange(item.start_date, item.end_date, item.is_current)}
                                 </p>
                                 {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
                               </div>
@@ -1268,7 +1270,9 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                           <p className='font-medium'>{item.title}</p>
                           {(item.issuer || item.date_awarded) && (
                             <p className='text-sm text-muted-foreground'>
-                              {[item.issuer, item.date_awarded].filter(Boolean).join(' · ')}
+                              {[item.issuer, formatMonthYear(item.date_awarded)]
+                                .filter(Boolean)
+                                .join(' · ')}
                             </p>
                           )}
                           {item.description && <p className='mt-1 text-sm'>{item.description}</p>}
