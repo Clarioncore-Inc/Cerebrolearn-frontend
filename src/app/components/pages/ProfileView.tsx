@@ -85,10 +85,13 @@ import {
 import {
   MBTI_PROFILES,
   MBTI_FUNCTIONS,
+  MBTI_STACK_ROLE_LABELS,
   getCognitiveFunctionImagePath,
   getMBTITypeImagePath,
   type MBTIType,
 } from '../../data/mbtiData';
+import { MbtiIntroductionSection } from './MbtiIntroductionSection';
+import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
   getZodiacAppearanceSummary,
@@ -583,7 +586,7 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
 
                 <div className={panelClassName}>
                   <h3 className='flex items-center gap-2 text-base font-semibold'>
-                    <Sparkles className='h-4 w-4 text-primary' />
+                    <SkillsExpertiseIcon className='h-4 w-4 text-primary' />
                     Skills &amp; Fields of Expertise
                   </h3>
                   {skills.length === 0 ? (
@@ -601,6 +604,7 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
               </TabsContent>
 
               <TabsContent value='personality' className='space-y-6'>
+                {mbtiProfile && <MbtiIntroductionSection />}
                 {(mbtiProfile || (zodiacProfile && zodiacSign)) && (
                   <div className='overflow-hidden rounded-2xl border bg-background/70 shadow-sm'>
                     {mbtiProfile ? (
@@ -610,10 +614,19 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                         <h3 className='text-lg font-semibold'>{mbtiProfile.nickname}</h3>
                         <Badge variant='secondary'>{personality}</Badge>
                       </div>
+                      <div className='space-y-3'>
+                        <h4 className='text-base font-semibold'>What {personality} means</h4>
+                        {mbtiProfile.paragraphs.map((paragraph, index) => (
+                          <p key={index} className='text-sm leading-7 text-muted-foreground'>
+                            {paragraph}
+                          </p>
+                        ))}
+                      </div>
                       <div className='space-y-6 border-t pt-6'>
                         <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'>
-                          {mbtiProfile.stack.map((code) => {
+                          {mbtiProfile.stack.map((code, index) => {
                             const fn = MBTI_FUNCTIONS[code];
+                            const roleLabel = MBTI_STACK_ROLE_LABELS[index];
                             return (
                               <div key={code} className='space-y-3'>
                                 <img
@@ -623,7 +636,7 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                                 />
                                 <div className='space-y-1.5'>
                                   <p className='text-sm font-semibold'>
-                                    ({code}) {fn.name}
+                                    {roleLabel} - ({code}) {fn.name}
                                   </p>
                                   <p className='text-sm text-muted-foreground'>
                                     <span className='font-semibold text-foreground'>{fn.sublabel}:</span>{' '}
@@ -640,19 +653,6 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                             alt={`Illustration of ${personality}`}
                             className='h-auto w-full object-cover'
                           />
-                        </div>
-                        <div className='space-y-2'>
-                          <h4 className='flex items-center gap-2 text-sm font-semibold'>
-                            <Trophy className='h-4 w-4 text-primary' />
-                            Personality Matchups
-                          </h4>
-                          <div className='flex flex-wrap gap-2'>
-                            {mbtiProfile.matchups.map((name) => (
-                              <Badge key={name} variant='outline' className='py-1.5 text-sm'>
-                                {name}
-                              </Badge>
-                            ))}
-                          </div>
                         </div>
                       </div>
                       </div>
@@ -722,7 +722,7 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
               <TabsContent value='intelligence' className='space-y-6'>
                 <Card>
                   <CardHeader>
-                    <CardTitle className='text-base'>Intelligence Types &amp; IQ / Memory</CardTitle>
+                    <CardTitle className='text-base'>Intelligence Types &amp; IQ</CardTitle>
                   </CardHeader>
                   <CardContent className='space-y-6'>
                     <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
@@ -754,28 +754,6 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                       <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
                         <p className='text-xs text-muted-foreground'>Potential Max IQ</p>
                         <p className='text-lg font-semibold'>{cognitiveProfile?.potential_max_iq ?? '—'}</p>
-                      </div>
-                      <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
-                        <p className='text-xs text-muted-foreground'>Pi Digits Memorized</p>
-                        <p className='text-lg font-semibold'>{cognitiveProfile?.pi_digits_memorized ?? '—'}</p>
-                      </div>
-                      <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
-                        <p className='text-xs text-muted-foreground'>Memory Level</p>
-                        <p className='text-sm font-semibold'>{cognitiveProfile?.memory_level || '—'}</p>
-                      </div>
-                      <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
-                        <p className='text-xs text-muted-foreground'>Benchmark</p>
-                        <p className='text-sm font-semibold'>{cognitiveProfile?.memory_benchmark || '—'}</p>
-                        {cognitiveProfile?.memory_benchmark_proof_url && (
-                          <a
-                            href={cognitiveProfile.memory_benchmark_proof_url}
-                            target='_blank'
-                            rel='noreferrer'
-                            className='flex items-center gap-1 text-xs text-primary'
-                          >
-                            Proof <ExternalLink className='h-3 w-3' />
-                          </a>
-                        )}
                       </div>
                     </div>
                   </CardContent>

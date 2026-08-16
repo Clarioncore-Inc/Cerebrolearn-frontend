@@ -8,10 +8,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '../ui/accordion';
-import { Brain, Trophy } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import {
   MBTI_PROFILES,
   MBTI_FUNCTIONS,
+  MBTI_STACK_ROLE_LABELS,
   getCognitiveFunctionImagePath,
   getMBTITypeImagePath,
   type MBTIType,
@@ -64,8 +65,9 @@ export function PersonalityTypesPage({ onNavigate }: PersonalityTypesPageProps) 
                   <AccordionContent>
                     <div className='space-y-6 pb-4'>
                       <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'>
-                        {profile.stack.map((code) => {
+                        {profile.stack.map((code, index) => {
                           const fn = MBTI_FUNCTIONS[code];
+                          const roleLabel = MBTI_STACK_ROLE_LABELS[index];
                           return (
                             <div key={code} className='space-y-3'>
                               <img
@@ -74,7 +76,7 @@ export function PersonalityTypesPage({ onNavigate }: PersonalityTypesPageProps) 
                                 className='h-14 w-14 object-contain'
                               />
                               <p className='text-sm font-semibold'>
-                                ({code}) {fn.name}
+                                {roleLabel} - ({code}) {fn.name}
                               </p>
                               <p className='text-sm text-muted-foreground'>
                                 <span className='font-semibold text-foreground'>{fn.sublabel}:</span>{' '}
@@ -104,19 +106,7 @@ export function PersonalityTypesPage({ onNavigate }: PersonalityTypesPageProps) 
                         ))}
                       </div>
 
-                      <div className='space-y-2'>
-                        <h4 className='text-sm font-semibold flex items-center gap-2'>
-                          <Trophy className='h-4 w-4 text-primary' />
-                          Personality Matchups
-                        </h4>
-                        <div className='flex flex-wrap gap-2'>
-                          {profile.matchups.map((name) => (
-                            <Badge key={name} variant='outline'>
-                              {name}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+
                     </div>
                   </AccordionContent>
                 </AccordionItem>

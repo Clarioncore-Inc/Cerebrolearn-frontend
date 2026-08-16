@@ -9,6 +9,7 @@ import { toast } from 'sonner@2.0.3';
 import {
   MBTI_PROFILES,
   MBTI_FUNCTIONS,
+  MBTI_STACK_ROLE_LABELS,
   MBTIType,
   getMBTITypeImagePath,
 } from '../../data/mbtiData';
@@ -121,14 +122,14 @@ export function MBTIQuizResults({ onNavigate, resultId }: MBTIQuizResultsProps) 
             {profile.stack.map((code, index) => {
               const fn = MBTI_FUNCTIONS[code];
               const Icon = fn.icon;
-              const roleLabel = ['Dominant', 'Auxiliary', 'Tertiary', 'Inferior'][index];
+              const roleLabel = MBTI_STACK_ROLE_LABELS[index];
               return (
                 <div key={code} className="p-3 rounded-lg border border-border">
                   <div className="flex items-center gap-2 mb-1">
                     <Icon className="w-4 h-4 text-[#395192]" />
                     <span className="font-semibold text-sm">{code}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">{roleLabel} · {fn.name}</div>
+                  <div className="text-xs text-muted-foreground">{roleLabel} - ({code}) {fn.name}</div>
                 </div>
               );
             })}
@@ -144,14 +145,7 @@ export function MBTIQuizResults({ onNavigate, resultId }: MBTIQuizResultsProps) 
             {profile.paragraphs.map((p, i) => (
               <p key={i} className="text-sm text-muted-foreground leading-relaxed">{p}</p>
             ))}
-            <div className="pt-2">
-              <p className="text-xs text-muted-foreground mb-2">Notable {result.type}s:</p>
-              <div className="flex flex-wrap gap-2">
-                {profile.matchups.map((m) => (
-                  <Badge key={m} variant="secondary">{m}</Badge>
-                ))}
-              </div>
-            </div>
+
           </CardContent>
         </Card>
 

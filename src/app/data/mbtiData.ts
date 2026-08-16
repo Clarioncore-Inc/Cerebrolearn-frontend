@@ -78,13 +78,18 @@ export const MBTI_FUNCTIONS: Record<CognitiveFunctionCode, CognitiveFunctionMeta
   },
 };
 
+export const MBTI_STACK_ROLE_LABELS = [
+  'Dominant',
+  'Auxiliary',
+  'Tertiary',
+  'Inferior',
+] as const;
+
 export interface MBTIProfile {
   nickname: string;
   // [dominant, auxiliary, tertiary, inferior]
   stack: [CognitiveFunctionCode, CognitiveFunctionCode, CognitiveFunctionCode, CognitiveFunctionCode];
   paragraphs: [string, string, string];
-  // Notable historical/fictional figures sharing this cognitive type
-  matchups: string[];
 }
 
 const MBTI_TYPE_IMAGE_PATHS: Partial<Record<MBTIType, string>> = {
@@ -117,7 +122,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   INTJ: {
     nickname: 'The Strategic Architect',
     stack: ['Ni', 'Te', 'Fi', 'Se'],
-    matchups: ['Nikola Tesla', 'Michelle Obama', 'Gandalf (Lord of the Rings)'],
     paragraphs: [
       "INTJs are driven by a need to understand the underlying structure of ideas and systems. They see far ahead, anticipating problems and opportunities long before others notice them, and they trust their internal vision even when it isn't yet backed by hard evidence.",
       'Once a plan takes shape, INTJs move quickly to organize the resources, people, and steps required to bring it to life. They value competence, efficiency, and long-term results over small talk or unnecessary process.',
@@ -127,7 +131,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   INTP: {
     nickname: 'The Analytical Thinker',
     stack: ['Ti', 'Ne', 'Si', 'Fe'],
-    matchups: ['Albert Einstein', 'John Von Neumann', 'Sherlock Holmes'],
     paragraphs: [
       "INTPs are captivated by ideas for their own sake. They build intricate internal frameworks of logic and enjoy testing them against new information, often exploring a subject far beyond what's practically necessary just to satisfy their curiosity.",
       'Comfortable with ambiguity, INTPs generate a wide range of possibilities and theories, then quietly refine them until the reasoning is airtight. They prefer precision over persuasion and would rather be right than popular.',
@@ -137,7 +140,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ENTJ: {
     nickname: 'The Decisive Commander',
     stack: ['Te', 'Ni', 'Se', 'Fi'],
-    matchups: ['Steve Jobs', 'Margaret Thatcher', 'Gordon Ramsay'],
     paragraphs: [
       'ENTJs are natural organizers who see the big picture and immediately start thinking about how to execute it. They value efficiency and clear goals, and they are quick to take charge when a plan needs a leader.',
       'Their long-range vision, paired with a drive for measurable results, makes ENTJs effective at building strategies, teams, and organizations that turn ambition into reality.',
@@ -147,7 +149,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ENTP: {
     nickname: 'The Debating Inventor',
     stack: ['Ne', 'Ti', 'Fe', 'Si'],
-    matchups: ['Thomas Edison', 'Prof. Hubert Farnsworth', 'Tony Stark (Iron Man)'],
     paragraphs: [
       'ENTPs are adept at recognizing complex patterns and connections among ideas, people, and things in the real world. They excel at analyzing these patterns and interrelationships in great detail, leading to a profound understanding of how diverse information can be improved through brainstorming and inventive ideas.',
       'Driven by a desire to understand and enhance the world around them, ENTPs are usually perceptive in assessing situations accurately. They may have a quirky sense of humor and enjoy debate, which can sometimes lead to misunderstandings with friends, coworkers, and family. ENTPs are brilliant inventors and excel at generating extraordinary ideas and solutions to challenging problems.',
@@ -157,7 +158,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   INFJ: {
     nickname: 'The Insightful Advocate',
     stack: ['Ni', 'Fe', 'Ti', 'Se'],
-    matchups: ['Martin Luther King Jr.', 'Nelson Mandela', 'Atticus Finch (To Kill a Mockingbird)'],
     paragraphs: [
       'INFJs combine deep intuition with a strong sense of empathy, giving them an almost uncanny ability to sense what people need and where situations are headed.',
       'They are quietly idealistic, drawn to meaningful causes and long-term visions of a better future, and they work steadily behind the scenes to bring those visions to life.',
@@ -167,7 +167,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   INFP: {
     nickname: 'The Idealist Healer',
     stack: ['Fi', 'Ne', 'Si', 'Te'],
-    matchups: ['William Shakespeare', 'J.R.R. Tolkien', 'Luna Lovegood (Harry Potter)'],
     paragraphs: [
       'INFPs are guided by a strong inner compass of personal values. They care deeply about authenticity and meaning, and they naturally resist anything that feels forced or fake.',
       'Their imagination and openness to possibility make INFPs creative problem-solvers who see potential in people and ideas that others overlook.',
@@ -177,7 +176,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ENFJ: {
     nickname: 'The Inspiring Mentor',
     stack: ['Fe', 'Ni', 'Se', 'Ti'],
-    matchups: ['Barack Obama', 'Oprah Winfrey', 'Dumbledore (Harry Potter)'],
     paragraphs: [
       'ENFJs are natural motivators who tune in closely to the emotions and needs of the people around them, often before those people recognize the needs themselves.',
       'They combine this empathy with a clear sense of long-term vision, making them effective at rallying groups toward a shared purpose.',
@@ -187,7 +185,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ENFP: {
     nickname: 'The Enthusiastic Campaigner',
     stack: ['Ne', 'Fi', 'Te', 'Si'],
-    matchups: ['Robin Williams', 'Walt Disney', 'Peter Pan'],
     paragraphs: [
       'ENFPs are energized by possibility. They see connections between people, ideas, and opportunities everywhere, and they approach life with genuine curiosity and warmth.',
       'Guided by strong personal values, ENFPs are passionate advocates for causes and people they believe in, and they are skilled at inspiring others to see new perspectives.',
@@ -197,7 +194,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ISTJ: {
     nickname: 'The Dependable Inspector',
     stack: ['Si', 'Te', 'Fi', 'Ne'],
-    matchups: ['George Washington', 'Queen Elizabeth II', 'Hermione Granger (Harry Potter)'],
     paragraphs: [
       'ISTJs are grounded in facts, experience, and proven methods. They have excellent memories for detail and a strong sense of duty toward the commitments they make.',
       'Practical and organized, ISTJs work methodically toward clear goals, valuing reliability and thoroughness over flashy shortcuts.',
@@ -207,7 +203,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ISFJ: {
     nickname: 'The Devoted Protector',
     stack: ['Si', 'Fe', 'Ti', 'Ne'],
-    matchups: ['Mother Teresa', 'Kate Middleton', 'Samwise Gamgee (Lord of the Rings)'],
     paragraphs: [
       'ISFJs combine a strong memory for detail with genuine warmth toward the people in their lives. They notice small things that matter to others and act on them quietly.',
       'Dependable and hardworking, ISFJs take their responsibilities seriously and prefer steady, practical progress over big, risky changes.',
@@ -217,7 +212,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ESTJ: {
     nickname: 'The Efficient Executive',
     stack: ['Te', 'Si', 'Ne', 'Fi'],
-    matchups: ['Henry Ford', 'Sheryl Sandberg', 'Captain America'],
     paragraphs: [
       'ESTJs are natural organizers who bring order and structure to whatever they touch. They rely on past experience and established procedures to get things done efficiently.',
       'Direct and decisive, ESTJs take charge readily, setting clear expectations and holding themselves and others accountable to them.',
@@ -227,7 +221,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ESFJ: {
     nickname: 'The Supportive Consul',
     stack: ['Fe', 'Si', 'Ne', 'Ti'],
-    matchups: ['Taylor Swift', 'Bill Clinton', 'Molly Weasley (Harry Potter)'],
     paragraphs: [
       'ESFJs are attentive to the people around them, drawing on past experience to understand what others need to feel supported and included.',
       'Warm and organized, ESFJs excel at creating harmony in groups, often taking on the practical work of keeping everyone connected and cared for.',
@@ -237,7 +230,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ISTP: {
     nickname: 'The Practical Mechanic',
     stack: ['Ti', 'Se', 'Ni', 'Fe'],
-    matchups: ['Clint Eastwood', 'Michael Jordan', 'James Bond'],
     paragraphs: [
       'ISTPs are hands-on problem-solvers who understand how things work by taking them apart, literally or conceptually, and testing the pieces.',
       'They combine sharp internal logic with acute awareness of their physical surroundings, making them calm and effective in a crisis.',
@@ -247,7 +239,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ISFP: {
     nickname: 'The Gentle Artist',
     stack: ['Fi', 'Se', 'Ni', 'Te'],
-    matchups: ['Bob Dylan', 'Frida Kahlo', 'Forrest Gump'],
     paragraphs: [
       'ISFPs live by a quiet but firm sense of personal values, and they express themselves through action, craft, and aesthetics rather than words.',
       'Attuned to their immediate surroundings, ISFPs notice beauty and detail that others miss, and they bring a gentle, authentic presence to their relationships.',
@@ -257,7 +248,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ESTP: {
     nickname: 'The Bold Entrepreneur',
     stack: ['Se', 'Ti', 'Fe', 'Ni'],
-    matchups: ['Donald Trump', 'Ernest Hemingway', 'Han Solo (Star Wars)'],
     paragraphs: [
       'ESTPs are energized by the present moment. They read situations quickly and act decisively, often thriving under pressure where others hesitate.',
       'Practical and logical, ESTPs cut through complexity to find the most direct path to a result, adapting their approach as new information comes in.',
@@ -267,7 +257,6 @@ export const MBTI_PROFILES: Record<MBTIType, MBTIProfile> = {
   ESFP: {
     nickname: 'The Spontaneous Performer',
     stack: ['Se', 'Fi', 'Te', 'Ni'],
-    matchups: ['Marilyn Monroe', 'Elvis Presley', 'Jack Sparrow (Pirates of the Caribbean)'],
     paragraphs: [
       'ESFPs live fully in the moment, bringing warmth, energy, and spontaneity to the people and situations around them.',
       'Guided by personal values, ESFPs are genuine and generous, quick to notice when someone needs encouragement and quick to offer it.',

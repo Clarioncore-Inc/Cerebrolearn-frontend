@@ -118,10 +118,13 @@ import { toast } from 'sonner@2.0.3';
 import {
   MBTI_PROFILES,
   MBTI_FUNCTIONS,
+  MBTI_STACK_ROLE_LABELS,
   getCognitiveFunctionImagePath,
   getMBTITypeImagePath,
   type MBTIType,
 } from '../../data/mbtiData';
+import { MbtiIntroductionSection } from './MbtiIntroductionSection';
+import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
   getZodiacAppearanceSummary,
@@ -420,10 +423,6 @@ interface CognitiveProfileFormState {
   motivational: number;
   current_iq_estimate: string;
   potential_max_iq: string;
-  memory_level: string;
-  memory_benchmark: string;
-  memory_benchmark_proof_url: string;
-  pi_digits_memorized: string;
 }
 
 const emptyCognitiveProfileForm: CognitiveProfileFormState = {
@@ -440,10 +439,6 @@ const emptyCognitiveProfileForm: CognitiveProfileFormState = {
   motivational: 0,
   current_iq_estimate: '',
   potential_max_iq: '',
-  memory_level: '',
-  memory_benchmark: '',
-  memory_benchmark_proof_url: '',
-  pi_digits_memorized: '',
 };
 
 const createCognitiveProfileForm = (
@@ -462,10 +457,6 @@ const createCognitiveProfileForm = (
   motivational: profile?.motivational ?? 0,
   current_iq_estimate: profile?.current_iq_estimate?.toString() ?? '',
   potential_max_iq: profile?.potential_max_iq?.toString() ?? '',
-  memory_level: profile?.memory_level ?? '',
-  memory_benchmark: profile?.memory_benchmark ?? '',
-  memory_benchmark_proof_url: profile?.memory_benchmark_proof_url ?? '',
-  pi_digits_memorized: profile?.pi_digits_memorized?.toString() ?? '',
 });
 
 export function ProfilePage({ onNavigate }: ProfilePageProps) {
@@ -532,7 +523,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [newSkill, setNewSkill] = useState('');
 
-  // Cognitive Profile (11 Intelligence Types + IQ/Memory)
+  // Cognitive Profile (11 Intelligence Types + IQ)
   const [cognitiveProfile, setCognitiveProfile] = useState<CognitiveProfile | null>(null);
   const [cognitiveProfileLoading, setCognitiveProfileLoading] = useState(false);
   const [cognitiveProfileSaving, setCognitiveProfileSaving] = useState(false);
@@ -1266,13 +1257,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         potential_max_iq: cognitiveProfileForm.potential_max_iq
           ? Number(cognitiveProfileForm.potential_max_iq)
           : null,
-        memory_level: cognitiveProfileForm.memory_level.trim() || null,
-        memory_benchmark: cognitiveProfileForm.memory_benchmark.trim() || null,
-        memory_benchmark_proof_url:
-          cognitiveProfileForm.memory_benchmark_proof_url.trim() || null,
-        pi_digits_memorized: cognitiveProfileForm.pi_digits_memorized
-          ? Number(cognitiveProfileForm.pi_digits_memorized)
-          : null,
+
       };
       const updated = await cognitiveProfileApi.update(payload);
       setCognitiveProfile(updated);
@@ -2344,7 +2329,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           <Card>
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
-                <Sparkles className='h-5 w-5 text-primary' />
+                <SkillsExpertiseIcon className='text-primary' />
                 Skills &amp; Fields of Expertise
               </CardTitle>
               <CardDescription>
@@ -2398,6 +2383,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
         {/* Personality (Mental Diagnosis) Tab */}
         <TabsContent value='personality' className='space-y-4'>
+          <MbtiIntroductionSection />
           {personality && MBTI_PROFILES[personality as MBTIType] && !personalityEditing ? (
             (() => {
               const mbtiProfile = MBTI_PROFILES[personality as MBTIType];
@@ -2432,8 +2418,9 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
                     <div className='border-t px-6 py-6 space-y-6'>
                       <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'>
-                        {mbtiProfile.stack.map((code) => {
+                        {mbtiProfile.stack.map((code, index) => {
                           const fn = MBTI_FUNCTIONS[code];
+                          const roleLabel = MBTI_STACK_ROLE_LABELS[index];
                           return (
                             <div key={code} className='space-y-3'>
                               <img
@@ -2443,7 +2430,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                               />
                               <div className='space-y-1.5'>
                                 <p className='text-sm font-semibold'>
-                                  ({code}) {fn.name}
+                                  {roleLabel} - ({code}) {fn.name}
                                 </p>
                                 <p className='text-sm text-muted-foreground'>
                                   <span className='font-semibold text-foreground'>{fn.sublabel}:</span>{' '}
@@ -2491,23 +2478,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                           </>
                         )}
                       </button>
-
-                      <div className='space-y-2'>
-                        <h4 className='text-sm font-semibold flex items-center gap-2'>
-                          <Trophy className='h-4 w-4 text-primary' />
-                          Personality Matchups
-                        </h4>
-                        <p className='text-xs text-muted-foreground'>
-                          Notable figures who share your cognitive type
-                        </p>
-                        <div className='flex flex-wrap gap-2'>
-                          {mbtiProfile.matchups.map((name) => (
-                            <Badge key={name} variant='outline' className='text-sm py-1.5'>
-                              {name}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -2688,16 +2658,16 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
           )}
         </TabsContent>
 
-        {/* Intelligence Tab (Intelligence Types + IQ/Memory) */}
+        {/* Intelligence Tab (Intelligence Types + IQ) */}
         <TabsContent value='intelligence' className='space-y-4'>
-          {/* 11 Intelligence Types + IQ/Memory Metrics */}
+          {/* 11 Intelligence Types + IQ Metrics */}
           <Card>
             <CardHeader>
               <div className='flex items-center justify-between'>
                 <div>
-                  <CardTitle>Intelligence Types &amp; IQ / Memory</CardTitle>
+                  <CardTitle>Intelligence Types &amp; IQ</CardTitle>
                   <CardDescription>
-                    Score your 11 intelligence types and record IQ/memory benchmarks
+                    Score your 11 intelligence types and record your IQ metrics
                   </CardDescription>
                 </div>
                 {!cognitiveProfileEditing && (
@@ -2772,65 +2742,12 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       />
                     </div>
                   </div>
-                  <div className='grid grid-cols-2 gap-3'>
-                    <div className='space-y-2'>
-                      <Label>Official IQ</Label>
-                      <p className='text-sm text-muted-foreground'>
-                        {cognitiveProfile?.official_iq ?? '—'} (verified from a
-                        completed psychologist test — not editable here)
-                      </p>
-                    </div>
-                    <div className='space-y-2'>
-                      <Label>Pi Digits Memorized</Label>
-                      <Input
-                        type='number'
-                        placeholder='e.g. 651'
-                        value={cognitiveProfileForm.pi_digits_memorized}
-                        onChange={(e) =>
-                          setCognitiveProfileForm((c) => ({
-                            ...c,
-                            pi_digits_memorized: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
                   <div className='space-y-2'>
-                    <Label>Official Memory Level</Label>
-                    <Input
-                      placeholder='e.g. Photographic / Eidetic Memory'
-                      value={cognitiveProfileForm.memory_level}
-                      onChange={(e) =>
-                        setCognitiveProfileForm((c) => ({ ...c, memory_level: e.target.value }))
-                      }
-                    />
-                  </div>
-                  <div className='space-y-2'>
-                    <Label>Memory Verification Benchmark</Label>
-                    <Textarea
-                      placeholder='e.g. Pi Digits Memorized: 651 Digits'
-                      value={cognitiveProfileForm.memory_benchmark}
-                      onChange={(e) =>
-                        setCognitiveProfileForm((c) => ({
-                          ...c,
-                          memory_benchmark: e.target.value,
-                        }))
-                      }
-                      rows={2}
-                    />
-                  </div>
-                  <div className='space-y-2'>
-                    <Label>Benchmark Proof Link</Label>
-                    <Input
-                      placeholder='e.g. YouTube proof URL'
-                      value={cognitiveProfileForm.memory_benchmark_proof_url}
-                      onChange={(e) =>
-                        setCognitiveProfileForm((c) => ({
-                          ...c,
-                          memory_benchmark_proof_url: e.target.value,
-                        }))
-                      }
-                    />
+                    <Label>Official IQ</Label>
+                    <p className='text-sm text-muted-foreground'>
+                      {cognitiveProfile?.official_iq ?? '—'} (verified from a completed psychologist
+                      test — not editable here)
+                    </p>
                   </div>
 
                   <div className='flex gap-2 justify-end'>
@@ -2893,34 +2810,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       <p className='text-lg font-semibold'>
                         {cognitiveProfile?.potential_max_iq ?? '—'}
                       </p>
-                    </div>
-                    <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
-                      <p className='text-xs text-muted-foreground'>Pi Digits Memorized</p>
-                      <p className='text-lg font-semibold'>
-                        {cognitiveProfile?.pi_digits_memorized ?? '—'}
-                      </p>
-                    </div>
-                    <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
-                      <p className='text-xs text-muted-foreground'>Memory Level</p>
-                      <p className='text-sm font-semibold'>
-                        {cognitiveProfile?.memory_level || '—'}
-                      </p>
-                    </div>
-                    <div className='p-3 rounded-lg border bg-muted/30 space-y-1'>
-                      <p className='text-xs text-muted-foreground'>Benchmark</p>
-                      <p className='text-sm font-semibold'>
-                        {cognitiveProfile?.memory_benchmark || '—'}
-                      </p>
-                      {cognitiveProfile?.memory_benchmark_proof_url && (
-                        <a
-                          href={cognitiveProfile.memory_benchmark_proof_url}
-                          target='_blank'
-                          rel='noreferrer'
-                          className='text-xs text-primary flex items-center gap-1'
-                        >
-                          Proof <ExternalLink className='h-3 w-3' />
-                        </a>
-                      )}
                     </div>
                   </div>
                 </>

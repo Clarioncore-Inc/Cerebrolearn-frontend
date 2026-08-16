@@ -416,12 +416,8 @@ export interface CognitiveProfile {
   motivational?: number | null;
   current_iq_estimate?: number | null;
   potential_max_iq?: number | null;
-  memory_level?: string | null;
-  memory_benchmark?: string | null;
-  memory_benchmark_proof_url?: string | null;
   official_iq?: number | null;
   official_iq_booking_id?: string | null;
-  pi_digits_memorized?: number | null;
   public_ranking_opt_in: boolean;
   public_ranking_consented_at?: string | null;
   created_at: string;

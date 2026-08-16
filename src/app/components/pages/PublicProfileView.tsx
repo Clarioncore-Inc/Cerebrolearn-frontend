@@ -50,10 +50,13 @@ import {
 import {
   MBTI_PROFILES,
   MBTI_FUNCTIONS,
+  MBTI_STACK_ROLE_LABELS,
   getCognitiveFunctionImagePath,
   getMBTITypeImagePath,
   type MBTIType,
 } from '../../data/mbtiData';
+import { MbtiIntroductionSection } from './MbtiIntroductionSection';
+import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
   getZodiacAppearanceSummary,
@@ -642,8 +645,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                         <p className='text-sm text-muted-foreground'>
                           Official IQ: {cognitiveProfile?.official_iq ?? '—'} · Current estimate:{' '}
                           {cognitiveProfile?.current_iq_estimate ?? '—'} · Potential max:{' '}
-                          {cognitiveProfile?.potential_max_iq ?? '—'} · Memory level:{' '}
-                          {cognitiveProfile?.memory_level || '—'}
+                          {cognitiveProfile?.potential_max_iq ?? '—'}
                         </p>
                       </>
                     ) : (
@@ -857,7 +859,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
 
                 <div className={panelClassName}>
                   <h3 className='flex items-center gap-2 text-base font-semibold'>
-                    <Sparkles className='h-4 w-4 text-primary' />
+                    <SkillsExpertiseIcon className='h-4 w-4 text-primary' />
                     Skills &amp; Fields of Expertise
                   </h3>
                   {skills.length === 0 ? (
@@ -880,6 +882,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                 style={{ scrollMarginTop: `${contentScrollOffset}px` }}
                 className='space-y-6'
               >
+                {mbtiProfile && <MbtiIntroductionSection />}
                 {(mbtiProfile || (zodiacProfile && zodiacSign)) && (
                   <div className='overflow-hidden rounded-2xl border border-border bg-background shadow-sm'>
                     {mbtiProfile ? (
@@ -908,8 +911,9 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                       </div>
                       <div className='space-y-6 border-t pt-6'>
                         <div className='grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4'>
-                          {mbtiProfile.stack.map((code) => {
+                          {mbtiProfile.stack.map((code, index) => {
                             const fn = MBTI_FUNCTIONS[code];
+                            const roleLabel = MBTI_STACK_ROLE_LABELS[index];
                             return (
                               <div key={code} className='space-y-3 text-center'>
                                 <img
@@ -919,7 +923,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                                 />
                                 <div className='space-y-1.5'>
                                   <p className='text-sm font-semibold'>
-                                    ({code}) {fn.name}
+                                    {roleLabel} - ({code}) {fn.name}
                                   </p>
                                   <p className='text-sm text-muted-foreground'>
                                     <span className='font-semibold text-foreground'>{fn.sublabel}:</span>{' '}
@@ -936,19 +940,6 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                             alt={`Illustration of ${personality}`}
                             className='h-auto w-[26rem] max-w-full object-contain sm:w-[32rem] md:w-[38rem] lg:w-[42rem]'
                           />
-                        </div>
-                        <div className='space-y-2'>
-                          <h4 className='flex items-center gap-2 text-sm font-semibold'>
-                            <Trophy className='h-4 w-4 text-primary' />
-                            Personality Matchups
-                          </h4>
-                          <div className='flex flex-wrap gap-2'>
-                            {mbtiProfile.matchups.map((name) => (
-                              <Badge key={name} variant='outline' className='py-1.5 text-sm'>
-                                {name}
-                              </Badge>
-                            ))}
-                          </div>
                         </div>
                       </div>
                       </div>
@@ -1033,7 +1024,7 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                 className='space-y-6'
               >
                 <div className={`${panelClassName} space-y-6`}>
-                  <h3 className='text-base font-semibold'>Intelligence Types &amp; IQ / Memory</h3>
+                  <h3 className='text-base font-semibold'>Intelligence Types &amp; IQ</h3>
                   <div className='space-y-6'>
                     <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
                       {INTELLIGENCE_TYPE_KEYS.map((key) => {
@@ -1064,28 +1055,6 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                       <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
                         <p className='text-xs text-muted-foreground'>Potential Max IQ</p>
                         <p className='text-lg font-semibold'>{cognitiveProfile?.potential_max_iq ?? '—'}</p>
-                      </div>
-                      <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
-                        <p className='text-xs text-muted-foreground'>Pi Digits Memorized</p>
-                        <p className='text-lg font-semibold'>{cognitiveProfile?.pi_digits_memorized ?? '—'}</p>
-                      </div>
-                      <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
-                        <p className='text-xs text-muted-foreground'>Memory Level</p>
-                        <p className='text-sm font-semibold'>{cognitiveProfile?.memory_level || '—'}</p>
-                      </div>
-                      <div className='space-y-1 rounded-lg border bg-muted/30 p-3'>
-                        <p className='text-xs text-muted-foreground'>Benchmark</p>
-                        <p className='text-sm font-semibold'>{cognitiveProfile?.memory_benchmark || '—'}</p>
-                        {cognitiveProfile?.memory_benchmark_proof_url && (
-                          <a
-                            href={cognitiveProfile.memory_benchmark_proof_url}
-                            target='_blank'
-                            rel='noreferrer'
-                            className='flex items-center gap-1 text-xs text-primary'
-                          >
-                            Proof <ExternalLink className='h-3 w-3' />
-                          </a>
-                        )}
                       </div>
                     </div>
                   </div>
