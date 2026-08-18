@@ -84,8 +84,8 @@ export function PublicUserRankingsPage({ onNavigate }: PublicUserRankingsPagePro
     <div className='min-h-screen bg-background'>
       <div className='bg-gradient-to-br from-primary via-primary/95 to-primary/90 text-primary-foreground py-16'>
         <div className='container max-w-5xl mx-auto px-6'>
-          <div className='flex items-center gap-4 mb-4'>
-            <Brain className='w-12 h-12' />
+          <div className='flex items-start gap-4 mb-4'>
+            <Brain className='w-12 h-12 shrink-0' />
             <div>
               <h1 className='text-4xl font-bold mb-2'>Public User Rankings</h1>
               <p className='text-primary-foreground/90 text-lg'>
@@ -181,11 +181,11 @@ export function PublicUserRankingsPage({ onNavigate }: PublicUserRankingsPagePro
                   }`}
                   onClick={() => onNavigate('public-profile', { userId: entry.user_id, source: 'rankings' })}
                 >
-                  <CardContent className='py-6'>
+                  <CardContent className='py-4 sm:py-6'>
                     <div className='flex items-center gap-3 sm:gap-6'>
-                      <div className='flex flex-col items-center min-w-[48px] sm:min-w-[60px] shrink-0'>
+                      <div className='flex flex-col items-center min-w-[40px] sm:min-w-[60px] shrink-0'>
                         <div
-                          className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full font-bold text-lg ${
+                          className={`flex items-center justify-center w-9 h-9 sm:w-12 sm:h-12 rounded-full font-bold text-base sm:text-lg ${
                             rank === 1
                               ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
                               : rank === 2
@@ -199,31 +199,39 @@ export function PublicUserRankingsPage({ onNavigate }: PublicUserRankingsPagePro
                         </div>
                       </div>
 
-                      <Avatar className='h-14 w-14 shrink-0'>
+                      <Avatar className='h-11 w-11 sm:h-14 sm:w-14 shrink-0'>
                         <AvatarImage src={entry.avatar || undefined} />
                         <AvatarFallback>{entry.full_name.charAt(0).toUpperCase()}</AvatarFallback>
                       </Avatar>
 
                       <div className='flex-1 min-w-0'>
-                        <h3 className='text-lg font-bold truncate'>{entry.full_name}</h3>
+                        <h3 className='text-base sm:text-lg font-bold truncate'>{entry.full_name}</h3>
                         <div className='flex items-center gap-2 flex-wrap text-sm text-muted-foreground'>
-                          {entry.username && <span>@{entry.username}</span>}
+                          {entry.username && <span className='truncate'>@{entry.username}</span>}
                           {entry.location && (
-                            <span className='flex items-center gap-1'>
-                              <MapPin className='h-3.5 w-3.5' />
-                              {entry.location}
+                            <span className='flex items-center gap-1 min-w-0'>
+                              <MapPin className='h-3.5 w-3.5 shrink-0' />
+                              <span className='truncate'>{entry.location}</span>
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className='flex flex-col items-end shrink-0'>
+                      <div className='hidden sm:flex flex-col items-end shrink-0'>
                         <div className='flex items-center gap-2 mb-1'>
                           <Brain className='w-5 h-5 text-primary' />
                           <span className='text-3xl font-bold text-primary'>{entry.official_iq}</span>
                         </div>
                         <Badge variant='secondary'>Verified IQ</Badge>
                       </div>
+                    </div>
+
+                    <div className='flex sm:hidden items-center justify-between mt-3 pt-3 border-t'>
+                      <div className='flex items-center gap-2'>
+                        <Brain className='w-5 h-5 text-primary' />
+                        <span className='text-2xl font-bold text-primary'>{entry.official_iq}</span>
+                      </div>
+                      <Badge variant='secondary'>Verified IQ</Badge>
                     </div>
                   </CardContent>
                 </Card>

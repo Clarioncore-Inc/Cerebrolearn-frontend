@@ -109,9 +109,9 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
 
           <button
             onClick={() => onNavigate('landing')}
-            className='flex items-center gap-3 group cursor-pointer'
+            className='flex items-center gap-3 group cursor-pointer shrink-0'
           >
-            <div className='h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg'>
+            <div className='h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shrink-0'>
               <BookOpen className='h-5 w-5 text-white' />
             </div>
             <span className='font-bold text-base sm:text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent whitespace-nowrap'>
@@ -123,7 +123,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             <div className='hidden md:flex items-center gap-2'>
               <button
                 onClick={() => onNavigate('public-rankings')}
-                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1.5 ${
+                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex cursor-pointer items-center gap-1.5 ${
                   currentPage === 'public-rankings'
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -286,12 +286,6 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                     <Calendar className='mr-2 h-4 w-4' />
                     My Sessions
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onNavigate('public-rankings')}
-                  >
-                    <Brain className='mr-2 h-4 w-4' />
-                    Public User Rankings
-                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -334,7 +328,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
             variant='ghost'
             size='icon'
             onClick={toggleTheme}
-            className='rounded-full'
+            className='rounded-full h-8 w-8 sm:h-9 sm:w-9'
           >
             {theme === 'dark' ? (
               <Sun className='h-5 w-5' />
@@ -434,7 +428,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 variant='ghost'
                 size='icon'
                 onClick={() => onNavigate('public-rankings')}
-                className='md:hidden'
+                className='inline-flex md:hidden h-8 w-8'
                 aria-label='Public User Rankings'
               >
                 <Brain className='h-5 w-5' />
@@ -443,7 +437,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 variant='ghost'
                 size='sm'
                 onClick={() => onNavigate('auth', { authMode: 'login' })}
-                className='px-2 sm:px-4 whitespace-nowrap'
+                className='px-1.5 sm:px-4 whitespace-nowrap'
               >
                 Sign In
               </Button>
@@ -456,7 +450,8 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 }
                 className='px-2 sm:px-4 whitespace-nowrap'
               >
-                Get Started
+                <span className='hidden sm:inline'>Get Started</span>
+                <span className='sm:hidden'>Start</span>
               </Button>
             </div>
           )}

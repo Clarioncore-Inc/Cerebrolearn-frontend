@@ -210,21 +210,21 @@ export function IQTestOverviewPage({ onNavigate }: IQTestOverviewPageProps) {
               </div>
 
               {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-xl bg-white/10 p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                <div className="rounded-xl bg-white/10 p-2 sm:p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
                   <Clock className="w-6 h-6 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">60</p>
-                  <p className="text-sm">Minutes</p>
+                  <p className="text-lg sm:text-2xl font-bold">60</p>
+                  <p className="text-xs sm:text-sm">Minutes</p>
                 </div>
-                <div className="rounded-xl bg-white/10 p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
+                <div className="rounded-xl bg-white/10 p-2 sm:p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
                   <Brain className="w-6 h-6 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">Included</p>
-                  <p className="text-sm">Practice Access</p>
+                  <p className="text-lg sm:text-2xl font-bold">Included</p>
+                  <p className="text-xs sm:text-sm">Practice Access</p>
                 </div>
-                <div className="rounded-xl bg-white/10 p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
+                <div className="rounded-xl bg-white/10 p-2 sm:p-4 text-center backdrop-blur dark:bg-white/5 dark:border dark:border-white/10">
                   <Users className="w-6 h-6 mx-auto mb-2" />
-                  <p className="text-2xl font-bold">{formattedIQTestPrice}</p>
-                  <p className="text-sm">Certified Session</p>
+                  <p className="text-lg sm:text-2xl font-bold">{formattedIQTestPrice}</p>
+                  <p className="text-xs sm:text-sm">Certified Session</p>
                 </div>
               </div>
             </div>

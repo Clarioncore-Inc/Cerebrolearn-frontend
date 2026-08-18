@@ -119,6 +119,14 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   const isHeaderCondensedRef = useRef(false);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const [headerHeight, setHeaderHeight] = useState(0);
+  const asideRef = useRef<HTMLElement>(null);
+  const asideHeightRef = useRef(0);
+  const [asideHeight, setAsideHeight] = useState(0);
+  const isDesktopRef = useRef(true);
+  const [isDesktop, setIsDesktop] = useState(true);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [showTabScrollFade, setShowTabScrollFade] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -171,6 +179,40 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   }, [profile?.id]);
 
   useEffect(() => {
+    const el = asideRef.current;
+    if (!el) return;
+    let frameId = 0;
+    const update = () => {
+      cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        const nextHeight = Math.round(el.getBoundingClientRect().height);
+        asideHeightRef.current = nextHeight;
+        setAsideHeight((currentHeight) =>
+          currentHeight === nextHeight ? currentHeight : nextHeight,
+        );
+      });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => {
+      cancelAnimationFrame(frameId);
+      observer.disconnect();
+    };
+  }, [profile?.id]);
+
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)');
+    const update = () => {
+      isDesktopRef.current = mql.matches;
+      setIsDesktop(mql.matches);
+    };
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+
+  useEffect(() => {
     isHeaderCondensedRef.current = isHeaderCondensed;
   }, [isHeaderCondensed]);
 
@@ -188,7 +230,11 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
         setIsHeaderCondensed(nextCondensedState);
       }
 
-      const activationLine = headerHeightRef.current + 140;
+      // On mobile the tab bar stacks below the header and stays sticky too, so the
+      // real visible content starts lower than on desktop, where the tab bar sits
+      // beside the content instead of above it.
+      const stackedChrome = isDesktopRef.current ? 0 : asideHeightRef.current;
+      const activationLine = headerHeightRef.current + stackedChrome + 140;
       let nextActiveTab = PROFILE_TABS[0].value;
 
       for (const tab of PROFILE_TABS) {
@@ -238,6 +284,37 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
     setShowAllScores(false);
   }, [profile?.id]);
 
+  useEffect(() => {
+    const el = tabScrollRef.current;
+    if (!el) return;
+    const updateFade = () => {
+      setShowTabScrollFade(el.scrollWidth - el.scrollLeft - el.clientWidth > 4);
+    };
+    updateFade();
+    el.addEventListener('scroll', updateFade, { passive: true });
+    window.addEventListener('resize', updateFade);
+    return () => {
+      el.removeEventListener('scroll', updateFade);
+      window.removeEventListener('resize', updateFade);
+    };
+  }, [profile?.id]);
+
+  useEffect(() => {
+    // Scroll only the tab strip's own scrollLeft. scrollIntoView({block: 'nearest'})
+    // walks every scrollable ancestor, including the page itself — with the tab
+    // strip sticky, the active button is normally on-screen, but during the
+    // header's condense transition it can momentarily sit outside the viewport,
+    // and "nearest" would yank the whole page along with it.
+    const container = tabScrollRef.current;
+    const button = tabButtonRefs.current[activeTab];
+    if (!container || !button) return;
+    const containerRect = container.getBoundingClientRect();
+    const buttonRect = button.getBoundingClientRect();
+    const delta =
+      buttonRect.left + buttonRect.width / 2 - (containerRect.left + containerRect.width / 2);
+    container.scrollBy({ left: delta, behavior: 'smooth' });
+  }, [activeTab]);
+
   if (loading) {
     return (
       <div className='flex justify-center py-24'>
@@ -271,9 +348,12 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
   const courseReviews = EMPTY_REVIEWS;
   const mentoringListings = EMPTY_MENTORING_LISTINGS;
   const navTopOffset = headerHeight + 96;
-  const contentScrollOffset = headerHeight + 112;
+  // On mobile the tab bar is sticky too, stacked directly below the header, so
+  // sections need extra scroll-margin to clear it. On desktop it sits beside the
+  // content instead, so it doesn't add to the offset there.
+  const contentScrollOffset = headerHeight + 112 + (isDesktop ? 0 : asideHeight);
   const sideTabClassName =
-    'flex w-full shrink-0 items-center justify-start gap-2 rounded-xl px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors';
+    'flex shrink-0 items-center justify-start gap-2 rounded-xl px-3 py-3 text-sm font-medium whitespace-nowrap transition-colors md:w-full';
   const socialLinks: { label: string; url: string }[] = [];
   if (profile.social_links?.website)
     socialLinks.push({ label: 'Website', url: profile.social_links.website });
@@ -432,11 +512,22 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
           </div>
 
           <aside
-            className='z-20 md:sticky md:self-start md:transition-[top] md:duration-200'
+            ref={asideRef}
+            // min-w-0: lets this grid item shrink to the track width instead of growing
+            // to fit the unwrapped mobile tab row, which used to force page-wide
+            // horizontal scroll. Don't swap this for overflow-x-hidden — that disables
+            // position:sticky on the header above.
+            // Sticky (not just md:sticky): on mobile the tab bar stacks directly below
+            // the sticky header instead of scrolling away, so the active-tab highlight
+            // stays visible while scrolling.
+            className='sticky z-20 min-w-0 self-start transition-[top] duration-200'
             style={{ top: `${navTopOffset}px` }}
           >
-            <div className='rounded-3xl border bg-background p-2 shadow-sm'>
-              <div className='flex gap-1 overflow-x-auto md:flex-col md:overflow-visible'>
+            <div className='relative rounded-3xl border bg-background p-2 shadow-sm'>
+              <div
+                ref={tabScrollRef}
+                className='flex gap-1 overflow-x-auto md:flex-col md:overflow-visible'
+              >
                 {PROFILE_TABS.map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.value;
@@ -444,6 +535,9 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                   return (
                     <button
                       key={tab.value}
+                      ref={(node) => {
+                        tabButtonRefs.current[tab.value] = node;
+                      }}
                       type='button'
                       aria-current={isActive ? 'true' : undefined}
                       onClick={() => scrollToSection(tab.value)}
@@ -459,6 +553,9 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                   );
                 })}
               </div>
+              {showTabScrollFade && (
+                <div className='pointer-events-none absolute inset-y-2 right-2 w-10 rounded-r-2xl bg-gradient-to-l from-background to-transparent md:hidden' />
+              )}
             </div>
           </aside>
 
@@ -934,11 +1031,11 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                             );
                           })}
                         </div>
-                        <div className='mx-auto w-fit max-w-[90%] overflow-hidden rounded-xl border bg-muted/20'>
+                        <div className='mx-auto w-full max-w-[26rem] overflow-hidden rounded-xl border bg-muted/20 sm:max-w-[32rem] md:max-w-[38rem] lg:max-w-[42rem]'>
                           <img
                             src={getMBTITypeImagePath(personality as MBTIType)}
                             alt={`Illustration of ${personality}`}
-                            className='h-auto w-[26rem] max-w-full object-contain sm:w-[32rem] md:w-[38rem] lg:w-[42rem]'
+                            className='h-auto w-full object-contain'
                           />
                         </div>
                       </div>
@@ -982,11 +1079,11 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                         </div>
 
                         <div className='space-y-3'>
-                          <div className='mx-auto w-fit max-w-[90%] overflow-hidden rounded-xl border bg-muted/20'>
+                          <div className='mx-auto w-full max-w-[26rem] overflow-hidden rounded-xl border bg-muted/20 sm:max-w-[32rem] md:max-w-[38rem] lg:max-w-[42rem]'>
                             <img
                               src={`/assets/${zodiacSign.toLowerCase()}.png`}
                               alt={`Illustration of ${zodiacSign}`}
-                              className='h-auto w-[26rem] max-w-full object-contain sm:w-[32rem] md:w-[38rem] lg:w-[42rem]'
+                              className='h-auto w-full object-contain'
                             />
                           </div>
                           <p className='text-center text-xs italic text-muted-foreground'>
