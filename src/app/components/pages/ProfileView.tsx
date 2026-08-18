@@ -615,7 +615,9 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                         <Badge variant='secondary'>{personality}</Badge>
                       </div>
                       <div className='space-y-3'>
-                        <h4 className='text-base font-semibold'>What {personality} means</h4>
+                        <h4 className='text-base font-semibold'>
+                          What the {personality} Personality Type Means Regarding Intelligence:
+                        </h4>
                         {mbtiProfile.paragraphs.map((paragraph, index) => (
                           <p key={index} className='text-sm leading-7 text-muted-foreground'>
                             {paragraph}

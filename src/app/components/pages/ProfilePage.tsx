@@ -2463,21 +2463,23 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                           ))}
                       </div>
 
-                      <button
-                        type='button'
-                        onClick={() => setPersonalityExpanded((current) => !current)}
-                        className='text-sm text-primary flex items-center gap-1 ml-auto'
-                      >
-                        {personalityExpanded ? (
-                          <>
-                            Show Less <ChevronUp className='h-4 w-4' />
-                          </>
-                        ) : (
-                          <>
-                            Show More <ChevronDown className='h-4 w-4' />
-                          </>
-                        )}
-                      </button>
+                      {mbtiProfile.paragraphs.length > 1 && (
+                        <button
+                          type='button'
+                          onClick={() => setPersonalityExpanded((current) => !current)}
+                          className='text-sm text-primary flex items-center gap-1 ml-auto'
+                        >
+                          {personalityExpanded ? (
+                            <>
+                              Show Less <ChevronUp className='h-4 w-4' />
+                            </>
+                          ) : (
+                            <>
+                              Show More <ChevronDown className='h-4 w-4' />
+                            </>
+                          )}
+                        </button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
