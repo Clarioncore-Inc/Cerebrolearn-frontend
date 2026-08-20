@@ -11,6 +11,16 @@ import {
   UserCircle,
   Leaf,
   Flame,
+  Calculator,
+  Dumbbell,
+  Shapes,
+  Users,
+  Wrench,
+  Eye,
+  Gauge,
+  HeartHandshake,
+  MessageCircle,
+  ScanEye,
 } from 'lucide-react';
 
 export type IntelligenceTypeKey =
@@ -24,7 +34,17 @@ export type IntelligenceTypeKey =
   | 'musical_rhythmic'
   | 'intrapersonal'
   | 'naturalistic'
-  | 'motivational';
+  | 'motivational'
+  | 'logical_mathematical'
+  | 'bodily_kinesthetic'
+  | 'visual_spatial'
+  | 'interpersonal'
+  | 'practical'
+  | 'self_awareness'
+  | 'self_regulation'
+  | 'empathy'
+  | 'social_intelligence'
+  | 'perceptual';
 
 interface IntelligenceTypeMeta {
   label: string;
@@ -32,7 +52,7 @@ interface IntelligenceTypeMeta {
   icon: LucideIcon;
 }
 
-// The 11 Intelligence Types from the Cerebrolearn profile specification.
+// The 21 Intelligence Types from the Cerebrolearn profile specification.
 export const INTELLIGENCE_TYPES: Record<IntelligenceTypeKey, IntelligenceTypeMeta> = {
   creative: {
     label: 'Creative',
@@ -88,6 +108,56 @@ export const INTELLIGENCE_TYPES: Record<IntelligenceTypeKey, IntelligenceTypeMet
     label: 'Motivational',
     description: 'Drive, persistence, and the ability to sustain effort toward goals.',
     icon: Flame,
+  },
+  logical_mathematical: {
+    label: 'Logical-Mathematical',
+    description: 'Numerical reasoning, quantitative problem-solving, and logical deduction.',
+    icon: Calculator,
+  },
+  bodily_kinesthetic: {
+    label: 'Bodily-Kinesthetic',
+    description: 'Physical coordination, body control, and hands-on skill with movement.',
+    icon: Dumbbell,
+  },
+  visual_spatial: {
+    label: 'Visual-Spatial',
+    description: 'Visualizing, manipulating, and reasoning about shapes, space, and imagery.',
+    icon: Shapes,
+  },
+  interpersonal: {
+    label: 'Interpersonal',
+    description: 'Reading others’ emotions and motivations, and building effective relationships.',
+    icon: Users,
+  },
+  practical: {
+    label: 'Practical',
+    description: 'Applying knowledge and skills to solve real-world, everyday problems.',
+    icon: Wrench,
+  },
+  self_awareness: {
+    label: 'Self-Awareness',
+    description: 'Recognizing one’s own emotions, strengths, and limitations as they occur.',
+    icon: Eye,
+  },
+  self_regulation: {
+    label: 'Self-Regulation',
+    description: 'Managing impulses, emotions, and behavior in service of long-term goals.',
+    icon: Gauge,
+  },
+  empathy: {
+    label: 'Empathy',
+    description: 'Sensing and sharing the feelings and perspectives of others.',
+    icon: HeartHandshake,
+  },
+  social_intelligence: {
+    label: 'Social Intelligence',
+    description: 'Navigating social situations and building rapport within groups.',
+    icon: MessageCircle,
+  },
+  perceptual: {
+    label: 'Perceptual',
+    description: 'Rapidly detecting, discriminating, and processing sensory information.',
+    icon: ScanEye,
   },
 };
 

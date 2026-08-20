@@ -11,7 +11,6 @@ import {
 import { Sparkles } from 'lucide-react';
 import {
   ZODIAC_PROFILES,
-  getZodiacAppearanceSummary,
   type ZodiacSign,
 } from '../../data/zodiacData';
 
@@ -47,7 +46,6 @@ export function ZodiacSignsPage({ onNavigate }: ZodiacSignsPageProps) {
           <Accordion type='single' collapsible className='w-full'>
             {signs.map((sign) => {
               const profile = ZODIAC_PROFILES[sign];
-              const appearanceSummary = getZodiacAppearanceSummary(sign, profile);
               return (
                 <AccordionItem key={sign} value={sign} className='mb-4 rounded-xl border px-4'>
                   <AccordionTrigger>
@@ -77,20 +75,6 @@ export function ZodiacSignsPage({ onNavigate }: ZodiacSignsPageProps) {
                         <Badge variant='outline'>{profile.modality}</Badge>
                         <Badge variant='outline'>Ruled by {profile.rulingPlanet}</Badge>
                         <Badge variant='outline'>Influenced by {profile.influencePlanet}</Badge>
-                      </div>
-
-                      <div className='flex items-start gap-4'>
-                        <div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-3'>
-                          <img
-                            src={`/assets/${sign.toLowerCase()}_symbol.png`}
-                            alt={`${sign} symbol`}
-                            className='max-h-full max-w-full object-contain'
-                          />
-                        </div>
-                        <div className='space-y-2'>
-                          <h4 className='text-base font-semibold'>General Physical Appearance</h4>
-                          <p className='text-sm text-muted-foreground'>{appearanceSummary}</p>
-                        </div>
                       </div>
 
                       <div className='space-y-3'>

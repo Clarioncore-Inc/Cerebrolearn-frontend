@@ -414,6 +414,16 @@ export interface CognitiveProfile {
   intrapersonal?: number | null;
   naturalistic?: number | null;
   motivational?: number | null;
+  logical_mathematical?: number | null;
+  bodily_kinesthetic?: number | null;
+  visual_spatial?: number | null;
+  interpersonal?: number | null;
+  practical?: number | null;
+  self_awareness?: number | null;
+  self_regulation?: number | null;
+  empathy?: number | null;
+  social_intelligence?: number | null;
+  perceptual?: number | null;
   current_iq_estimate?: number | null;
   potential_max_iq?: number | null;
   official_iq?: number | null;

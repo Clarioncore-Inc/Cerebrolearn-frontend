@@ -127,7 +127,6 @@ import { MbtiIntroductionSection } from './MbtiIntroductionSection';
 import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
-  getZodiacAppearanceSummary,
   getZodiacSign,
 } from '../../data/zodiacData';
 import { INTELLIGENCE_TYPES, INTELLIGENCE_TYPE_KEYS } from '../../data/intelligenceTypesData';
@@ -421,6 +420,16 @@ interface CognitiveProfileFormState {
   intrapersonal: number;
   naturalistic: number;
   motivational: number;
+  logical_mathematical: number;
+  bodily_kinesthetic: number;
+  visual_spatial: number;
+  interpersonal: number;
+  practical: number;
+  self_awareness: number;
+  self_regulation: number;
+  empathy: number;
+  social_intelligence: number;
+  perceptual: number;
   current_iq_estimate: string;
   potential_max_iq: string;
 }
@@ -437,6 +446,16 @@ const emptyCognitiveProfileForm: CognitiveProfileFormState = {
   intrapersonal: 0,
   naturalistic: 0,
   motivational: 0,
+  logical_mathematical: 0,
+  bodily_kinesthetic: 0,
+  visual_spatial: 0,
+  interpersonal: 0,
+  practical: 0,
+  self_awareness: 0,
+  self_regulation: 0,
+  empathy: 0,
+  social_intelligence: 0,
+  perceptual: 0,
   current_iq_estimate: '',
   potential_max_iq: '',
 };
@@ -455,6 +474,16 @@ const createCognitiveProfileForm = (
   intrapersonal: profile?.intrapersonal ?? 0,
   naturalistic: profile?.naturalistic ?? 0,
   motivational: profile?.motivational ?? 0,
+  logical_mathematical: profile?.logical_mathematical ?? 0,
+  bodily_kinesthetic: profile?.bodily_kinesthetic ?? 0,
+  visual_spatial: profile?.visual_spatial ?? 0,
+  interpersonal: profile?.interpersonal ?? 0,
+  practical: profile?.practical ?? 0,
+  self_awareness: profile?.self_awareness ?? 0,
+  self_regulation: profile?.self_regulation ?? 0,
+  empathy: profile?.empathy ?? 0,
+  social_intelligence: profile?.social_intelligence ?? 0,
+  perceptual: profile?.perceptual ?? 0,
   current_iq_estimate: profile?.current_iq_estimate?.toString() ?? '',
   potential_max_iq: profile?.potential_max_iq?.toString() ?? '',
 });
@@ -523,7 +552,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [newSkill, setNewSkill] = useState('');
 
-  // Cognitive Profile (11 Intelligence Types + IQ)
+  // Cognitive Profile (21 Intelligence Types + IQ)
   const [cognitiveProfile, setCognitiveProfile] = useState<CognitiveProfile | null>(null);
   const [cognitiveProfileLoading, setCognitiveProfileLoading] = useState(false);
   const [cognitiveProfileSaving, setCognitiveProfileSaving] = useState(false);
@@ -1251,6 +1280,16 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         intrapersonal: cognitiveProfileForm.intrapersonal,
         naturalistic: cognitiveProfileForm.naturalistic,
         motivational: cognitiveProfileForm.motivational,
+        logical_mathematical: cognitiveProfileForm.logical_mathematical,
+        bodily_kinesthetic: cognitiveProfileForm.bodily_kinesthetic,
+        visual_spatial: cognitiveProfileForm.visual_spatial,
+        interpersonal: cognitiveProfileForm.interpersonal,
+        practical: cognitiveProfileForm.practical,
+        self_awareness: cognitiveProfileForm.self_awareness,
+        self_regulation: cognitiveProfileForm.self_regulation,
+        empathy: cognitiveProfileForm.empathy,
+        social_intelligence: cognitiveProfileForm.social_intelligence,
+        perceptual: cognitiveProfileForm.perceptual,
         current_iq_estimate: cognitiveProfileForm.current_iq_estimate
           ? Number(cognitiveProfileForm.current_iq_estimate)
           : null,
@@ -2544,7 +2583,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             (() => {
               const sign = getZodiacSign(profile.date_of_birth as string)!;
               const zodiacProfile = ZODIAC_PROFILES[sign];
-              const appearanceSummary = getZodiacAppearanceSummary(sign, zodiacProfile);
               return (
                 <Card className='overflow-hidden'>
                   <CardContent className='p-0'>
@@ -2581,20 +2619,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                     </div>
 
                     <div className='border-t px-6 py-6 space-y-6'>
-                      <div className='flex items-start gap-4'>
-                        <div className='flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-3'>
-                          <img
-                            src={`/assets/${sign.toLowerCase()}_symbol.png`}
-                            alt={`${sign} symbol`}
-                            className='max-h-full max-w-full object-contain'
-                          />
-                        </div>
-                        <div className='space-y-2'>
-                          <h4 className='text-base font-semibold'>General Physical Appearance</h4>
-                          <p className='text-sm text-muted-foreground'>{appearanceSummary}</p>
-                        </div>
-                      </div>
-
                       <div className='space-y-3'>
                         <div className='overflow-hidden rounded-xl border bg-muted/20'>
                           <img
@@ -2662,14 +2686,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
         {/* Intelligence Tab (Intelligence Types + IQ) */}
         <TabsContent value='intelligence' className='space-y-4'>
-          {/* 11 Intelligence Types + IQ Metrics */}
+          {/* 21 Intelligence Types + IQ Metrics */}
           <Card>
             <CardHeader>
               <div className='flex items-center justify-between'>
                 <div>
                   <CardTitle>Intelligence Types &amp; IQ</CardTitle>
                   <CardDescription>
-                    Score your 11 intelligence types and record your IQ metrics
+                    Score your 21 intelligence types and record your IQ metrics
                   </CardDescription>
                 </div>
                 {!cognitiveProfileEditing && (

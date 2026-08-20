@@ -59,7 +59,6 @@ import { MbtiIntroductionSection } from './MbtiIntroductionSection';
 import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
-  getZodiacAppearanceSummary,
   getZodiacSign,
 } from '../../data/zodiacData';
 import { INTELLIGENCE_TYPES, INTELLIGENCE_TYPE_KEYS } from '../../data/intelligenceTypesData';
@@ -1062,22 +1061,6 @@ export function PublicProfileView({ userId }: PublicProfileViewProps) {
                           <Badge variant='outline'>{zodiacProfile.modality}</Badge>
                           <Badge variant='outline'>Ruled by {zodiacProfile.rulingPlanet}</Badge>
                           <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
-                        </div>
-
-                        <div className='flex flex-col items-center gap-4 text-center sm:flex-row sm:items-start sm:text-left'>
-                          <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border bg-muted/40 p-2.5 md:h-16 md:w-16'>
-                            <img
-                              src={`/assets/${zodiacSign.toLowerCase()}_symbol.png`}
-                              alt={`${zodiacSign} symbol`}
-                              className='max-h-full max-w-full object-contain'
-                            />
-                          </div>
-                          <div className='space-y-2'>
-                            <h4 className='text-base font-semibold'>General Physical Appearance</h4>
-                            <p className='text-sm text-muted-foreground'>
-                              {getZodiacAppearanceSummary(zodiacSign, zodiacProfile)}
-                            </p>
-                          </div>
                         </div>
 
                         <div className='space-y-3'>
