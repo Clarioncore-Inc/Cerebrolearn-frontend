@@ -82,7 +82,7 @@ export function MbtiIntroductionSection() {
           </div>
 
           <div className='overflow-hidden rounded-3xl border bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]'>
-            <img src='/assets/mbti.svg' alt='MBTI illustration' className='h-auto w-full object-cover' />
+            <img src='/assets/mbti.PNG' alt='MBTI illustration' className='h-auto w-full object-cover' />
           </div>
         </div>
 
