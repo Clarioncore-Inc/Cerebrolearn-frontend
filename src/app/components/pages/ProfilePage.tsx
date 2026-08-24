@@ -128,6 +128,8 @@ import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
   getZodiacSign,
+  getZodiacParagraphs,
+  formatZodiacBirthDate,
 } from '../../data/zodiacData';
 import { INTELLIGENCE_TYPES, INTELLIGENCE_TYPE_KEYS } from '../../data/intelligenceTypesData';
 import { Slider } from '../ui/slider';
@@ -425,9 +427,6 @@ interface CognitiveProfileFormState {
   visual_spatial: number;
   interpersonal: number;
   practical: number;
-  self_awareness: number;
-  self_regulation: number;
-  empathy: number;
   social_intelligence: number;
   perceptual: number;
   current_iq_estimate: string;
@@ -451,9 +450,6 @@ const emptyCognitiveProfileForm: CognitiveProfileFormState = {
   visual_spatial: 0,
   interpersonal: 0,
   practical: 0,
-  self_awareness: 0,
-  self_regulation: 0,
-  empathy: 0,
   social_intelligence: 0,
   perceptual: 0,
   current_iq_estimate: '',
@@ -479,9 +475,6 @@ const createCognitiveProfileForm = (
   visual_spatial: profile?.visual_spatial ?? 0,
   interpersonal: profile?.interpersonal ?? 0,
   practical: profile?.practical ?? 0,
-  self_awareness: profile?.self_awareness ?? 0,
-  self_regulation: profile?.self_regulation ?? 0,
-  empathy: profile?.empathy ?? 0,
   social_intelligence: profile?.social_intelligence ?? 0,
   perceptual: profile?.perceptual ?? 0,
   current_iq_estimate: profile?.current_iq_estimate?.toString() ?? '',
@@ -552,7 +545,7 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [newSkill, setNewSkill] = useState('');
 
-  // Cognitive Profile (21 Intelligence Types + IQ)
+  // Cognitive Profile (Intelligence Types + IQ)
   const [cognitiveProfile, setCognitiveProfile] = useState<CognitiveProfile | null>(null);
   const [cognitiveProfileLoading, setCognitiveProfileLoading] = useState(false);
   const [cognitiveProfileSaving, setCognitiveProfileSaving] = useState(false);
@@ -1285,9 +1278,6 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
         visual_spatial: cognitiveProfileForm.visual_spatial,
         interpersonal: cognitiveProfileForm.interpersonal,
         practical: cognitiveProfileForm.practical,
-        self_awareness: cognitiveProfileForm.self_awareness,
-        self_regulation: cognitiveProfileForm.self_regulation,
-        empathy: cognitiveProfileForm.empathy,
         social_intelligence: cognitiveProfileForm.social_intelligence,
         perceptual: cognitiveProfileForm.perceptual,
         current_iq_estimate: cognitiveProfileForm.current_iq_estimate
@@ -2583,6 +2573,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
             (() => {
               const sign = getZodiacSign(profile.date_of_birth as string)!;
               const zodiacProfile = ZODIAC_PROFILES[sign];
+              const zodiacBirthDateLabel = formatZodiacBirthDate(profile.date_of_birth as string);
+              const zodiacParagraphs = zodiacBirthDateLabel
+                ? getZodiacParagraphs(
+                    sign,
+                    profile.full_name?.split(' ')[0] || 'This user',
+                    zodiacBirthDateLabel,
+                  )
+                : [];
               return (
                 <Card className='overflow-hidden'>
                   <CardContent className='p-0'>
@@ -2594,15 +2592,21 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                               {sign} ({zodiacProfile.symbolName})
                             </h3>
                             <Badge variant='secondary'>{zodiacProfile.archetype}</Badge>
+                            <Badge variant='secondary'>{zodiacProfile.mbtiArchetype}</Badge>
                           </div>
                           <p className='text-sm text-muted-foreground'>
                             {zodiacProfile.dateRangeLabel}
                           </p>
                           <div className='flex flex-wrap gap-2'>
-                            <Badge variant='outline'>{zodiacProfile.element}</Badge>
                             <Badge variant='outline'>{zodiacProfile.modality}</Badge>
+                            <Badge variant='outline'>{zodiacProfile.element}</Badge>
                             <Badge variant='outline'>Ruled by {zodiacProfile.rulingPlanet}</Badge>
-                            <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
+                            {zodiacProfile.influencePlanet && (
+                              <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
+                            )}
+                            {zodiacProfile.exaltationPlanet && (
+                              <Badge variant='outline'>{zodiacProfile.exaltationPlanet} Exaltation</Badge>
+                            )}
                           </div>
                         </div>
                         <div className='flex items-center gap-2'>
@@ -2631,8 +2635,10 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
                       </div>
 
                       <div className='space-y-3'>
-                        <h4 className='text-base font-semibold'>General Conscience &amp; Personality</h4>
-                        {zodiacProfile.paragraphs
+                        <h4 className='text-base font-semibold'>
+                          What the Sun in {sign} Means Regarding Intelligence:
+                        </h4>
+                        {zodiacParagraphs
                           .slice(0, zodiacExpanded ? undefined : 1)
                           .map((paragraph, index) => (
                             <p key={index} className='text-sm text-muted-foreground'>
@@ -2686,14 +2692,14 @@ export function ProfilePage({ onNavigate }: ProfilePageProps) {
 
         {/* Intelligence Tab (Intelligence Types + IQ) */}
         <TabsContent value='intelligence' className='space-y-4'>
-          {/* 21 Intelligence Types + IQ Metrics */}
+          {/* Intelligence Types + IQ Metrics */}
           <Card>
             <CardHeader>
               <div className='flex items-center justify-between'>
                 <div>
                   <CardTitle>Intelligence Types &amp; IQ</CardTitle>
                   <CardDescription>
-                    Score your 21 intelligence types and record your IQ metrics
+                    Score your intelligence types and record your IQ metrics
                   </CardDescription>
                 </div>
                 {!cognitiveProfileEditing && (

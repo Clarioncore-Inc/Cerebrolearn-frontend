@@ -10,11 +10,14 @@ export type ZodiacModality = 'Cardinal' | 'Fixed' | 'Mutable';
 export interface ZodiacProfile {
   symbolName: string;
   archetype: string;
+  mbtiArchetype: string;
   dateRangeLabel: string;
   element: ZodiacElement;
   modality: ZodiacModality;
   rulingPlanet: string;
-  influencePlanet: string;
+  influencePlanet?: string;
+  exaltationPlanet?: string;
+  /** [cognitive style / rulership, characterization, overall summary] — the intro sentence is generated separately via getZodiacParagraphs. */
   paragraphs: [string, string, string];
 }
 
@@ -27,171 +30,186 @@ export const ZODIAC_ELEMENT_ICONS: Record<ZodiacElement, LucideIcon> = {
 
 export const ZODIAC_PROFILES: Record<ZodiacSign, ZodiacProfile> = {
   Aries: {
-    symbolName: 'Ram',
+    symbolName: 'The Ram',
     archetype: 'The Pioneering Warrior',
-    dateRangeLabel: 'March 21 - April 19',
+    mbtiArchetype: 'ESTP',
+    dateRangeLabel: 'March 21st - April 19th',
     element: 'Fire',
     modality: 'Cardinal',
     rulingPlanet: 'Mars',
     influencePlanet: 'Pluto',
+    exaltationPlanet: 'Sun',
     paragraphs: [
-      'Being born under Aries makes this a Cardinal Fire (Volcano) sign, forming a visionary, authoritative, and passionate General Conscience and Personality. Ruled by Mars and influenced by Pluto, Aries individuals are bold, energetic, competitive, assertive, fearless, quick-acting, passionate, independent, pioneering, impatient, emotionally intense, action-oriented, protective, and determined.',
-      'Aries is courageous and dynamic, but impulsiveness, confrontational confidence, and emotional outbursts can sometimes make Aries appear aggressive, selfish, or domineering.',
-      'Overall, the Aries Sun Sign is driven toward conquest, action, and leadership. Spontaneous energy ensures ideas are quickly executed, and Aries seeks to be honored for boldness and impact — leaving a legacy of fearless pioneering and power.',
+      '{name}’s Aries Sun Sign is a (CARDINAL (Visionary)-FIRE (Intuitive)) (Volcano) modal-element, making his/her cognitive style associated with initiative, rapid decision-making, experimentation, and pioneering thought. Aries is ruled by Mars and influenced by Pluto, which associates his/her intelligence with assertiveness, mental courage, competitiveness, independence, decisiveness, problem-solving under pressure, risk-taking, innovation, and action-oriented thinking.',
+      '{name}’s Aries intelligence is characterized by a willingness to act upon ideas quickly and learn through direct experimentation. He/she may excel at identifying opportunities, making rapid judgments, and developing solutions when immediate action is required.',
+      'Overall, {name}’s Aries Sun Sign is associated with pioneering intelligence, decisive reasoning, inventive action, and intellectual courage, emphasizing the ability to turn ideas into action and approach difficult problems without hesitation.',
     ],
   },
   Taurus: {
-    symbolName: 'Bull',
-    archetype: 'The Grounded Builder',
-    dateRangeLabel: 'April 20 - May 20',
+    symbolName: 'The Bull',
+    archetype: 'The Designing Banker',
+    mbtiArchetype: 'ISFP',
+    dateRangeLabel: 'April 20th - May 20th',
     element: 'Earth',
     modality: 'Fixed',
     rulingPlanet: 'Venus',
-    influencePlanet: 'Moon',
+    exaltationPlanet: 'Moon',
     paragraphs: [
-      "Being born under Taurus makes this a Fixed Earth (Rock) sign, forming a stabilizing, determined, and materially focused General Conscience and Personality. Ruled by Venus and influenced by Earth's magnetic steadiness, Taurus individuals are calm, reliable, loyal, comfort-seeking, protective, sensual, affectionate, deliberate, stubborn, persevering, practical, patient, and financially minded.",
-      'Taurus is dependable and nurturing, but attachment to routine, sensitivity to change, and firm opinions can sometimes make Taurus appear stubborn, slow-moving, or overly possessive.',
-      'Overall, the Taurus Sun Sign is driven toward long-term stability, beauty, and tangible results. Dedication ensures lasting structures in life and relationships, and Taurus seeks to be honored for loyalty and achievements — leaving a legacy of abundance and endurance.',
+      '{name}’s Taurus Sun Sign is a (FIXED (Focused)-EARTH (Logic)) (Rock) modal-element, making his/her cognitive style associated with concentration, persistence, practicality, and deliberate reasoning. Taurus is ruled by Venus, which associates his/her intelligence with patience, stability, applied reasoning, design-oriented thinking, sensory awareness, persistence, practical problem-solving, resource management, and long-term learning.',
+      '{name}’s Taurus intelligence is characterized by the ability to remain focused on a problem and gradually develop reliable solutions. He/she may prefer concrete knowledge, practical applications, and methods that produce tangible and lasting results.',
+      'Overall, {name}’s Taurus Sun Sign is associated with practical intelligence, sustained concentration, deliberate reasoning, design thinking, and persistent problem-solving, emphasizing the ability to build knowledge and solutions gradually.',
     ],
   },
   Gemini: {
-    symbolName: 'Twins',
+    symbolName: 'The Twins',
     archetype: 'The Thinking Messenger',
-    dateRangeLabel: 'May 21 - June 20',
+    mbtiArchetype: 'ENTP',
+    dateRangeLabel: 'May 21st - June 20th',
     element: 'Air',
     modality: 'Mutable',
     rulingPlanet: 'Mercury',
-    influencePlanet: 'Jupiter',
     paragraphs: [
-      'Being born under Gemini makes this a Mutable Air (Wind) sign, forming a curious, versatile, and mentally alert General Conscience and Personality. Ruled by Mercury, Gemini individuals are witty, adaptable, sociable, clever, youthful, intellectual, quick-witted, talkative, humorous, inquisitive, charming, multitasking, restless, and unpredictable.',
-      'Gemini is communicative and spontaneous, but scattered focus, dual nature, and a tendency to intellectualize emotions can sometimes make Gemini appear flaky, inconsistent, deceitful, or overly sarcastic.',
-      'Overall, the Gemini Sun Sign is driven toward intellectual stimulation, novelty, and expressive communication. Mental agility ensures rapid learning and adaptability, and Gemini seeks to be honored for intellect, humor, and ideas — leaving a legacy of connection, creativity, and clever influence.',
+      '{name}’s Gemini Sun Sign is a (MUTABLE (Versatile)-AIR (Idealistic)) (Wind) modal-element, making his/her cognitive style associated with curiosity, adaptability, communication, and rapid information processing. Gemini is ruled by Mercury, which associates his/her intelligence with verbal reasoning, intellectual curiosity, pattern recognition, information gathering, mental agility, communication, brainstorming, multitasking, and conceptual association.',
+      '{name}’s Gemini intelligence is characterized by the ability to rapidly connect different pieces of information and generate multiple perspectives on a subject. He/she may particularly enjoy learning through conversation, debate, questioning, experimentation, and exposure to diverse ideas.',
+      'Overall, {name}’s Gemini Sun Sign is associated with verbal intelligence, mental flexibility, rapid learning, associative thinking, communication, and intellectual versatility, emphasizing the ability to connect and exchange ideas quickly.',
     ],
   },
   Cancer: {
-    symbolName: 'Crab',
+    symbolName: 'The Crab',
     archetype: 'The Healing Mother',
-    dateRangeLabel: 'June 21 - July 22',
+    mbtiArchetype: 'ISFJ',
+    dateRangeLabel: 'June 21st - July 22nd',
     element: 'Water',
     modality: 'Cardinal',
     rulingPlanet: 'Moon',
-    influencePlanet: 'Neptune',
+    exaltationPlanet: 'Jupiter',
     paragraphs: [
-      'Being born under Cancer makes this a Cardinal Water (Tide) sign, forming an emotionally intuitive, nurturing, and protective General Conscience and Personality. Ruled by the Moon, Cancer individuals are compassionate, caring, loyal, imaginative, sensitive, maternal, moody, protective, artistic, intuitive, emotionally deep, nostalgic, spiritual, and empathetic.',
-      'Cancer is deeply empathetic and nurturing, but mood swings, clinginess, or passive-aggressiveness can sometimes make Cancer appear overly sensitive, defensive, or overly dependent.',
-      'Overall, the Cancer Sun Sign is driven to emotionally nurture, protect, and preserve family or traditions. Emotional insight and spiritual depth lead to a legacy of emotional safety, memory, and heartfelt devotion.',
+      '{name}’s Cancer Sun Sign is a (CARDINAL (Visionary)-WATER (Perceptive)) (Tide) modal-element, making his/her cognitive style associated with perception, memory, intuition, and contextual understanding. Cancer is ruled by the Moon, which associates his/her intelligence with emotional perception, memory, intuitive reasoning, contextual awareness, imaginative thinking, pattern recognition, and sensitivity to environmental information.',
+      '{name}’s Cancer intelligence is characterized by the ability to retain meaningful information and understand situations through context and accumulated experience. He/she may be particularly attentive to subtle emotional or environmental patterns that other people overlook.',
+      'Overall, {name}’s Cancer Sun Sign is associated with intuitive intelligence, strong contextual awareness, memory, emotional perception, and imaginative reasoning, emphasizing the ability to understand information through experience and context.',
     ],
   },
   Leo: {
-    symbolName: 'Lion',
+    symbolName: 'The Lion',
     archetype: 'The Creative King',
-    dateRangeLabel: 'July 23 - August 22',
+    mbtiArchetype: 'ENFP',
+    dateRangeLabel: 'July 23rd - August 22nd',
     element: 'Fire',
     modality: 'Fixed',
-    rulingPlanet: 'Sun',
-    influencePlanet: 'Mars',
+    rulingPlanet: 'the Sun',
+    exaltationPlanet: 'Neptune',
     paragraphs: [
-      'Being born under Leo makes this a Fixed Fire (Sunlight) sign, forming a magnetic, expressive, and pride-driven General Conscience and Personality. Ruled by the Sun, Leo individuals are proud, charismatic, generous, dramatic, courageous, warm-hearted, leadership-oriented, creative, theatrical, loyal, authoritative, attention-seeking, and inspiring.',
-      'Leo is confident and generous, but a need for recognition, pride, or ego-centeredness can sometimes make Leo appear vain, self-absorbed, or controlling.',
-      'Overall, the Leo Sun Sign is driven to inspire, lead, and be remembered. Boldness and emotional warmth ensure admiration and creativity, leading to a legacy of leadership and heart-centered expression.',
+      '{name}’s Leo Sun Sign is a (FIXED (Focused)-FIRE (Intuitive)) (Sunlight) modal-element, making his/her cognitive style associated with creativity, expressive thinking, confidence, and focused ideation. Leo is ruled by the Sun, which associates his/her intelligence with creative expression, leadership thinking, originality, visualization, performance, persuasive communication, confidence in ideas, and the ability to inspire others intellectually.',
+      '{name}’s Leo intelligence is characterized by the ability to develop ideas and communicate them with clarity, confidence, and expressive force. He/she may excel when intellectual work allows creativity and personal originality to become visible.',
+      'Overall, {name}’s Leo Sun Sign is associated with creative intelligence, expressive reasoning, intellectual leadership, originality, and persuasive communication, emphasizing the ability to transform ideas into compelling intellectual expressions.',
     ],
   },
   Virgo: {
-    symbolName: 'Virgin',
+    symbolName: 'The Virgin',
     archetype: 'The Analytical Maiden',
-    dateRangeLabel: 'August 23 - September 22',
+    mbtiArchetype: 'INTP',
+    dateRangeLabel: 'August 23rd - September 22nd',
     element: 'Earth',
     modality: 'Mutable',
     rulingPlanet: 'Mercury',
-    influencePlanet: 'Chiron',
+    exaltationPlanet: 'Mercury',
     paragraphs: [
-      'Being born under Virgo makes this a Mutable Earth (Soil) sign, forming a meticulous, grounded, and improvement-oriented General Conscience and Personality. Ruled by Mercury, Virgo individuals are analytical, perfectionist, practical, detail-focused, humble, cautious, reliable, intelligent, organized, reserved, and health-conscious.',
-      'Virgo is helpful and precise, but overthinking, criticism, or obsession with flaws can sometimes make Virgo appear anxious, inflexible, or overly judgmental.',
-      'Overall, the Virgo Sun Sign is driven to refine, heal, and systematize. Practical intelligence ensures results with accuracy and humility, leading to a legacy of service, excellence, and intellectual clarity.',
+      '{name}’s Virgo Sun Sign is a (MUTABLE (Versatile)-EARTH (Logic)) (Soil) modal-element, making his/her cognitive style associated with analysis, precision, organization, and systematic improvement. Virgo is ruled by Mercury, which associates his/her intelligence with analytical reasoning, attention to detail, critical thinking, categorization, optimization, practical problem-solving, accuracy, and systematic learning.',
+      '{name}’s Virgo intelligence is characterized by the ability to break complex information into smaller components and identify inconsistencies or areas for improvement. He/she may excel at refining systems, detecting errors, and developing precise solutions.',
+      'Overall, {name}’s Virgo Sun Sign is associated with analytical intelligence, precision, systematic reasoning, critical thinking, and optimization, emphasizing the ability to improve knowledge and systems through careful examination.',
     ],
   },
   Libra: {
-    symbolName: 'Scales',
+    symbolName: 'The Scales',
     archetype: 'The Harmonizing Diplomat',
-    dateRangeLabel: 'September 23 - October 22',
+    mbtiArchetype: 'ESFP',
+    dateRangeLabel: 'September 23rd - October 22nd',
     element: 'Air',
     modality: 'Cardinal',
     rulingPlanet: 'Venus',
-    influencePlanet: 'Saturn',
+    exaltationPlanet: 'Saturn',
     paragraphs: [
-      'Being born under Libra makes this a Cardinal Air (Wind) sign, forming a socially intelligent, aesthetic, and balance-seeking General Conscience and Personality. Ruled by Venus, Libra individuals are fair, diplomatic, sociable, artistic, romantic, peace-seeking, indecisive, charming, intellectual, tactful, and idealistic.',
-      'Libra is likable and peace-driven, but indecision, a desire for harmony, or people-pleasing can sometimes make Libra appear passive, passive-aggressive, noncommittal, or image-obsessed.',
-      'Overall, the Libra Sun Sign is driven to create beauty, fairness, and social harmony. Elegance ensures meaningful relationships and thoughtful diplomacy, leading to a legacy of grace, aesthetics, and justice.',
+      '{name}’s Libra Sun Sign is a (CARDINAL (Visionary)-AIR (Idealistic)) (Wind) modal-element, making his/her cognitive style associated with comparison, balance, social perception, and conceptual evaluation. Libra is ruled by Venus, which associates his/her intelligence with social reasoning, perspective-taking, diplomacy, comparative analysis, aesthetic cognition, negotiation, balance, and evaluating multiple sides of an issue.',
+      '{name}’s Libra intelligence is characterized by the ability to recognize competing perspectives and search for equilibrium between them. He/she may be particularly capable of considering how different ideas interact within social or conceptual systems.',
+      'Overall, {name}’s Libra Sun Sign is associated with social intelligence, comparative reasoning, perspective-taking, diplomatic thinking, and aesthetic intelligence, emphasizing the ability to evaluate multiple viewpoints and identify balance.',
     ],
   },
   Scorpio: {
-    symbolName: 'Scorpion',
+    symbolName: 'The Scorpion',
     archetype: 'The Researching Sorcerer',
-    dateRangeLabel: 'October 23 - November 21',
+    mbtiArchetype: 'INTP',
+    dateRangeLabel: 'October 23rd - November 21st',
     element: 'Water',
     modality: 'Fixed',
     rulingPlanet: 'Pluto',
     influencePlanet: 'Mars',
+    exaltationPlanet: 'Uranus',
     paragraphs: [
-      'Being born under Scorpio makes this a Fixed Water (Ice) sign, forming an intense, private, and transformative General Conscience and Personality. Ruled by Pluto and influenced by Mars, Scorpio individuals are strategic, intuitive, secretive, powerful, deep, loyal, obsessive, transformative, analytical, mysterious, and fearless.',
-      'Scorpio is resilient and deeply wise, but emotional extremes, secrecy, and intensity can sometimes make Scorpio appear controlling, manipulative, or distant.',
-      'Overall, the Scorpio Sun Sign is driven to uncover truth, transform self and others, and master psychological depths. Research and sorcery lead to a legacy of power, mystery, and profound transformation.',
+      '{name}’s Scorpio Sun Sign is a (FIXED (Focused)-WATER (Perceptive)) (Ice) modal-element, making his/her cognitive style associated with depth, investigation, concentration, and uncovering hidden information. Scorpio is ruled by Pluto and influenced by Mars, which associates his/her intelligence with research, deductive reasoning, psychological perception, strategic thinking, investigation, persistence, pattern recognition, and deep analysis.',
+      '{name}’s Scorpio intelligence is characterized by a tendency to investigate subjects beyond their surface-level explanations. He/she may be particularly interested in hidden mechanisms, complex systems, mysteries, and difficult questions requiring sustained intellectual concentration.',
+      'Overall, {name}’s Scorpio Sun Sign is associated with investigative intelligence, deep analytical reasoning, strategic thinking, psychological perception, and research, emphasizing the pursuit of underlying causes and hidden information.',
     ],
   },
   Sagittarius: {
-    symbolName: 'Centaur-Archer',
-    archetype: 'The Seeking Philosopher',
-    dateRangeLabel: 'November 22 - December 21',
+    symbolName: 'The Centaur-Archer',
+    archetype: 'The Philosophical Explorer',
+    mbtiArchetype: 'ENTP',
+    dateRangeLabel: 'November 22nd - December 21st',
     element: 'Fire',
     modality: 'Mutable',
     rulingPlanet: 'Jupiter',
     influencePlanet: 'Neptune',
     paragraphs: [
-      'Being born under Sagittarius makes this a Mutable Fire (Lightning) sign, forming a curious, adventurous, and visionary General Conscience and Personality. Ruled by Jupiter and influenced by Neptune, Sagittarius individuals are optimistic, freedom-loving, philosophical, humorous, blunt, expansive, open-minded, spontaneous, restless, wise, and spiritual.',
-      'Sagittarius is visionary and uplifting, but impatience, preachiness, or risk-taking can sometimes make Sagittarius appear reckless, arrogant, or inconsistent.',
-      'Overall, the Sagittarius Sun Sign is driven to explore, teach, and expand. Idealism and intellectual drive ensure a legacy of bold thought, optimism, and worldly wisdom.',
+      '{name}’s Sagittarius Sun Sign is a (MUTABLE (Versatile)-FIRE (Intuitive)) (Lightning) modal-element, making his/her cognitive style associated with exploration, abstraction, philosophy, and expansive thinking. Sagittarius is ruled by Jupiter, which associates his/her intelligence with philosophical reasoning, conceptual exploration, intellectual curiosity, synthesis, big-picture thinking, abstract thinking, teaching, and pursuit of knowledge.',
+      '{name}’s Sagittarius intelligence is characterized by a tendency to connect individual facts into broader theories and conceptual frameworks. He/she may be particularly motivated by questions involving meaning, truth, philosophy, science, culture, and the larger structure of reality.',
+      'Overall, {name}’s Sagittarius Sun Sign is associated with philosophical intelligence, abstract reasoning, intellectual exploration, synthesis, and big-picture thinking, emphasizing the expansion and integration of knowledge.',
     ],
   },
   Capricorn: {
-    symbolName: 'Sea-Goat',
+    symbolName: 'The Sea-Goat',
     archetype: 'The Architectural Archmage',
-    dateRangeLabel: 'December 22 - January 19',
+    mbtiArchetype: 'INTJ',
+    dateRangeLabel: 'December 22nd - January 19th',
     element: 'Earth',
     modality: 'Cardinal',
     rulingPlanet: 'Saturn',
     influencePlanet: 'Uranus',
+    exaltationPlanet: 'Mars',
     paragraphs: [
-      'Being born under Capricorn makes this a Cardinal Earth (Mountain) sign, forming a visionary, authoritative, and logical General Conscience and Personality. Ruled by Saturn and influenced by Uranus, Capricorn individuals are ambitious, structured, managerial, traditional, lawful, genuine, generous, honest, cold, confident, authentic, witty, insightful, humorous, intelligent, wise, deep, suspicious, pessimistic, imaginative, innovative, logical, eidetic, knowledgeable, intuitive, scientific, tech-savvy, constructive, and practical — a Traditional and Structured Humanitarian.',
-      'Capricorn is genuine and generous, but managerialism, suspicion, blunt honesty, coldness, confidence, and intellectual intensity can sometimes make Capricorn appear controlling, rude, pessimistic, condescending, or a know-it-all.',
-      'Overall, the Capricorn Sun Sign is driven toward an adventure of universal knowledge and success in entrepreneurial, intellectual, philanthropic, and spiritual ventures. Generosity ensures gained knowledge benefits humanity philanthropically, and Capricorn seeks to be honored for intelligence and success — leaving a legacy of achievement.',
+      '{name}’s Capricorn Sun Sign is a (CARDINAL (Visionary)-EARTH (Logic)) (Mountain) modal-element, making his/her cognitive style associated with logical reasoning, structure, discipline, strategic planning, systematic thinking, and long-term intellectual development. Capricorn is ruled by Saturn and influenced by Uranus, associating his/her intelligence with organization, constructive reasoning, practical problem-solving, technical thinking, strategic planning, knowledge accumulation, persistence, innovation, and structured creativity.',
+      '{name}’s Capricorn intelligence is characterized by the ability to organize complex information into structured systems and pursue difficult intellectual objectives over long periods. He/she may be particularly drawn toward mathematics, science, engineering, technology, philosophy, business strategy, and other fields requiring systematic reasoning.',
+      'Overall, {name}’s Capricorn Sun Sign is associated with logical, methodical, strategic, constructive, and disciplined intelligence, emphasizing the ability to transform complex knowledge into structured systems, practical solutions, and long-term intellectual achievements.',
     ],
   },
   Aquarius: {
-    symbolName: 'Water Bearer',
+    symbolName: 'The Water Bearer',
     archetype: 'The Revolutionary Mad-Scientist',
-    dateRangeLabel: 'January 20 - February 18',
+    mbtiArchetype: 'INTP',
+    dateRangeLabel: 'January 20th - February 18th',
     element: 'Air',
     modality: 'Fixed',
     rulingPlanet: 'Uranus',
     influencePlanet: 'Saturn',
     paragraphs: [
-      'Being born under Aquarius makes this a Fixed Air (Atmosphere) sign, forming an inventive, idealistic, and highly independent General Conscience and Personality. Ruled by Uranus and influenced by Saturn, Aquarius individuals are visionary, unconventional, eccentric, intelligent, experimental, socially conscious, detached, rebellious, and friendly — a Rebellious Humanitarian.',
-      'Aquarius is brilliant and original, but emotional detachment, stubborn ideals, and unpredictable behavior can sometimes make Aquarius appear cold, erratic, or arrogant.',
-      'Overall, the Aquarius Sun Sign is driven to break norms, uplift society, and shape the future. A progressive mindset and abstract thinking lead to a legacy of experiments, disruption, rebellion, and humanitarianism.',
+      '{name}’s Aquarius Sun Sign is a (FIXED (Focused)-AIR (Idealistic)) (Atmosphere) modal-element, making his/her cognitive style associated with originality, abstraction, innovation, independence, and unconventional thinking. Aquarius is ruled by Uranus and influenced by Saturn, associating his/her intelligence with inventive reasoning, scientific thinking, experimentation, technological thinking, abstract pattern recognition, unconventional problem-solving, systems thinking, and future-oriented ideas.',
+      '{name}’s Aquarius intelligence is characterized by questioning established assumptions and exploring alternative explanations or possibilities. He/she may be particularly interested in science, technology, invention, theoretical concepts, social systems, and ideas concerning the future.',
+      'Overall, {name}’s Aquarius Sun Sign is associated with innovative intelligence, scientific thinking, abstract reasoning, technological creativity, and unconventional problem-solving, emphasizing originality and the exploration of new intellectual possibilities.',
     ],
   },
   Pisces: {
-    symbolName: 'Two-Fishes',
+    symbolName: 'The Two-Fishes',
     archetype: 'The Imaginative Mystic',
-    dateRangeLabel: 'February 19 - March 20',
+    mbtiArchetype: 'INFP',
+    dateRangeLabel: 'February 19th - March 20th',
     element: 'Water',
     modality: 'Mutable',
     rulingPlanet: 'Neptune',
     influencePlanet: 'Jupiter',
+    exaltationPlanet: 'Venus',
     paragraphs: [
-      'Being born under Pisces makes this a Mutable Water (Ocean) sign, forming an imaginative, empathetic, and deeply spiritual General Conscience and Personality. Ruled by Neptune and influenced by Jupiter, Pisces individuals are dreamy, artistic, intuitive, compassionate, mystical, idealistic, spiritual, emotional, gentle, escapist, sensitive, and imaginative.',
-      'Pisces is soulful and visionary, but hypersensitivity, emotional absorption, and disconnection from reality can sometimes make Pisces appear lost, overly passive, or self-sacrificial.',
-      'Overall, the Pisces Sun Sign is driven to dream, heal, and transcend boundaries. Creativity and emotional depth lead to a legacy of spiritual insight, artistic brilliance, and divine compassion.',
+      '{name}’s Pisces Sun Sign is a (MUTABLE (Versatile)-WATER (Perceptive)) (Ocean) modal-element, making his/her cognitive style associated with imagination, intuition, creativity, and holistic perception. Pisces is ruled by Neptune and influenced by Jupiter, associating his/her intelligence with creative thinking, intuitive reasoning, imagination, symbolic thinking, artistic cognition, emotional perception, abstraction, synthesis, and exploration of intangible concepts.',
+      '{name}’s Pisces intelligence is characterized by the ability to approach information through imagination, symbolism, intuition, and interconnected concepts. He/she may be particularly drawn toward artistic, philosophical, spiritual, psychological, or imaginative subjects.',
+      'Overall, {name}’s Pisces Sun Sign is associated with creative intelligence, intuitive reasoning, imaginative thinking, holistic perception, and abstract cognition, emphasizing the ability to explore ideas through symbolism, intuition, and interconnected patterns.',
     ],
   },
 };
@@ -212,6 +230,30 @@ const ZODIAC_DATE_RANGES: Array<{ sign: ZodiacSign; startMonth: number; startDay
   { sign: 'Capricorn', startMonth: 12, startDay: 22, endMonth: 12, endDay: 31 },
 ];
 
+const ZODIAC_MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+const getOrdinalSuffix = (day: number): string => {
+  if (day >= 11 && day <= 13) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
+};
+
+/** Formats a `YYYY-MM-DD` date-of-birth string as e.g. "December 28th" (year omitted). */
+export function formatZodiacBirthDate(dateOfBirth: string): string | null {
+  const [, monthStr, dayStr] = dateOfBirth.split('-');
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (!month || !day || month < 1 || month > 12) return null;
+  return `${ZODIAC_MONTH_NAMES[month - 1]} ${day}${getOrdinalSuffix(day)}`;
+}
+
 /** Resolves a zodiac sign from a `YYYY-MM-DD` date-of-birth string. */
 export function getZodiacSign(dateOfBirth: string): ZodiacSign | null {
   const [, monthStr, dayStr] = dateOfBirth.split('-');
@@ -231,3 +273,36 @@ export function getZodiacSign(dateOfBirth: string): ZodiacSign | null {
 
   return match?.sign ?? null;
 }
+
+/**
+ * Builds the "What the Sun in {sign} Means Regarding Intelligence" paragraphs for a
+ * specific person, generating the intro sentence from the sign's data and personalizing
+ * the rest of the profile's stored paragraphs with the given name and pronouns.
+ */
+export function getZodiacParagraphs(
+  sign: ZodiacSign,
+  name: string,
+  birthDateLabel: string,
+  gender?: string | null,
+): string[] {
+  const profile = ZODIAC_PROFILES[sign];
+  const { possessive, subject } = resolveZodiacPronouns(gender);
+  const intro = `${name} being born on ${birthDateLabel} between ${profile.dateRangeLabel} makes ${possessive} Sun Sign ${sign} (${profile.symbolName}) (${profile.archetype}) (${profile.mbtiArchetype}), forming ${possessive} General Conscience and Personality.`;
+  const resolvedParagraphs = profile.paragraphs.map((paragraph) =>
+    paragraph
+      .replaceAll('{name}', name)
+      .replaceAll('his/her', possessive)
+      .replaceAll('He/she', capitalize(subject)),
+  );
+  return [intro, ...resolvedParagraphs];
+}
+
+/** Resolves possessive/subject pronouns from a free-text gender field, defaulting to "their"/"they". */
+function resolveZodiacPronouns(gender?: string | null): { possessive: string; subject: string } {
+  const normalized = (gender ?? '').trim().toLowerCase();
+  if (['male', 'man', 'm', 'boy'].includes(normalized)) return { possessive: 'his', subject: 'he' };
+  if (['female', 'woman', 'f', 'girl'].includes(normalized)) return { possessive: 'her', subject: 'she' };
+  return { possessive: 'their', subject: 'they' };
+}
+
+const capitalize = (value: string): string => value.charAt(0).toUpperCase() + value.slice(1);

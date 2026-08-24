@@ -16,9 +16,6 @@ import {
   Shapes,
   Users,
   Wrench,
-  Eye,
-  Gauge,
-  HeartHandshake,
   MessageCircle,
   ScanEye,
 } from 'lucide-react';
@@ -40,9 +37,6 @@ export type IntelligenceTypeKey =
   | 'visual_spatial'
   | 'interpersonal'
   | 'practical'
-  | 'self_awareness'
-  | 'self_regulation'
-  | 'empathy'
   | 'social_intelligence'
   | 'perceptual';
 
@@ -52,7 +46,7 @@ interface IntelligenceTypeMeta {
   icon: LucideIcon;
 }
 
-// The 21 Intelligence Types from the Cerebrolearn profile specification.
+// The Intelligence Types from the Cerebrolearn profile specification.
 export const INTELLIGENCE_TYPES: Record<IntelligenceTypeKey, IntelligenceTypeMeta> = {
   creative: {
     label: 'Creative',
@@ -85,7 +79,7 @@ export const INTELLIGENCE_TYPES: Record<IntelligenceTypeKey, IntelligenceTypeMet
     icon: Brain,
   },
   linguistic: {
-    label: 'Linguistic',
+    label: 'Verbal-Linguistic Intelligence',
     description: 'Skill with words, language acquisition, and verbal expression.',
     icon: Languages,
   },
@@ -133,21 +127,6 @@ export const INTELLIGENCE_TYPES: Record<IntelligenceTypeKey, IntelligenceTypeMet
     label: 'Practical',
     description: 'Applying knowledge and skills to solve real-world, everyday problems.',
     icon: Wrench,
-  },
-  self_awareness: {
-    label: 'Self-Awareness',
-    description: 'Recognizing one’s own emotions, strengths, and limitations as they occur.',
-    icon: Eye,
-  },
-  self_regulation: {
-    label: 'Self-Regulation',
-    description: 'Managing impulses, emotions, and behavior in service of long-term goals.',
-    icon: Gauge,
-  },
-  empathy: {
-    label: 'Empathy',
-    description: 'Sensing and sharing the feelings and perspectives of others.',
-    icon: HeartHandshake,
   },
   social_intelligence: {
     label: 'Social Intelligence',

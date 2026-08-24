@@ -95,6 +95,8 @@ import { SkillsExpertiseIcon } from './SkillsExpertiseIcon';
 import {
   ZODIAC_PROFILES,
   getZodiacSign,
+  getZodiacParagraphs,
+  formatZodiacBirthDate,
 } from '../../data/zodiacData';
 import { INTELLIGENCE_TYPES, INTELLIGENCE_TYPE_KEYS } from '../../data/intelligenceTypesData';
 
@@ -232,6 +234,15 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
       : null;
   const zodiacSign = profile.date_of_birth ? getZodiacSign(profile.date_of_birth) : null;
   const zodiacProfile = zodiacSign ? ZODIAC_PROFILES[zodiacSign] : null;
+  const zodiacBirthDateLabel = profile.date_of_birth ? formatZodiacBirthDate(profile.date_of_birth) : null;
+  const zodiacParagraphs =
+    zodiacSign && zodiacBirthDateLabel
+      ? getZodiacParagraphs(
+          zodiacSign,
+          profile.full_name?.split(' ')[0] || 'This user',
+          zodiacBirthDateLabel,
+        )
+      : null;
   const aliasText =
     profile.aliases && profile.aliases.length > 0 ? profile.aliases.join(', ') : null;
   const headerAccent = aliasText || personality || profile.role?.replace(/_/g, ' ') || 'Learner';
@@ -670,13 +681,19 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                             {zodiacSign} ({zodiacProfile.symbolName})
                           </h3>
                           <Badge variant='secondary'>{zodiacProfile.archetype}</Badge>
+                          <Badge variant='secondary'>{zodiacProfile.mbtiArchetype}</Badge>
                           <Badge variant='outline'>{zodiacProfile.dateRangeLabel}</Badge>
                         </div>
                         <div className='flex flex-wrap gap-2'>
-                          <Badge variant='outline'>{zodiacProfile.element}</Badge>
                           <Badge variant='outline'>{zodiacProfile.modality}</Badge>
+                          <Badge variant='outline'>{zodiacProfile.element}</Badge>
                           <Badge variant='outline'>Ruled by {zodiacProfile.rulingPlanet}</Badge>
-                          <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
+                          {zodiacProfile.influencePlanet && (
+                            <Badge variant='outline'>Influenced by {zodiacProfile.influencePlanet}</Badge>
+                          )}
+                          {zodiacProfile.exaltationPlanet && (
+                            <Badge variant='outline'>{zodiacProfile.exaltationPlanet} Exaltation</Badge>
+                          )}
                         </div>
 
                         <div className='space-y-3'>
@@ -691,8 +708,10 @@ export function ProfileView({ userId }: ProfileViewProps = {}) {
                         </div>
 
                         <div className='space-y-3'>
-                          <h4 className='text-base font-semibold'>General Conscience &amp; Personality</h4>
-                          {zodiacProfile.paragraphs.map((paragraph, index) => (
+                          <h4 className='text-base font-semibold'>
+                            What the Sun in {zodiacSign} Means Regarding Intelligence:
+                          </h4>
+                          {zodiacParagraphs?.map((paragraph, index) => (
                             <p key={index} className='text-sm text-muted-foreground'>
                               {paragraph}
                             </p>

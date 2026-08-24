@@ -11,8 +11,12 @@ import {
 import { Sparkles } from 'lucide-react';
 import {
   ZODIAC_PROFILES,
+  getZodiacParagraphs,
   type ZodiacSign,
 } from '../../data/zodiacData';
+
+const ZODIAC_SIGNS_PAGE_NAME = 'This individual';
+const ZODIAC_SIGNS_PAGE_BIRTH_DATE = 'their birthdate';
 
 interface ZodiacSignsPageProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -46,6 +50,11 @@ export function ZodiacSignsPage({ onNavigate }: ZodiacSignsPageProps) {
           <Accordion type='single' collapsible className='w-full'>
             {signs.map((sign) => {
               const profile = ZODIAC_PROFILES[sign];
+              const paragraphs = getZodiacParagraphs(
+                sign,
+                ZODIAC_SIGNS_PAGE_NAME,
+                ZODIAC_SIGNS_PAGE_BIRTH_DATE,
+              );
               return (
                 <AccordionItem key={sign} value={sign} className='mb-4 rounded-xl border px-4'>
                   <AccordionTrigger>
@@ -63,6 +72,7 @@ export function ZodiacSignsPage({ onNavigate }: ZodiacSignsPageProps) {
                             {sign} ({profile.symbolName})
                           </span>
                           <Badge variant='secondary'>{profile.archetype}</Badge>
+                          <Badge variant='secondary'>{profile.mbtiArchetype}</Badge>
                         </div>
                         <p className='text-sm text-muted-foreground'>{profile.dateRangeLabel}</p>
                       </div>
@@ -71,10 +81,15 @@ export function ZodiacSignsPage({ onNavigate }: ZodiacSignsPageProps) {
                   <AccordionContent>
                     <div className='space-y-6 pb-4'>
                       <div className='flex flex-wrap gap-2'>
-                        <Badge variant='outline'>{profile.element}</Badge>
                         <Badge variant='outline'>{profile.modality}</Badge>
+                        <Badge variant='outline'>{profile.element}</Badge>
                         <Badge variant='outline'>Ruled by {profile.rulingPlanet}</Badge>
-                        <Badge variant='outline'>Influenced by {profile.influencePlanet}</Badge>
+                        {profile.influencePlanet && (
+                          <Badge variant='outline'>Influenced by {profile.influencePlanet}</Badge>
+                        )}
+                        {profile.exaltationPlanet && (
+                          <Badge variant='outline'>{profile.exaltationPlanet} Exaltation</Badge>
+                        )}
                       </div>
 
                       <div className='space-y-3'>
@@ -89,8 +104,10 @@ export function ZodiacSignsPage({ onNavigate }: ZodiacSignsPageProps) {
                       </div>
 
                       <div className='space-y-3'>
-                        <h4 className='text-base font-semibold'>General Conscience &amp; Personality</h4>
-                        {profile.paragraphs.map((paragraph, index) => (
+                        <h4 className='text-base font-semibold'>
+                          What the Sun in {sign} Means Regarding Intelligence:
+                        </h4>
+                        {paragraphs.map((paragraph, index) => (
                           <p key={index} className='text-sm text-muted-foreground'>
                             {paragraph}
                           </p>

@@ -37,12 +37,12 @@ import { useAppSettings } from '../../hooks/useAppSettings';
 import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 import {
   psychologistApi,
-  publicGeniusApi,
   officialIqApi,
   cognitiveProfileApi,
-  type GeniusApiResponse,
+  rankingsApi,
   type IQTestCandidate,
 } from '../../utils/api-client';
+import type { PublicRankingEntry } from '../../types/database';
 import { formatIQTestType, isIQTestType, type IQTestType } from '../../utils/iqTestTypes';
 import { calculateIQScoreFromCognitiveProfile } from './IQCertificate';
 import type {
@@ -101,20 +101,6 @@ interface ResumeState {
   lastSavedAt?: string;
 }
 
-interface DashboardGeniusProfile {
-  id: string;
-  name: string;
-  iqScore: number | null;
-  field: string;
-  era: string;
-  notableWork: string;
-  description: string;
-}
-
-interface BenchmarkGeniusProfile extends DashboardGeniusProfile {
-  benchmarkPercent: number;
-}
-
 const glassCardClassName =
   'border-border/60 bg-background/75 backdrop-blur-xl shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] hover:scale-[1.02] transition-all duration-300';
 const SESSIONS_PAGE_SIZE = 4;
@@ -149,24 +135,6 @@ const comparisonRows = [
     official: 'Best for admissions, scholarships, and documentation',
   },
 ];
-
-const formatProfileType = (value?: string) => {
-  if (!value) return 'Profile';
-  return value
-    .split('_')
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-};
-
-const mapDashboardGeniusProfile = (profile: GeniusApiResponse): DashboardGeniusProfile => ({
-  id: profile.id,
-  name: profile.full_name,
-  iqScore: profile.iq_score,
-  field: formatProfileType(profile.profile_type),
-  era: profile.era,
-  notableWork: profile.short_description,
-  description: profile.iq_score_note || profile.editorial_note || profile.short_description,
-});
 
 const hasVisibleResults = (notes?: IQSessionNotes | null) =>
   Boolean(
@@ -310,15 +278,6 @@ const calculateIQScore = (percentageScore: number) => Math.round(100 + (percenta
 const calculatePercentile = (iqScore: number) =>
   clamp(Math.round((1 - Math.exp(-(iqScore - 100) / 15)) * 50 + 50), 1, 99);
 
-const OFFICIAL_IQ_MIN = calculateIQScore(0);
-const OFFICIAL_IQ_MAX = calculateIQScore(100);
-
-const getScalePositionPercent = (value: number, min: number, max: number) => {
-  if (!Number.isFinite(value)) return 0;
-  if (max <= min) return 50;
-  return clamp(Math.round(((value - min) / (max - min)) * 100), 0, 100);
-};
-
 const formatShortDate = (date: string) =>
   new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -357,9 +316,9 @@ export function IQUserDashboard({
   const [iqSessions, setIqSessions] = useState<IQSessionBooking[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionsError, setSessionsError] = useState<string | null>(null);
-  const [geniusProfiles, setGeniusProfiles] = useState<DashboardGeniusProfile[]>([]);
-  const [geniusLoading, setGeniusLoading] = useState(true);
-  const [geniusError, setGeniusError] = useState<string | null>(null);
+  const [publicRankings, setPublicRankings] = useState<PublicRankingEntry[]>([]);
+  const [publicRankingsLoading, setPublicRankingsLoading] = useState(true);
+  const [publicRankingsError, setPublicRankingsError] = useState<string | null>(null);
   const [iqTestCandidates, setIqTestCandidates] = useState<IQTestCandidate[]>([]);
   const [publicRankingOptIn, setPublicRankingOptIn] = useState(false);
   const [isSwitchingOfficialTest, setIsSwitchingOfficialTest] = useState(false);
@@ -490,107 +449,33 @@ export function IQUserDashboard({
     [iqSessions],
   );
   const latestOfficialIQScore = latestCompletedOfficialSessionResult?.iqScore ?? null;
-  const rankedGeniusProfiles = useMemo(
+
+  const rankedPublicProfiles = useMemo(
     () =>
-      [...geniusProfiles]
-        .filter((profile) => typeof profile.iqScore === 'number')
-        .sort((a, b) => (b.iqScore ?? 0) - (a.iqScore ?? 0)),
-    [geniusProfiles],
+      [...publicRankings]
+        .filter((entry) => entry.user_id !== profile?.id)
+        .sort((a, b) => b.official_iq - a.official_iq),
+    [publicRankings, profile?.id],
   );
-  const geniusScoreBounds = useMemo(() => {
-    const scores = rankedGeniusProfiles
-      .map((profile) => profile.iqScore)
-      .filter((score): score is number => typeof score === 'number' && !Number.isNaN(score));
 
-    if (!scores.length) return null;
-    return {
-      min: Math.min(...scores),
-      max: Math.max(...scores),
-    };
-  }, [rankedGeniusProfiles]);
-  const latestOfficialBenchmarkPercent = useMemo(
-    () =>
-      latestOfficialIQScore == null
-        ? null
-        : getScalePositionPercent(latestOfficialIQScore, OFFICIAL_IQ_MIN, OFFICIAL_IQ_MAX),
-    [latestOfficialIQScore],
-  );
-  const benchmarkGeniusProfiles = useMemo<BenchmarkGeniusProfile[]>(() => {
-    if (!geniusScoreBounds) return [];
+  const closestPublicRankingProfile = useMemo(() => {
+    if (latestOfficialIQScore == null || !rankedPublicProfiles.length) return null;
 
-    return rankedGeniusProfiles.map((profile) => ({
-      ...profile,
-      benchmarkPercent: getScalePositionPercent(
-        profile.iqScore ?? geniusScoreBounds.min,
-        geniusScoreBounds.min,
-        geniusScoreBounds.max,
-      ),
-    }));
-  }, [geniusScoreBounds, rankedGeniusProfiles]);
-
-  const closestGeniusProfile = useMemo(() => {
-    if (latestOfficialBenchmarkPercent == null || !benchmarkGeniusProfiles.length) return null;
-
-    return benchmarkGeniusProfiles.reduce((closest, profile) => {
-      const currentGap = Math.abs(profile.benchmarkPercent - latestOfficialBenchmarkPercent);
-      const bestGap = Math.abs(closest.benchmarkPercent - latestOfficialBenchmarkPercent);
-      return currentGap < bestGap ? profile : closest;
+    return rankedPublicProfiles.reduce((closest, entry) => {
+      const currentGap = Math.abs(entry.official_iq - latestOfficialIQScore);
+      const bestGap = Math.abs(closest.official_iq - latestOfficialIQScore);
+      return currentGap < bestGap ? entry : closest;
     });
-  }, [benchmarkGeniusProfiles, latestOfficialBenchmarkPercent]);
+  }, [rankedPublicProfiles, latestOfficialIQScore]);
 
-  const geniusProfilesAscending = useMemo(
-    () => [...benchmarkGeniusProfiles].sort((a, b) => a.benchmarkPercent - b.benchmarkPercent),
-    [benchmarkGeniusProfiles],
-  );
+  const publicRankingProfilesBelowUser = useMemo(() => {
+    if (latestOfficialIQScore == null) return 0;
+    return rankedPublicProfiles.filter((entry) => latestOfficialIQScore >= entry.official_iq).length;
+  }, [rankedPublicProfiles, latestOfficialIQScore]);
 
-  const nextGeniusAbove = useMemo(() => {
-    if (latestOfficialBenchmarkPercent == null) return null;
-    return (
-      geniusProfilesAscending.find(
-        (profile) => profile.benchmarkPercent >= latestOfficialBenchmarkPercent,
-      ) ?? null
-    );
-  }, [geniusProfilesAscending, latestOfficialBenchmarkPercent]);
-
-  const nextGeniusBelow = useMemo(() => {
-    if (latestOfficialBenchmarkPercent == null) return null;
-    return (
-      [...geniusProfilesAscending]
-        .reverse()
-        .find((profile) => profile.benchmarkPercent <= latestOfficialBenchmarkPercent) ?? null
-    );
-  }, [geniusProfilesAscending, latestOfficialBenchmarkPercent]);
-
-  const geniusProfilesBelowUser = useMemo(() => {
-    if (latestOfficialBenchmarkPercent == null) return 0;
-    return benchmarkGeniusProfiles.filter(
-      (profile) => latestOfficialBenchmarkPercent >= profile.benchmarkPercent,
-    ).length;
-  }, [benchmarkGeniusProfiles, latestOfficialBenchmarkPercent]);
-
-  const geniusStandingPercent = rankedGeniusProfiles.length
-    ? Math.round((geniusProfilesBelowUser / rankedGeniusProfiles.length) * 100)
+  const publicRankingStandingPercent = rankedPublicProfiles.length
+    ? Math.round((publicRankingProfilesBelowUser / rankedPublicProfiles.length) * 100)
     : null;
-
-  const geniusComparisonCards = useMemo(() => {
-    const cards: Array<{
-      key: string;
-      label: string;
-      profile: DashboardGeniusProfile;
-    }> = [];
-    const seen = new Set<string>();
-
-    const addCard = (label: string, profile: DashboardGeniusProfile | null) => {
-      if (!profile || seen.has(profile.id)) return;
-      seen.add(profile.id);
-      cards.push({ key: `${label}-${profile.id}`, label, profile });
-    };
-
-    addCard('Closest profile', closestGeniusProfile);
-    addCard('Next target', nextGeniusAbove);
-
-    return cards;
-  }, [closestGeniusProfile, nextGeniusAbove, nextGeniusBelow]);
 
   const completedIQSessionCount = useMemo(
     () => iqSessions.filter((session) => session.status === 'completed').length,
@@ -820,31 +705,31 @@ export function IQUserDashboard({
   useEffect(() => {
     let isMounted = true;
 
-    const loadGeniusProfiles = async () => {
+    const loadPublicRankings = async () => {
       try {
-        setGeniusLoading(true);
-        setGeniusError(null);
+        setPublicRankingsLoading(true);
+        setPublicRankingsError(null);
 
-        const response = await publicGeniusApi.list();
+        const response = await rankingsApi.getPublicRankings();
 
         if (!isMounted) return;
-        setGeniusProfiles((response.items || []).map(mapDashboardGeniusProfile));
+        setPublicRankings(response || []);
       } catch (error: any) {
         if (!isMounted) return;
-        setGeniusProfiles([]);
-        setGeniusError(
+        setPublicRankings([]);
+        setPublicRankingsError(
           error?.message && error.message !== '[object Object]'
             ? error.message
-            : 'Unable to load genius comparison data right now.',
+            : 'Unable to load ranking comparison data right now.',
         );
       } finally {
         if (isMounted) {
-          setGeniusLoading(false);
+          setPublicRankingsLoading(false);
         }
       }
     };
 
-    loadGeniusProfiles();
+    loadPublicRankings();
 
     return () => {
       isMounted = false;
@@ -1004,7 +889,7 @@ export function IQUserDashboard({
     [iqSessions],
   );
   const isInitialSessionsLoading = sessionsLoading && iqSessions.length === 0;
-  const isInitialGeniusLoading = geniusLoading && geniusProfiles.length === 0;
+  const isInitialPublicRankingsLoading = publicRankingsLoading && publicRankings.length === 0;
 
   const openSessionDetail = (session: IQSessionBooking, tab: 'upcoming' | 'past') => {
     onNavigate('iq-session-detail', {
@@ -1392,13 +1277,13 @@ export function IQUserDashboard({
                 <div className='min-w-0'>
                   <CardTitle className='flex flex-wrap items-center gap-2 break-words'>
                     <Trophy className='h-5 w-5 text-amber-500' />
-                    Genius Benchmark
+                    Public Rankings Benchmark
                   </CardTitle>
                   <CardDescription>
-                    Compare your latest psychologist-led IQ result against the genius dataset on an aligned benchmark scale.
+                    Compare your latest psychologist-led IQ result against other members on the public rankings.
                   </CardDescription>
                 </div>
-                <Button variant='outline' className='w-full sm:w-auto' onClick={() => onNavigate('genius-rankings')}>
+                <Button variant='outline' className='w-full sm:w-auto' onClick={() => onNavigate('public-rankings')}>
                   View Full Rankings
                   <ArrowRight className='ml-2 h-4 w-4' />
                 </Button>
@@ -1409,14 +1294,14 @@ export function IQUserDashboard({
                     <Trophy className='mx-auto mb-4 h-10 w-10 text-amber-500' />
                     <p className='text-xl font-semibold'>No completed official IQ result yet</p>
                     <p className='mt-2 text-sm text-muted-foreground'>
-                      Once a psychologist has completed and scored your IQ session, we will show which published genius profiles your official result is closest to.
+                      Once a psychologist has completed and scored your IQ session, we will show how your official result compares to the public rankings.
                     </p>
                     <Button className='mt-5' onClick={() => focusSessionsSection('past')}>
                       <Calendar className='mr-2 h-4 w-4' />
                       View IQ Sessions
                     </Button>
                   </div>
-                ) : isInitialGeniusLoading ? (
+                ) : isInitialPublicRankingsLoading ? (
                   <div className='space-y-4 rounded-2xl border border-border/60 bg-background/80 p-5'>
                     <div className='flex flex-wrap gap-2'>
                       <Skeleton className='h-6 w-24 rounded-full' />
@@ -1426,68 +1311,38 @@ export function IQUserDashboard({
                     <Skeleton className='h-8 w-72' />
                     <Skeleton className='h-4 w-full' />
                     <Skeleton className='h-4 w-4/5' />
-                    <div className='grid gap-4 md:grid-cols-3'>
-                      {Array.from({ length: 3 }).map((_, index) => (
-                        <div
-                          key={`genius-benchmark-skeleton-${index}`}
-                          className='rounded-2xl border border-border/60 bg-background/80 p-4'
-                        >
-                          <div className='flex items-start justify-between gap-3'>
-                            <div className='space-y-2'>
-                              <Skeleton className='h-3 w-24' />
-                              <Skeleton className='h-6 w-40' />
-                              <Skeleton className='h-4 w-32' />
-                            </div>
-                            <Skeleton className='h-6 w-16 rounded-full' />
-                          </div>
-                          <Skeleton className='mt-4 h-4 w-full' />
-                          <div className='mt-4 rounded-xl border border-border/60 bg-muted/20 p-3'>
-                            <Skeleton className='h-3 w-24' />
-                            <Skeleton className='mt-3 h-4 w-36' />
-                            <Skeleton className='mt-2 h-3 w-full' />
-                            <Skeleton className='mt-2 h-3 w-5/6' />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                ) : geniusError ? (
+                ) : publicRankingsError ? (
                   <div className='rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm'>
-                    <p className='font-semibold'>Unable to load benchmark profiles</p>
-                    <p className='mt-1 text-muted-foreground'>{geniusError}</p>
+                    <p className='font-semibold'>Unable to load benchmark data</p>
+                    <p className='mt-1 text-muted-foreground'>{publicRankingsError}</p>
                   </div>
-                ) : rankedGeniusProfiles.length > 0 ? (
+                ) : rankedPublicProfiles.length > 0 ? (
                   <>
                     <div className='grid gap-4'>
                       <div className='rounded-2xl border border-border/60 bg-background/80 p-5'>
                         <div className='flex flex-wrap items-center gap-2'>
                           <Badge className='border-0 bg-primary/10 text-primary'>Latest official IQ: {latestOfficialIQScore}</Badge>
-                          {latestOfficialBenchmarkPercent !== null ? (
-                            <Badge variant='outline'>Aligned benchmark: {latestOfficialBenchmarkPercent}%</Badge>
-                          ) : null}
                           <Badge variant='outline'>
                             {formatIQTestType(latestCompletedOfficialSessionResult?.session.testType)}
                           </Badge>
-                          {geniusStandingPercent !== null ? (
-                            <Badge variant='secondary'>Ahead of {geniusProfilesBelowUser}/{rankedGeniusProfiles.length} aligned profiles</Badge>
+                          {publicRankingStandingPercent !== null ? (
+                            <Badge variant='secondary'>Ahead of {publicRankingProfilesBelowUser}/{rankedPublicProfiles.length} ranked members</Badge>
                           ) : null}
                         </div>
                         <p className='mt-4 break-words text-2xl font-bold'>
-                          {closestGeniusProfile
-                            ? `Closest aligned benchmark: ${closestGeniusProfile.name}`
-                            : 'Your benchmark is getting ready'}
+                          {closestPublicRankingProfile
+                            ? `Closest ranked result: ${closestPublicRankingProfile.full_name}`
+                            : 'Your ranking comparison is getting ready'}
                         </p>
                         <p className='mt-2 text-sm text-muted-foreground'>
-                          {closestGeniusProfile
-                            ? Math.abs(closestGeniusProfile.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0)) === 0
-                              ? `On the aligned benchmark scale, your latest result lands in the same band as ${closestGeniusProfile.name}.`
-                              : (latestOfficialBenchmarkPercent ?? 0) > closestGeniusProfile.benchmarkPercent
-                                ? `On the aligned benchmark scale, you are ${Math.abs((latestOfficialBenchmarkPercent ?? 0) - closestGeniusProfile.benchmarkPercent)} point(s) ahead of ${closestGeniusProfile.name}.`
-                                : `On the aligned benchmark scale, you are ${Math.abs(closestGeniusProfile.benchmarkPercent - (latestOfficialBenchmarkPercent ?? 0))} point(s) away from ${closestGeniusProfile.name}.`
-                            : 'As more genius profiles are published, your closest comparison will appear here.'}
-                        </p>
-                        <p className='mt-2 text-xs text-muted-foreground text-gray-700'>
-                          * Genius profile IQ values here are published estimates, so this benchmark aligns positions across the two scales instead of comparing raw IQ numbers directly.
+                          {closestPublicRankingProfile
+                            ? Math.abs(closestPublicRankingProfile.official_iq - latestOfficialIQScore) === 0
+                              ? `Your latest result matches ${closestPublicRankingProfile.full_name}'s official IQ.`
+                              : latestOfficialIQScore > closestPublicRankingProfile.official_iq
+                                ? `You are ${Math.abs(latestOfficialIQScore - closestPublicRankingProfile.official_iq)} point(s) ahead of ${closestPublicRankingProfile.full_name}.`
+                                : `You are ${Math.abs(closestPublicRankingProfile.official_iq - latestOfficialIQScore)} point(s) away from ${closestPublicRankingProfile.full_name}.`
+                            : 'As more members join the public rankings, your closest comparison will appear here.'}
                         </p>
 
                         {iqTestCandidates.length > 0 ? (
@@ -1561,42 +1416,13 @@ export function IQUserDashboard({
                           </AlertDialogContent>
                         </AlertDialog>
                       </div>
-                        {/* <div className='grid gap-4'>
-                      {geniusComparisonCards.map((item) => {
-                        const benchmarkGap = (latestOfficialBenchmarkPercent ?? 0) - item.profile.benchmarkPercent;
-                        const isAhead = benchmarkGap >= 0;
-
-                        return (
-                          <div
-                            key={item.key}
-                            className='rounded-2xl border border-border/60 bg-background/80 p-4 transition-all duration-300 hover:border-primary/30 hover:shadow-lg'
-                          >
-                            <div className='flex items-start justify-between gap-3'>
-                              <div>
-                                <p className='text-xs uppercase tracking-[0.2em] text-muted-foreground'>{item.label}</p>
-                                <p className='mt-2 text-lg font-semibold'>{item.profile.name}</p>
-                                <p className='text-sm text-muted-foreground'>
-                                  {item.profile.field} · {item.profile.era}
-                                </p>
-                              </div>
-                              <Badge className='border-0 bg-background/90 text-primary'>
-                               Est IQ {item.profile.iqScore ?? '—'}
-                              </Badge>
-                            </div>
-                            <p className='mt-4 text-sm text-muted-foreground'>{item.profile.notableWork}</p>
-                          </div>
-                        );
-                      })}
-                    </div> */}
                     </div>
-
-                  
                   </>
                 ) : (
                   <div className='rounded-2xl border border-dashed border-border/70 bg-background/70 p-6 text-center'>
-                    <p className='text-lg font-semibold'>No published genius profiles available yet</p>
+                    <p className='text-lg font-semibold'>No public rankings available yet</p>
                     <p className='mt-2 text-sm text-muted-foreground'>
-                      Once profiles are published from the backend, your comparison cards will appear here automatically.
+                      Once other members opt in to the public rankings, your comparison will appear here automatically.
                     </p>
                   </div>
                 )}
