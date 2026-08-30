@@ -1523,7 +1523,7 @@ export const paymentsApi = {
       body: JSON.stringify(data),
     }),
 
-  createIQTestCheckoutSession: (data?: { cancel_path?: string }) =>
+  createIQTestCheckoutSession: (data?: { cancel_path?: string; intent?: string }) =>
     request<{ checkout_url: string; session_id: string }>('/payments/iq-test/checkout-session', {
       method: 'POST',
       body: JSON.stringify(data ?? {}),
@@ -1551,6 +1551,14 @@ export const paymentsApi = {
     }>('/payments/iq-test/confirm', {
       method: 'POST',
       body: JSON.stringify({ session_id }),
+    }),
+
+  // Whether the user already paid for a repeat booking but never finished
+  // creating it (e.g. closed the "Choose your preferred date" modal or lost
+  // connection). Backed by the DB so it's recognized on any device.
+  getBookingCredit: () =>
+    request<{ has_credit: boolean }>('/payments/iq-test/booking-credit', {
+      method: 'GET',
     }),
 };
 

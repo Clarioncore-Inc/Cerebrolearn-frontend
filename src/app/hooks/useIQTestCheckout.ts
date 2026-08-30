@@ -11,7 +11,7 @@ export function useIQTestCheckout(onNavigate?: NavigateHandler) {
   const { user } = useAuth();
   const [isStartingCheckout, setIsStartingCheckout] = useState(false);
 
-  const startCheckout = async () => {
+  const startCheckout = async (intent?: string) => {
     if (!user) {
       onNavigate?.('iq-test-signup');
       return false;
@@ -23,6 +23,7 @@ export function useIQTestCheckout(onNavigate?: NavigateHandler) {
     try {
       const session = await paymentsApi.createIQTestCheckoutSession({
         cancel_path: window.location.pathname,
+        ...(intent ? { intent } : {}),
       });
       window.location.assign(session.checkout_url);
       return true;

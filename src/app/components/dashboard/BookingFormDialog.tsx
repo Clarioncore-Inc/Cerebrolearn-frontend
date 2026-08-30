@@ -212,6 +212,8 @@ export function BookingPage({ onNavigate, backPage = 'dashboard' }: BookingPageP
         reminder_preferences: '',
         price: selectedSessionType?.price ?? 0,
       });
+      // The booking was created; the backend automatically consumes any
+      // pending "paid but not yet booked" credit for a repeat booking.
       setStep('success');
     } catch (err: any) {
       const message = err?.message || 'Failed to create booking. Please try again.';

@@ -59,9 +59,26 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
 
         sessionStorage.setItem('cerebrolearn.user.intent', 'iq-only');
         setStatus('success');
-        setMessage('Payment confirmed. Redirecting to your IQ dashboard…');
-        toast.success('Payment confirmed. Welcome to your IQ dashboard!');
-        timeoutId = window.setTimeout(() => onNavigate('dashboard'), 1200);
+
+        const bookingIntent =
+          (searchParams.get('intent') ?? location.state?.intent) === 'booking';
+        if (bookingIntent) {
+          // The payment was recorded server-side with intent="booking", so
+          // if the user closes this booking modal or loses connection
+          // before finishing it, they can return straight to the booking
+          // form instead of paying again (checked via the backend, not
+          // localStorage, so it works across devices too).
+          setMessage('Payment confirmed. Redirecting you to complete your booking…');
+          toast.success('Payment confirmed. Let\'s finish booking your session.');
+          timeoutId = window.setTimeout(
+            () => onNavigate('book-psychologist', { backPage: 'dashboard' }),
+            1200,
+          );
+        } else {
+          setMessage('Payment confirmed. Redirecting to your IQ dashboard…');
+          toast.success('Payment confirmed. Welcome to your IQ dashboard!');
+          timeoutId = window.setTimeout(() => onNavigate('dashboard'), 1200);
+        }
       } catch (err) {
         if (!isActive) {
           return;
@@ -101,7 +118,10 @@ export function IQTestCheckoutSuccess({ onNavigate }: IQTestCheckoutSuccessProps
                   authMode: 'login',
                   postAuthRedirect: {
                     page: 'iq-test-payment-success',
-                    data: { sessionId: searchParams.get('session_id') },
+                    data: {
+                      sessionId: searchParams.get('session_id'),
+                      intent: searchParams.get('intent') ?? undefined,
+                    },
                   },
                 })
               }

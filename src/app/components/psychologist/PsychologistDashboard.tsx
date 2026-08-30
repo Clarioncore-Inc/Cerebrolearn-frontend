@@ -292,9 +292,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
   const [hasDrawnSignature, setHasDrawnSignature] = useState(false);
   const [selectedBooking, setSelectedBooking] =
     useState<DashboardBooking | null>(null);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [doneDialogOpen, setDoneDialogOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState('');
   const [rejectionReasonDialogOpen, setRejectionReasonDialogOpen] = useState(false);
   const [selectedRejectionReason, setSelectedRejectionReason] = useState('');
   const [bookingNotes, setBookingNotes] = useState<BookingNotesForm>(
@@ -1004,15 +1002,7 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
 
   const resetBookingActionState = () => {
     setSelectedBooking(null);
-    setRejectionReason('');
     setBookingNotes({ ...DEFAULT_BOOKING_NOTES_FORM });
-  };
-
-  const handleRejectDialogChange = (open: boolean) => {
-    setRejectDialogOpen(open);
-    if (!open) {
-      resetBookingActionState();
-    }
   };
 
   const handleDoneDialogChange = (open: boolean) => {
@@ -1027,12 +1017,6 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
     if (!open) {
       setSelectedClientEmail(null);
     }
-  };
-
-  const openRejectDialog = (booking: DashboardBooking) => {
-    setSelectedBooking(booking);
-    setRejectionReason(booking.rejectionReason || '');
-    setRejectDialogOpen(true);
   };
 
   const openDoneDialog = (booking: DashboardBooking) => {
@@ -1142,36 +1126,6 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
       console.error('[PsychologistDashboard] Error confirming booking:', error);
       toast.error(
         error instanceof Error ? error.message : 'Failed to confirm booking',
-      );
-    } finally {
-      setBookingActionLoadingId(null);
-    }
-  };
-
-  const handleRejectBooking = async () => {
-    if (!selectedBooking) return;
-
-    const trimmedReason = rejectionReason.trim();
-    if (!trimmedReason) {
-      toast.error('Please provide a rejection reason');
-      return;
-    }
-
-    setBookingActionLoadingId(selectedBooking.id);
-
-    try {
-      await psychologistApi.updateBooking({
-        booking_id: selectedBooking.id,
-        status: 'cancelled',
-        rejection_reason: trimmedReason,
-      });
-      handleRejectDialogChange(false);
-      await loadBookings();
-      toast.success('Booking rejected and client notified');
-    } catch (error) {
-      console.error('[PsychologistDashboard] Error rejecting booking:', error);
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to reject booking',
       );
     } finally {
       setBookingActionLoadingId(null);
@@ -1741,19 +1695,6 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                             {[booking.sessionType, booking.test_type].filter(Boolean).join(' • ')}
                           </span>
                         </div>
-                        {/* {booking.status === 'cancelled' && booking.rejectionReason ? (
-                          <div className='ml-13'>
-                            <Button
-                              type='button'
-                              variant='outline'
-                              size='sm'
-                              onClick={() => openRejectionReasonDialog(booking.rejectionReason)}
-                            >
-                              <AlertCircle className='mr-2 h-4 w-4' />
-                              View rejection reason
-                            </Button>
-                          </div>
-                        ) : null} */}
                         <div className='flex items-center gap-2 ml-13'>
                           {/* <Badge variant='secondary'>
                             {booking.bookingType}
@@ -1784,15 +1725,6 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
                               )}
                               Confirm Appointment
                             </Button>
-                            {/* <Button
-                              size='sm'
-                              variant='destructive'
-                              onClick={() => openRejectDialog(booking)}
-                              disabled={bookingActionLoadingId === booking.id}
-                            >
-                              <XCircle className='mr-2 h-4 w-4' />
-                              Reject
-                            </Button> */}
                           </>
                         ) : null}
 
@@ -1814,52 +1746,6 @@ const COGNITIVE_PROFILE_FIELDS: Array<{
               )}
             </CardContent>
           </Card>
-
-          <Dialog open={rejectDialogOpen} onOpenChange={handleRejectDialogChange}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Reject booking</DialogTitle>
-                <DialogDescription>
-                  Provide a reason for the rejection. This will be shown to the
-                  client and included in the Slack notification.
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className='space-y-2'>
-                <Label htmlFor='booking-rejection-reason'>Rejection reason</Label>
-                <Textarea
-                  id='booking-rejection-reason'
-                  rows={5}
-                  placeholder='Explain briefly why this booking cannot be accepted.'
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                />
-              </div>
-
-              <DialogFooter>
-                <Button
-                  type='button'
-                  variant='outline'
-                  onClick={() => handleRejectDialogChange(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type='button'
-                  variant='destructive'
-                  onClick={handleRejectBooking}
-                  disabled={
-                    !selectedBooking || bookingActionLoadingId === selectedBooking.id
-                  }
-                >
-                  {selectedBooking && bookingActionLoadingId === selectedBooking.id ? (
-                    <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                  ) : null}
-                  Submit rejection
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
 
           <Dialog
             open={rejectionReasonDialogOpen}

@@ -40,6 +40,7 @@ import {
   officialIqApi,
   cognitiveProfileApi,
   rankingsApi,
+  paymentsApi,
   type IQTestCandidate,
 } from '../../utils/api-client';
 import type { PublicRankingEntry } from '../../types/database';
@@ -312,6 +313,7 @@ export function IQUserDashboard({
   const { user, profile, isFirstLogin } = useAuth();
   const { formattedIQTestPrice } = useAppSettings();
   const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
+  const [isCheckingBookingCredit, setIsCheckingBookingCredit] = useState(false);
   const sessionsSectionRef = useRef<HTMLDivElement | null>(null);
   const [iqSessions, setIqSessions] = useState<IQSessionBooking[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
@@ -376,11 +378,41 @@ export function IQUserDashboard({
     });
   };
 
+  // The first consultation/IQ test booking is free; every booking after
+  // that requires payment via Stripe before the booking form is shown.
+  const hasExistingBooking = iqSessions.length > 0;
+
+  const handleBookIQTest = async () => {
+    if (hasExistingBooking) {
+      // If the user already paid for a repeat booking but never finished
+      // creating it (e.g. they closed the "Choose your preferred date"
+      // modal or lost their connection), let them straight back into the
+      // booking form instead of charging them again. This is checked
+      // server-side so it's recognized on any device/browser.
+      setIsCheckingBookingCredit(true);
+      try {
+        const { has_credit } = await paymentsApi.getBookingCredit();
+        if (has_credit) {
+          onNavigate('book-psychologist', { backPage: 'dashboard' });
+          return;
+        }
+      } catch {
+        // If the check fails, fall through to the normal paid flow.
+      } finally {
+        setIsCheckingBookingCredit(false);
+      }
+      await startCheckout('booking');
+      return;
+    }
+    onNavigate('book-psychologist', { backPage: 'dashboard' });
+  };
+
   const sessionActions = [
     {
       label: 'Book My IQ Test',
       icon: Users,
-      onClick: () => onNavigate('book-psychologist', { backPage: 'dashboard' }),
+      onClick: handleBookIQTest,
+      disabled: isStartingCheckout || isCheckingBookingCredit,
     },
     {
       label: 'Upcoming Tests',
@@ -1261,7 +1293,7 @@ export function IQUserDashboard({
                   </p>
                   <Button
                     className='mt-5'
-                    onClick={practiceAllowedTestTypes.length ? openPracticeTest : () => onNavigate('book-psychologist', { backPage: 'dashboard' })}
+                    onClick={practiceAllowedTestTypes.length ? openPracticeTest : handleBookIQTest}
                   >
                     {practiceAllowedTestTypes.length ? <Play className='mr-2 h-4 w-4' /> : <Users className='mr-2 h-4 w-4' />}
                     {practiceAllowedTestTypes.length ? `Take ${formatIQTestType(practiceAllowedTestTypes[0])} Practice Test` : 'Book IQ Test to Unlock Practice'}
@@ -1509,7 +1541,7 @@ export function IQUserDashboard({
                           <p className='mt-2 text-sm text-muted-foreground'>
                             Book an IQ test session when you are ready for a psychologist-led assessment.
                           </p>
-                          <Button className='mt-4' onClick={() => onNavigate('book-psychologist', { backPage: 'dashboard' })}>
+                          <Button className='mt-4' onClick={handleBookIQTest} disabled={isStartingCheckout || isCheckingBookingCredit}>
                             <Users className='mr-2 h-4 w-4' />
                             Book IQ Test
                           </Button>
