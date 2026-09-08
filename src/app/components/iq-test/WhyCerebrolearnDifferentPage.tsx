@@ -177,12 +177,18 @@ const whyReasons = [
   { number: 7, title: 'Accessible', description: 'Cerebrolearn brings the assessment process into one platform.' },
 ];
 
-function FlowSteps({ steps }: { steps: string[] }) {
+function FlowSteps({ steps, variant = 'neutral' }: { steps: string[]; variant?: 'neutral' | 'negative' | 'positive' }) {
+  const stepStyles = {
+    neutral: 'border-border bg-muted/30',
+    negative: 'border-destructive/20 bg-destructive/5 dark:bg-destructive/10',
+    positive: 'border-primary/20 bg-primary/5 dark:bg-primary/10',
+  };
+
   return (
     <div className="space-y-2">
       {steps.map((step, index) => (
         <React.Fragment key={index}>
-          <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-foreground">
+          <div className={`rounded-lg border px-4 py-3 text-sm text-foreground text-center flex items-center justify-center min-h-[48px] ${stepStyles[variant]}`}>
             {step}
           </div>
           {index < steps.length - 1 && (
@@ -239,7 +245,14 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {officialComponents.map((item, index) => (
-              <Card key={index} className="h-full">
+              <Card
+                key={index}
+                className={`h-full ${
+                  index === officialComponents.length - 1
+                    ? 'md:col-span-2 lg:col-span-1 lg:col-start-2'
+                    : ''
+                }`}
+              >
                 <CardContent className="pt-6">
                   <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
                     <item.icon className="w-6 h-6" />
@@ -275,7 +288,12 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto mb-8">
                 {officialComponents.map((item, index) => (
-                  <div key={index} className="flex items-start gap-3">
+                  <div
+                    key={index}
+                    className={`flex items-start gap-3 ${
+                      index === officialComponents.length - 1 ? 'md:col-span-2 md:justify-center' : ''
+                    }`}
+                  >
                     <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                     <p className="text-sm">{item.title}</p>
                   </div>
@@ -313,11 +331,11 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             {competitors.map((c, index) => (
-              <Card key={index}>
-                <CardHeader>
+              <Card key={index} className="h-full flex flex-col">
+                <CardHeader className="text-center pb-3">
                   <CardTitle className="text-lg">{c.name}</CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1">
                   <p className="text-sm text-muted-foreground">{c.name} {c.description}</p>
                 </CardContent>
               </Card>
@@ -333,28 +351,28 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <Card className="border-destructive/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <XCircle className="w-5 h-5 text-destructive" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto items-stretch">
+            <Card className="border-destructive/30 h-full flex flex-col">
+              <CardHeader className="min-h-[88px] justify-center pb-3">
+                <CardTitle className="flex items-center justify-center gap-2 text-base leading-snug text-center">
+                  <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
                   Cerebrolearn Product Is Not
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0 flex-1 flex items-start justify-center">
                 <p className="text-sm font-medium text-center">
                   Website → Questions → Automatic Score
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-primary/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <CheckCircle className="w-5 h-5 text-primary" />
+            <Card className="border-primary/30 h-full flex flex-col">
+              <CardHeader className="min-h-[88px] justify-center pb-3">
+                <CardTitle className="flex items-center justify-center gap-2 text-base leading-snug text-center">
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
                   Cerebrolearn Is
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-0 flex-1 flex items-start justify-center">
                 <p className="text-sm font-medium text-center">
                   Purchase → Psychologist Appointment → Professional Administration → Standardized IQ
                   Assessment → Professional Scoring → Professional Interpretation → Official IQ Score →
@@ -373,25 +391,31 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
               Real IQ Testing vs. a Fake Online IQ Test
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-center text-lg text-muted-foreground">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
+            <Card className="h-full flex flex-col border-destructive/20 bg-gradient-to-br from-card to-destructive/5">
+              <CardHeader className="min-h-[96px] justify-center text-center">
+                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center">
+                  <XCircle className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-center text-lg text-muted-foreground leading-snug">
                   Fake/Self-Administered Online IQ Test Experience
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <FlowSteps steps={fakeFlowSteps} />
+              <CardContent className="flex-1">
+                <FlowSteps steps={fakeFlowSteps} variant="negative" />
               </CardContent>
             </Card>
-            <Card className="border-primary/30">
-              <CardHeader>
-                <CardTitle className="text-center text-lg text-primary">
+            <Card className="h-full flex flex-col border-primary/30 bg-gradient-to-br from-card to-primary/5 shadow-lg">
+              <CardHeader className="min-h-[96px] justify-center text-center">
+                <div className="mx-auto mb-3 w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <CardTitle className="text-center text-lg text-primary leading-snug">
                   Cerebrolearn Official IQ Testing
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <FlowSteps steps={cerebrolearnFlowSteps} />
+              <CardContent className="flex-1">
+                <FlowSteps steps={cerebrolearnFlowSteps} variant="positive" />
               </CardContent>
             </Card>
           </div>
@@ -529,15 +553,15 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
             </CardContent>
           </Card>
           <div className="max-w-xl mx-auto space-y-2">
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center justify-center gap-2 text-sm rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-center">
               <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
               Not a psychologist appointment
             </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center justify-center gap-2 text-sm rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-center">
               <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
               Not a comprehensive individualized psychologist report
             </div>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center justify-center gap-2 text-sm rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-center">
               <XCircle className="w-4 h-4 text-destructive flex-shrink-0" />
               Not the same personalized professional IQ-assessment experience
             </div>
@@ -608,7 +632,7 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {whyReasons.map((item) => (
-              <Card key={item.number}>
+              <Card key={item.number} className="h-full">
                 <CardContent className="pt-6">
                   <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold mb-4">
                     {item.number}
@@ -618,7 +642,7 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
                 </CardContent>
               </Card>
             ))}
-            <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
+            <Card className="h-full border-primary/30 bg-gradient-to-br from-primary/5 to-secondary/5">
               <CardContent className="pt-6">
                 <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold mb-4">
                   8
@@ -635,9 +659,9 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
 
         {/* The Cerebrolearn Difference - quote */}
         <section className="py-20">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <Card className="border-destructive/30">
-              <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto items-stretch">
+            <Card className="border-destructive/30 h-full">
+              <CardContent className="pt-6 h-full flex flex-col items-center justify-center text-center">
                 <Quote className="w-6 h-6 text-destructive mb-3" />
                 <p className="text-sm font-medium mb-2">A Fake/Self-Administered Online IQ Test:</p>
                 <p className="italic text-muted-foreground">
@@ -645,8 +669,8 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-primary/30">
-              <CardContent className="pt-6">
+            <Card className="border-primary/30 h-full">
+              <CardContent className="pt-6 h-full flex flex-col items-center justify-center text-center">
                 <Quote className="w-6 h-6 text-primary mb-3" />
                 <p className="text-sm font-medium mb-2">Cerebrolearn:</p>
                 <p className="italic text-muted-foreground">

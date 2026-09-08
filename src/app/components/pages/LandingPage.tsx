@@ -276,41 +276,130 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       <AIHeroSection onNavigate={onNavigate} isAuthenticated={!!user} />
 
       {/* Official IQ Testing Summary */}
-      <section className="py-20 bg-background relative overflow-hidden">
-        <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
-        <div className="container relative z-10 max-w-4xl mx-auto text-center">
-          <Badge className="bg-gradient-to-r from-[#395192] to-[#6478be] text-white border-0 shadow-lg mb-4">
-            <Shield className="w-3 h-3 mr-1" />
-            Official IQ Testing
-          </Badge>
-          <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2 mb-6">
-            This Is Real Official IQ Testing. Not a Fake Online IQ Test.
-          </h2>
-          <p className="text-lg text-muted-foreground leading-relaxed mb-8 text-left">
-            Cerebrolearn provides Official IQ Testing with real qualified psychologists, real
-            standardized intelligence assessments, real professional administration, real
-            professional scoring and interpretation, a real professionally derived IQ score, and a
-            comprehensive professional IQ report. Unlike self-administered Fake Online IQ-test
-            websites such as 123test.com, myiqtested.com, and iqtest.com, which provide online
-            tests that users complete independently and receive an "online score" or "estimate,"
-            Cerebrolearn provides a complete professional IQ-testing service. You purchase your
-            assessment for {formattedIQTestPrice}, schedule a private virtual appointment with a
-            qualified psychologist, meet with your psychologist through video, complete your
-            standardized IQ assessment under professional administration, and receive your Official
-            IQ Score and comprehensive professional report. Comparable professional
-            psychologist-administered IQ assessment services can cost $1,500–$5,000+, depending on
-            the psychologist, assessment, location, and scope of the service. Cerebrolearn brings
-            the complete professional IQ-testing experience into one convenient virtual platform at
-            a dramatically more accessible price.
-          </p>
-          <Button
-            size="lg"
-            onClick={() => onNavigate('why-cerebrolearn-different')}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg group"
-          >
-            Read More: Why Cerebrolearn Is Different
-            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </Button>
+      <section className="py-14 sm:py-16 md:py-28 bg-gradient-to-b from-background via-primary/5 to-background relative overflow-hidden">
+        <div className="absolute inset-0 neural-grid opacity-[0.04]"></div>
+        <div className="absolute -top-32 right-0 h-80 w-80 rounded-full bg-primary/15 blur-3xl"></div>
+        <div className="absolute -bottom-32 left-0 h-80 w-80 rounded-full bg-[#f7e4a7]/30 blur-3xl"></div>
+
+        <div className="container relative z-10">
+          <Card className="max-w-7xl mx-auto overflow-hidden rounded-2xl md:rounded-3xl border-2 border-primary/10 shadow-2xl bg-card/90 backdrop-blur-xl">
+            <CardContent className="p-0">
+              <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="p-5 sm:p-8 md:p-12 lg:p-14 space-y-6 md:space-y-8">
+                  <div className="space-y-4 md:space-y-5">
+                    <Badge className="bg-gradient-to-r from-[#395192] to-[#6478be] text-white border-0 shadow-lg">
+                      <Shield className="w-3.5 h-3.5 mr-1.5" />
+                      Official IQ Testing
+                    </Badge>
+
+                    <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold leading-tight text-primary">
+                      Real Official IQ Testing.
+                      <span className="block bg-gradient-to-r from-[#6478be] to-[#395192] bg-clip-text text-transparent">
+                        Not a Fake Online IQ Test.
+                      </span>
+                    </h2>
+
+                    <p className="text-base md:text-lg text-muted-foreground leading-relaxed">
+                      Cerebrolearn provides Official IQ Testing with real qualified psychologists,
+                      real standardized intelligence assessments, real professional administration,
+                      real professional scoring and interpretation, a real professionally derived IQ
+                      score, and a comprehensive professional IQ report.
+                    </p>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {[
+                      { icon: Users, label: 'Qualified psychologists' },
+                      { icon: Brain, label: 'Standardized assessments' },
+                      { icon: Video, label: 'Private virtual appointment' },
+                      { icon: FileText, label: 'Professional IQ report' }
+                    ].map((item) => (
+                      <div key={item.label} className="flex items-center gap-3 rounded-2xl border bg-background/80 p-3 sm:p-4 shadow-sm">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                          <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        </div>
+                        <span className="text-sm sm:text-base font-semibold text-primary">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-base text-muted-foreground leading-relaxed">
+                    Unlike self-administered Fake Online IQ-test websites such as 123test.com,
+                    myiqtested.com, and iqtest.com, which provide online tests that users complete
+                    independently and receive an "online score" or "estimate," Cerebrolearn provides
+                    a complete professional IQ-testing service.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <Button
+                      size="lg"
+                      onClick={() => onNavigate('why-cerebrolearn-different')}
+                      className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground shadow-xl group min-h-14 h-auto px-5 sm:px-8 py-3 whitespace-normal sm:whitespace-nowrap text-center leading-snug"
+                    >
+                      Read More: Why Cerebrolearn Is Different
+                      <ArrowRight className="ml-2 h-5 w-5 flex-shrink-0 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      onClick={() => onNavigate('iq-test-overview')}
+                      className="w-full sm:w-auto border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground dark:border-white/70 dark:text-white dark:hover:bg-white dark:hover:text-primary h-14 px-5 sm:px-8 shadow-sm"
+                    >
+                      Start My IQ Test
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="relative bg-gradient-to-br from-primary via-[#4a63a8] to-[#1e2f5f] p-5 sm:p-8 md:p-12 lg:p-14 text-white overflow-hidden">
+                  <div className="absolute inset-0 neural-grid opacity-20"></div>
+                  <div className="absolute top-8 right-8 w-32 h-32 rounded-full bg-white/10 blur-2xl"></div>
+
+                  <div className="relative z-10 space-y-4 sm:space-y-6">
+                    <div className="rounded-2xl md:rounded-3xl bg-white/10 border border-white/20 backdrop-blur-md p-5 sm:p-6 shadow-2xl">
+                      <p className="text-white/70 text-sm font-semibold uppercase tracking-wide mb-2">
+                        Complete assessment package
+                      </p>
+                      <div className="flex flex-wrap items-end gap-x-2 gap-y-1 mb-4">
+                        <span className="text-4xl sm:text-5xl font-bold leading-none">{formattedIQTestPrice}</span>
+                        <span className="text-white/70 pb-2">one-time</span>
+                      </div>
+                      <p className="text-white/85 leading-relaxed">
+                        Professional psychologist-administered IQ assessments can cost
+                        $1,500–$5,000+. Cerebrolearn brings the complete experience into one
+                        convenient virtual platform.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3">
+                      {[
+                        'Purchase your assessment',
+                        'Schedule a private virtual appointment',
+                        'Meet your psychologist through video',
+                        'Receive your Official IQ Score and report'
+                      ].map((step, index) => (
+                        <div key={step} className="flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 p-3 sm:p-4 backdrop-blur-sm">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f7e4a7] text-primary text-sm sm:text-base font-bold flex items-center justify-center flex-shrink-0">
+                            {index + 1}
+                          </div>
+                          <span className="text-sm sm:text-base font-medium text-white/95 leading-snug">{step}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-2xl bg-white text-primary p-4 sm:p-5 shadow-xl">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm sm:text-base font-semibold leading-relaxed">
+                          Real professional administration, scoring, interpretation, and reporting —
+                          not just an instant online estimate.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
