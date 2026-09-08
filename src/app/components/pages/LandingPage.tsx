@@ -275,6 +275,45 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
       {/* AI Hero Section */}
       <AIHeroSection onNavigate={onNavigate} isAuthenticated={!!user} />
 
+      {/* Official IQ Testing Summary */}
+      <section className="py-20 bg-background relative overflow-hidden">
+        <div className="absolute inset-0 neural-grid opacity-[0.03]"></div>
+        <div className="container relative z-10 max-w-4xl mx-auto text-center">
+          <Badge className="bg-gradient-to-r from-[#395192] to-[#6478be] text-white border-0 shadow-lg mb-4">
+            <Shield className="w-3 h-3 mr-1" />
+            Official IQ Testing
+          </Badge>
+          <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-primary via-primary/70 to-primary bg-clip-text text-transparent pb-2 mb-6">
+            This Is Real Official IQ Testing. Not a Fake Online IQ Test.
+          </h2>
+          <p className="text-lg text-muted-foreground leading-relaxed mb-8 text-left">
+            Cerebrolearn provides Official IQ Testing with real qualified psychologists, real
+            standardized intelligence assessments, real professional administration, real
+            professional scoring and interpretation, a real professionally derived IQ score, and a
+            comprehensive professional IQ report. Unlike self-administered Fake Online IQ-test
+            websites such as 123test.com, myiqtested.com, and iqtest.com, which provide online
+            tests that users complete independently and receive an "online score" or "estimate,"
+            Cerebrolearn provides a complete professional IQ-testing service. You purchase your
+            assessment for {formattedIQTestPrice}, schedule a private virtual appointment with a
+            qualified psychologist, meet with your psychologist through video, complete your
+            standardized IQ assessment under professional administration, and receive your Official
+            IQ Score and comprehensive professional report. Comparable professional
+            psychologist-administered IQ assessment services can cost $1,500–$5,000+, depending on
+            the psychologist, assessment, location, and scope of the service. Cerebrolearn brings
+            the complete professional IQ-testing experience into one convenient virtual platform at
+            a dramatically more accessible price.
+          </p>
+          <Button
+            size="lg"
+            onClick={() => onNavigate('why-cerebrolearn-different')}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg group"
+          >
+            Read More: Why Cerebrolearn Is Different
+            <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+          </Button>
+        </div>
+      </section>
+
       {/* Conversion CTAs */}
       {/* <section className="py-14 bg-gradient-to-b from-background to-background/95">
         <div className="container">

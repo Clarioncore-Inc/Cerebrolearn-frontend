@@ -126,6 +126,7 @@ import { PsychologistEarnings } from './components/psychologist/PsychologistEarn
 import { IQTestCheckoutSignup } from './components/iq-test/IQTestCheckoutSignup';
 import { IQTestCheckoutSuccess } from './components/iq-test/IQTestCheckoutSuccess';
 import { IQTestOverviewPage } from './components/iq-test/IQTestOverviewPage';
+import { WhyCerebrolearnDifferentPage } from './components/iq-test/WhyCerebrolearnDifferentPage';
 
 // Initialize dummy data on app load
 initializeDummyData();
@@ -260,6 +261,7 @@ function AppContent() {
       currentPage !== 'iq-test-signup' &&
       currentPage !== 'iq-test-payment-success' &&
       currentPage !== 'iq-test-overview' &&
+      currentPage !== 'why-cerebrolearn-different' &&
       currentPage !== 'genius-rankings' &&
       currentPage !== 'activity-feed' &&
       currentPage !== 'personality-types' &&
@@ -722,6 +724,9 @@ function AppContent() {
 
       case 'iq-test-overview':
         return <IQTestOverviewPage onNavigate={handleNavigate} />;
+
+      case 'why-cerebrolearn-different':
+        return <WhyCerebrolearnDifferentPage onNavigate={handleNavigate} />;
 
       case 'genius-rankings':
         return <GeniusRankingsPage onNavigate={handleNavigate} />;
