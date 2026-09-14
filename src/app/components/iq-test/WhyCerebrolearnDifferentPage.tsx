@@ -43,19 +43,12 @@ const officialComponents = [
   { icon: FileText, title: 'Comprehensive IQ Report', description: 'You receive a comprehensive professional report documenting your assessment and results.' },
 ];
 
-const competitors = [
-  {
-    name: '123test.com',
-    description: 'provides a variety of online IQ and aptitude tests, including free tests, practice tests, and other products. Its website itself distinguishes practice/demo testing from professional IQ testing.',
-  },
-  {
-    name: 'myiqtested.com',
-    description: "provides an online, browser-scored IQ test based on ICAR items. Importantly, MyIQTested.com itself states that its online result is an estimate and explicitly says that an online test does not fully replicate a professional assessment administered one-on-one by a psychologist.",
-  },
-  {
-    name: 'iqtest.com',
-    description: 'provides an online IQ test that users take directly through its website. Its test is completed online and produces an online result.',
-  },
+const fakeTestTraits = [
+  'Answering questions independently',
+  'Receiving an automatically calculated online result',
+  'Receiving an online score or estimate',
+  'Completing the assessment without a psychologist administering the test',
+  'Receiving results without a comprehensive professional psychologist report',
 ];
 
 const pricingBarriers = [
@@ -144,7 +137,7 @@ const howItWorksSteps = [
     icon: ClipboardList,
     title: 'Complete Your Official IQ Assessment',
     description:
-      'Your psychologist administers the appropriate standardized IQ assessment according to the requirements of the applicable instrument and professional procedures (e.g., Wechsler scales, Stanford-Binet).',
+      'Your psychologist administers the appropriate standardized IQ assessment according to the requirements of the applicable instrument and professional procedures. Established intelligence-testing families include instruments such as the Wechsler scales and Stanford-Binet. For example, Pearson describes the WAIS-5 as an individually administered clinical instrument for assessing cognitive ability and provides telepractice guidance for appropriate remote administration.',
   },
   {
     number: 5,
@@ -324,30 +317,29 @@ export function WhyCerebrolearnDifferentPage({ onNavigate }: WhyCerebrolearnDiff
               Cerebrolearn vs. Fake Online IQ Testing
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              The Internet is filled with websites offering Fake IQ tests that users can take
-              independently. Examples include:
+              The Internet is filled with Fake Online IQ Tests/Quizzes that users can take
+              independently. These types of online IQ tests and quizzes typically involve:
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-            {competitors.map((c, index) => (
-              <Card key={index} className="h-full flex flex-col">
-                <CardHeader className="text-center pb-3">
-                  <CardTitle className="text-lg">{c.name}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex-1">
-                  <p className="text-sm text-muted-foreground">{c.name} {c.description}</p>
-                </CardContent>
-              </Card>
+          <div className="max-w-2xl mx-auto space-y-3 mb-12">
+            {fakeTestTraits.map((trait, index) => (
+              <div
+                key={index}
+                className="flex items-start gap-3 rounded-lg border bg-muted/30 px-4 py-3"
+              >
+                <XCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-sm">{trait}</p>
+              </div>
             ))}
           </div>
 
           <div className="max-w-3xl mx-auto text-center space-y-4 mb-12">
             <h3 className="text-xl font-bold">The Cerebrolearn Difference</h3>
             <p className="text-muted-foreground">
-              These websites may provide useful online testing, estimates, practice, research-based
-              measures, or other forms of cognitive testing. But they are not the same thing as
-              Cerebrolearn psychologist-administered Official IQ Testing services.
+              Fake Online IQ Tests/Quizzes may provide online testing, estimates, practice,
+              research-based measures, or other forms of cognitive testing. But they are not the
+              same thing as Cerebrolearn psychologist-administered Official IQ Testing services.
             </p>
           </div>
 

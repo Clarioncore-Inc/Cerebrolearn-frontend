@@ -324,9 +324,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                   </div>
 
                   <p className="text-base text-muted-foreground leading-relaxed">
-                    Unlike self-administered Fake Online IQ-test websites such as 123test.com,
-                    myiqtested.com, and iqtest.com, which provide online tests that users complete
-                    independently and receive an "online score" or "estimate," Cerebrolearn provides
+                    Unlike self-administered Fake Online IQ Tests/Quizzes, which users complete
+                    independently and receive an "online score" or "estimate", Cerebrolearn provides
                     a complete professional IQ-testing service.
                   </p>
 
