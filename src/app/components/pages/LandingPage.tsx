@@ -282,8 +282,8 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
         <div className="absolute -bottom-32 left-0 h-80 w-80 rounded-full bg-[#f7e4a7]/30 blur-3xl"></div>
 
         <div className="container relative z-10">
-          <Card className="max-w-7xl mx-auto overflow-hidden rounded-2xl md:rounded-3xl border-2 border-primary/10 shadow-2xl bg-card/90 backdrop-blur-xl">
-            <CardContent className="p-0">
+          <Card className="max-w-7xl mx-auto overflow-hidden rounded-2xl md:rounded-3xl border-2 border-primary/10 shadow-2xl bg-card/90 backdrop-blur-xl p-0">
+            <CardContent className="p-0 [&:last-child]:pb-0">
               <div className="grid lg:grid-cols-[1.15fr_0.85fr]">
                 <div className="p-5 sm:p-8 md:p-12 lg:p-14 space-y-6 md:space-y-8">
                   <div className="space-y-4 md:space-y-5">
@@ -307,18 +307,18 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                     </p>
                   </div>
 
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-3">
                     {[
                       { icon: Users, label: 'Qualified psychologists' },
                       { icon: Brain, label: 'Standardized assessments' },
                       { icon: Video, label: 'Private virtual appointment' },
                       { icon: FileText, label: 'Professional IQ report' }
                     ].map((item) => (
-                      <div key={item.label} className="flex items-center gap-3 rounded-2xl border bg-background/80 p-3 sm:p-4 shadow-sm">
-                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-                          <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <div key={item.label} className="flex items-center gap-2 sm:gap-3 rounded-lg sm:rounded-2xl border-0 sm:border bg-transparent sm:bg-background/80 p-1.5 sm:p-4 shadow-none sm:shadow-sm">
+                        <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                          <item.icon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                         </div>
-                        <span className="text-sm sm:text-base font-semibold text-primary">{item.label}</span>
+                        <span className="text-xs sm:text-base font-semibold text-primary">{item.label}</span>
                       </div>
                     ))}
                   </div>
@@ -369,18 +369,18 @@ export function LandingPage({ onNavigate }: LandingPageProps) {
                       </p>
                     </div>
 
-                    <div className="grid gap-3">
+                    <div className="grid gap-1.5 sm:gap-3">
                       {[
                         'Purchase your assessment',
                         'Schedule a private virtual appointment',
                         'Meet your psychologist through video',
                         'Receive your Official IQ Score and report'
                       ].map((step, index) => (
-                        <div key={step} className="flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 p-3 sm:p-4 backdrop-blur-sm">
-                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#f7e4a7] text-primary text-sm sm:text-base font-bold flex items-center justify-center flex-shrink-0">
+                        <div key={step} className="flex items-center gap-2 sm:gap-3 rounded-lg sm:rounded-2xl bg-transparent sm:bg-white/10 border-0 sm:border sm:border-white/15 p-1.5 sm:p-4 sm:backdrop-blur-sm">
+                          <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#f7e4a7] text-primary text-xs sm:text-base font-bold flex items-center justify-center flex-shrink-0">
                             {index + 1}
                           </div>
-                          <span className="text-sm sm:text-base font-medium text-white/95 leading-snug">{step}</span>
+                          <span className="text-xs sm:text-base font-medium text-white/95 leading-snug">{step}</span>
                         </div>
                       ))}
                     </div>

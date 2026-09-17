@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import { useFeatureFlags } from '../../contexts/FeatureFlagContext';
+import { cn } from '../ui/utils';
 
 interface LoginFormProps {
   onToggleMode: () => void;
@@ -30,6 +31,8 @@ interface LoginFormProps {
   title?: string;
   description?: string;
   submitLabel?: string;
+  /** Tightens the card's internal padding. Opt-in so other pages keep their spacing. */
+  compact?: boolean;
 }
 
 export function LoginForm({
@@ -38,6 +41,7 @@ export function LoginForm({
   title = 'Welcome back',
   description,
   submitLabel = 'Sign In',
+  compact = false,
 }: LoginFormProps) {
   const {
     signIn,
@@ -253,12 +257,12 @@ export function LoginForm({
       : 'Sign in to your account to continue learning');
 
   return (
-    <Card className='w-full max-w-md mx-auto'>
-      <CardHeader>
+    <Card className={cn('w-full max-w-md mx-auto', compact && 'gap-4')}>
+      <CardHeader className={cn(compact && 'px-5 pt-5')}>
         <CardTitle>{title}</CardTitle>
         <CardDescription>{effectiveDescription}</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className={cn(compact && 'px-5')}>
         <form onSubmit={handleSubmit} className='space-y-4'>
           {error && (
             <Alert variant='destructive'>
@@ -427,7 +431,7 @@ export function LoginForm({
         </div>
 }
       </CardContent>
-      <CardFooter className='flex justify-center'>
+      <CardFooter className={cn('flex justify-center', compact && 'px-5 pb-5')}>
         <p className='text-muted-foreground'>
           Don't have an account?{' '}
           <button

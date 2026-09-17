@@ -84,14 +84,11 @@ export function PublicUserRankingsPage({ onNavigate }: PublicUserRankingsPagePro
     <div className='min-h-screen bg-background'>
       <div className='bg-gradient-to-br from-primary via-primary/95 to-primary/90 text-primary-foreground py-16'>
         <div className='container max-w-5xl mx-auto px-6'>
-          <div className='flex items-start gap-4 mb-4'>
-            <Brain className='w-12 h-12 shrink-0' />
-            <div>
-              <h1 className='text-4xl font-bold mb-2'>Public User Rankings</h1>
-              <p className='text-primary-foreground/90 text-lg'>
-                Verified IQ leaderboard of platform members who chose to share their results
-              </p>
-            </div>
+          <div className='mb-4'>
+            <h1 className='text-4xl font-bold mb-2'>Public User Rankings</h1>
+            <p className='text-primary-foreground/90 text-lg'>
+              Verified IQ leaderboard of platform members who chose to share their results
+            </p>
           </div>
 
           <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mt-8'>
