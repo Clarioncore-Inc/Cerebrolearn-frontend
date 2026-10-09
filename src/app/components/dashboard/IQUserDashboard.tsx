@@ -1277,7 +1277,7 @@ export function IQUserDashboard({
             </CardContent>
           </Card>
 
-          <Card className={`min-w-0 overflow-hidden lg:col-span-8 lg:order-3 ${glassCardClassName}`}>
+          <Card className={`min-w-0 overflow-hidden lg:col-span-12 lg:order-3 ${glassCardClassName}`}>
             <CardHeader>
               <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
                 <div className='min-w-0'>
