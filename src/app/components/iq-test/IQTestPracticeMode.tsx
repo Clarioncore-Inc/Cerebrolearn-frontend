@@ -19,10 +19,15 @@ import { Progress } from '../ui/progress';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
 import { toast } from 'sonner@2.0.3';
+import { useAuth } from '../../contexts/AuthContext';
 import {
   iqPracticeQuestionService,
   type IQPracticeQuestion,
 } from '../../services/iqPracticeQuestionService';
+import {
+  iqPracticeResultService,
+  type IQPracticeResultInput,
+} from '../../services/iqPracticeResultService';
 import { normalizeIQKpiCategory } from '../../utils/iqKpis';
 import { formatIQTestType, type IQTestType } from '../../utils/iqTestTypes';
 
@@ -99,6 +104,7 @@ const practiceTestOptions: Array<{
 ];
 
 export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTestLabel }: IQTestPracticeModeProps) {
+  const { user } = useAuth();
   const hasPracticeAccess = allowedTestTypes.length > 0;
   const [selectedTestType, setSelectedTestType] =
     useState<PracticeTestType | null>(null);
@@ -106,7 +112,9 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [score, setScore] = useState(0);
-  const [answeredQuestions, setAnsweredQuestions] = useState<boolean[]>([]);
+  // Per question: null until answered, then whether the first attempt was correct.
+  const [questionOutcomes, setQuestionOutcomes] = useState<Array<boolean | null>>([]);
+  const [startedAt, setStartedAt] = useState(() => Date.now());
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
@@ -159,6 +167,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     : 0;
   const isLastQuestion = totalQuestions > 0 && currentQuestion === totalQuestions - 1;
   const isCorrect = question ? selectedAnswer === question.correctAnswer : false;
+  const answeredCount = questionOutcomes.filter((outcome) => outcome !== null).length;
 
   const startPractice = (testType: PracticeTestType) => {
     const questionCount = practiceQuestions.filter((question) =>
@@ -175,7 +184,8 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setSelectedAnswer(null);
     setShowFeedback(false);
     setScore(0);
-    setAnsweredQuestions(new Array(questionCount).fill(false));
+    setQuestionOutcomes(new Array(questionCount).fill(null));
+    setStartedAt(Date.now());
   };
 
   const handleAnswerSelect = (answerIndex: number) => {
@@ -194,23 +204,57 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
 
     setShowFeedback(true);
 
+    const isFirstAttempt = questionOutcomes[currentQuestion] == null;
+
     // Update score if correct and not already answered
-    if (isCorrect && !answeredQuestions[currentQuestion]) {
+    if (isCorrect && isFirstAttempt) {
       setScore(score + 1);
       toast.success('Correct! 🎉');
     } else if (!isCorrect) {
       toast.error('Not quite. Check the explanation below.');
     }
 
-    // Mark question as answered
-    const newAnswered = [...answeredQuestions];
-    newAnswered[currentQuestion] = true;
-    setAnsweredQuestions(newAnswered);
+    // Record the first-attempt outcome only, so revisiting a question can't change it
+    if (isFirstAttempt) {
+      const newOutcomes = [...questionOutcomes];
+      newOutcomes[currentQuestion] = isCorrect;
+      setQuestionOutcomes(newOutcomes);
+    }
+  };
+
+  const savePracticeResult = async () => {
+    if (!user?.id || !selectedTestType || answeredCount === 0) return;
+
+    const categoryBreakdown: IQPracticeResultInput['categoryBreakdown'] = {};
+    activeQuestions.forEach((practiceQuestion, index) => {
+      const outcome = questionOutcomes[index];
+      if (outcome == null) return;
+
+      const category = normalizeIQKpiCategory(practiceQuestion.category);
+      const entry = categoryBreakdown[category] ?? { correct: 0, total: 0 };
+      entry.total += 1;
+      if (outcome) entry.correct += 1;
+      categoryBreakdown[category] = entry;
+    });
+
+    try {
+      await iqPracticeResultService.save(user.id, {
+        testType: selectedTestType,
+        completedAt: new Date().toISOString(),
+        correctAnswers: questionOutcomes.filter((outcome) => outcome === true).length,
+        totalQuestions: answeredCount,
+        timeTakenSeconds: Math.round((Date.now() - startedAt) / 1000),
+        categoryBreakdown,
+      });
+    } catch {
+      toast.error('Your practice score could not be saved to your progress history.');
+    }
   };
 
   const handleNextQuestion = () => {
     if (isLastQuestion) {
-      toast.success(`Practice complete! Score: ${score}/${totalQuestions}`);
+      void savePracticeResult();
+      toast.success(`Practice complete! Score: ${score}/${totalQuestions}. Saved to your Practice Progress.`);
       handleChangeTest();
       return;
     }
@@ -233,7 +277,8 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setSelectedAnswer(null);
     setShowFeedback(false);
     setScore(0);
-    setAnsweredQuestions(new Array(totalQuestions).fill(false));
+    setQuestionOutcomes(new Array(totalQuestions).fill(null));
+    setStartedAt(Date.now());
     toast.success('Practice mode restarted!');
   };
 
@@ -243,7 +288,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setSelectedAnswer(null);
     setShowFeedback(false);
     setScore(0);
-    setAnsweredQuestions([]);
+    setQuestionOutcomes([]);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -577,14 +622,14 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
               </div>
               <div>
                 <div className="text-3xl font-bold text-muted-foreground mb-1">
-                  {answeredQuestions.filter(a => a).length - score}
+                  {answeredCount - score}
                 </div>
                 <p className="text-xs text-muted-foreground">Incorrect</p>
               </div>
               <div>
                 <div className="text-3xl font-bold text-secondary mb-1">
-                  {answeredQuestions.filter(a => a).length > 0
-                    ? Math.round((score / answeredQuestions.filter(a => a).length) * 100)
+                  {answeredCount > 0
+                    ? Math.round((score / answeredCount) * 100)
                     : 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">Accuracy</p>

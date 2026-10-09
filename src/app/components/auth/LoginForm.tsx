@@ -253,7 +253,7 @@ export function LoginForm({
   const effectiveDescription =
     description ??
     (isIQOnlyMode
-      ? 'Sign in to access your IQ test dashboard'
+      ? 'Sign in to access your dashboard'
       : 'Sign in to your account to continue learning');
 
   return (

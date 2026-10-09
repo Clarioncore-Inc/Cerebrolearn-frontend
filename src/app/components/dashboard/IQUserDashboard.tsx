@@ -44,6 +44,10 @@ import {
   type IQTestCandidate,
 } from '../../utils/api-client';
 import type { PublicRankingEntry } from '../../types/database';
+import {
+  iqPracticeResultService,
+  type IQPracticeResult,
+} from '../../services/iqPracticeResultService';
 import { formatIQTestType, isIQTestType, type IQTestType } from '../../utils/iqTestTypes';
 import { calculateIQScoreFromCognitiveProfile } from './IQCertificate';
 import type {
@@ -326,6 +330,8 @@ export function IQUserDashboard({
   const [isSwitchingOfficialTest, setIsSwitchingOfficialTest] = useState(false);
   const [isTogglingOptIn, setIsTogglingOptIn] = useState(false);
   const [showConsentDialog, setShowConsentDialog] = useState(false);
+  const [practiceResults, setPracticeResults] = useState<IQPracticeResult[]>([]);
+  const [selectedPracticeTestType, setSelectedPracticeTestType] = useState<IQTestType | null>(null);
   const [activeSessionTab, setActiveSessionTab] = useState<'upcoming' | 'past'>(initialSessionTab);
   const [visibleSessionCounts, setVisibleSessionCounts] = useState<Record<'upcoming' | 'past', number>>({
     upcoming: SESSIONS_PAGE_SIZE,
@@ -598,17 +604,49 @@ export function IQUserDashboard({
       ? 'Live data'
       : 'Preview mode';
 
-  const trendData = useMemo(
+  // Practice tracks use different question sets, so progress is only compared within one test type.
+  const practiceTestTypesWithResults = useMemo(
+    () => Array.from(new Set(practiceResults.map((result) => result.testType))),
+    [practiceResults],
+  );
+
+  const activePracticeTestType = useMemo<IQTestType | null>(() => {
+    if (selectedPracticeTestType && practiceTestTypesWithResults.includes(selectedPracticeTestType)) {
+      return selectedPracticeTestType;
+    }
+    const bookedTestType = practiceAllowedTestTypes[0];
+    if (bookedTestType && practiceTestTypesWithResults.includes(bookedTestType)) {
+      return bookedTestType;
+    }
+    return practiceResults[practiceResults.length - 1]?.testType ?? null;
+  }, [selectedPracticeTestType, practiceTestTypesWithResults, practiceAllowedTestTypes, practiceResults]);
+
+  const practiceTrendData = useMemo(
     () =>
-      allResults.map((result) => {
-        const iqScore = calculateIQScore(result.score);
-        return {
-          date: formatShortDate(result.date),
-          score: iqScore,
-          percentile: calculatePercentile(iqScore),
-        };
-      }),
-    [allResults],
+      practiceResults
+        .filter((result) => result.testType === activePracticeTestType)
+        .map((result) => ({
+          date: formatShortDate(result.completedAt),
+          accuracy: result.accuracy,
+        })),
+    [practiceResults, activePracticeTestType],
+  );
+
+  const latestPracticeAccuracy = practiceTrendData[practiceTrendData.length - 1]?.accuracy ?? null;
+  const bestPracticeAccuracy = practiceTrendData.length
+    ? Math.max(...practiceTrendData.map((item) => item.accuracy))
+    : null;
+  const practiceAccuracyChange =
+    practiceTrendData.length > 1 && latestPracticeAccuracy != null
+      ? latestPracticeAccuracy - practiceTrendData[0].accuracy
+      : null;
+
+  const officialIQResults = useMemo(
+    () =>
+      [...iqTestCandidates].sort(
+        (a, b) => new Date(b.test_date ?? 0).getTime() - new Date(a.test_date ?? 0).getTime(),
+      ),
+    [iqTestCandidates],
   );
 
   const derivedXP = Math.max(
@@ -767,6 +805,24 @@ export function IQUserDashboard({
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let isMounted = true;
+
+    iqPracticeResultService
+      .list(user.id)
+      .then((results) => {
+        if (isMounted) setPracticeResults(results);
+      })
+      .catch(() => {
+        if (isMounted) setPracticeResults([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
 
   const reloadIqTestCandidates = async () => {
     try {
@@ -1221,40 +1277,71 @@ export function IQUserDashboard({
             </CardContent>
           </Card>
 
-          <Card className={`min-w-0 overflow-hidden lg:col-span-12 lg:order-3 ${glassCardClassName}`}>
+          <Card className={`min-w-0 overflow-hidden lg:col-span-8 lg:order-3 ${glassCardClassName}`}>
             <CardHeader>
-              <CardTitle className='flex items-center gap-2'>
-                <TrendingUp className='h-5 w-5 text-primary' />
-                Improvement Trend
-              </CardTitle>
-              <CardDescription>Score growth over time across your recorded IQ attempts.</CardDescription>
+              <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
+                <div className='min-w-0'>
+                  <CardTitle className='flex items-center gap-2'>
+                    <TrendingUp className='h-5 w-5 text-primary' />
+                    Practice Progress
+                  </CardTitle>
+                  <CardDescription>
+                    Your accuracy across practice attempts. Practice scores are not IQ scores.
+                  </CardDescription>
+                </div>
+                {practiceTestTypesWithResults.length > 1 ? (
+                  <div className='flex flex-wrap gap-2'>
+                    {practiceTestTypesWithResults.map((testType) => (
+                      <Button
+                        key={testType}
+                        size='sm'
+                        variant={testType === activePracticeTestType ? 'default' : 'outline'}
+                        onClick={() => setSelectedPracticeTestType(testType)}
+                      >
+                        {formatIQTestType(testType)}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </CardHeader>
             <CardContent className='space-y-5'>
-              {completedTests > 0 ? (
+              {practiceTrendData.length > 0 ? (
                 <>
+                  <div className='flex flex-wrap items-center gap-2'>
+                    <Badge variant='outline'>{formatIQTestType(activePracticeTestType)}</Badge>
+                    <Badge variant='secondary'>
+                      {practiceTrendData.length} attempt{practiceTrendData.length === 1 ? '' : 's'}
+                    </Badge>
+                  </div>
+
                   <div className='grid gap-3 sm:grid-cols-3'>
                     <div className='rounded-2xl border border-border/60 bg-muted/20 p-3 text-center'>
-                      <p className='text-xs text-muted-foreground'>Latest IQ</p>
-                      <p className='text-2xl font-bold'>{latestIQScore}</p>
+                      <p className='text-xs text-muted-foreground'>Latest accuracy</p>
+                      <p className='text-2xl font-bold'>{latestPracticeAccuracy}%</p>
                     </div>
                     <div className='rounded-2xl border border-border/60 bg-muted/20 p-3 text-center'>
-                      <p className='text-xs text-muted-foreground'>Best score</p>
-                      <p className='text-2xl font-bold'>
-                        {Math.max(...trendData.map((item) => item.score))}
-                      </p>
+                      <p className='text-xs text-muted-foreground'>Best accuracy</p>
+                      <p className='text-2xl font-bold'>{bestPracticeAccuracy}%</p>
                     </div>
                     <div className='rounded-2xl border border-border/60 bg-muted/20 p-3 text-center'>
-                      <p className='text-xs text-muted-foreground'>Change</p>
-                      <p className={`text-2xl font-bold ${iqDelta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                        {iqDelta >= 0 ? '+' : ''}
-                        {iqDelta}
-                      </p>
+                      <p className='text-xs text-muted-foreground'>Change since first attempt</p>
+                      {practiceAccuracyChange == null ? (
+                        <p className='text-2xl font-bold text-muted-foreground'>—</p>
+                      ) : (
+                        <p
+                          className={`text-2xl font-bold ${practiceAccuracyChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}
+                        >
+                          {practiceAccuracyChange >= 0 ? '+' : ''}
+                          {practiceAccuracyChange} pts
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className='min-w-0 overflow-hidden'>
                     <ResponsiveContainer width='100%' height={280}>
-                      <AreaChart data={trendData}>
+                      <AreaChart data={practiceTrendData}>
                       <defs>
                         <linearGradient id='iqTrendFill' x1='0' y1='0' x2='0' y2='1'>
                           <stop offset='5%' stopColor='hsl(var(--primary))' stopOpacity={0.45} />
@@ -1263,8 +1350,13 @@ export function IQUserDashboard({
                       </defs>
                       <CartesianGrid strokeDasharray='3 3' stroke='hsl(var(--border))' />
                       <XAxis dataKey='date' tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
-                      <YAxis domain={[80, 140]} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                      <YAxis
+                        domain={[0, 100]}
+                        tickFormatter={(value) => `${value}%`}
+                        tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                      />
                       <Tooltip
+                        formatter={(value) => [`${value}%`, 'Accuracy']}
                         contentStyle={{
                           backgroundColor: 'hsl(var(--background))',
                           border: '1px solid hsl(var(--border))',
@@ -1273,10 +1365,11 @@ export function IQUserDashboard({
                       />
                       <Area
                         type='monotone'
-                        dataKey='score'
+                        dataKey='accuracy'
                         stroke='hsl(var(--primary))'
                         strokeWidth={3}
                         fill='url(#iqTrendFill)'
+                        dot={{ r: 4, fill: 'hsl(var(--primary))' }}
                       />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -1285,11 +1378,11 @@ export function IQUserDashboard({
               ) : (
                 <div className='flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-border/70 bg-muted/20 px-6 text-center'>
                   <BarChart3 className='mb-4 h-10 w-10 text-primary' />
-                  <p className='text-xl font-semibold'>No trend line yet</p>
+                  <p className='text-xl font-semibold'>No practice results yet</p>
                   <p className='mt-2 max-w-sm text-sm text-muted-foreground'>
                     {practiceAllowedTestTypes.length
-                      ? `Take your ${formatIQTestType(practiceAllowedTestTypes[0])} practice test to unlock score growth analytics, percentile tracking, and momentum insights.`
-                      : 'Book your first IQ test to unlock the matching practice track, score growth analytics, percentile tracking, and momentum insights.'}
+                      ? `Finish your ${formatIQTestType(practiceAllowedTestTypes[0])} practice test to start tracking your accuracy over time.`
+                      : 'Book your first IQ test to unlock the matching practice track and start tracking your progress.'}
                   </p>
                   <Button
                     className='mt-5'
@@ -1302,6 +1395,50 @@ export function IQUserDashboard({
               )}
             </CardContent>
           </Card>
+
+          {/* <Card className={`min-w-0 overflow-hidden lg:col-span-4 lg:order-3 ${glassCardClassName}`}>
+            <CardHeader>
+              <CardTitle className='flex items-center gap-2'>
+                <Shield className='h-5 w-5 text-primary' />
+                Official IQ Results
+              </CardTitle>
+              <CardDescription>Verified scores from your psychologist-led sessions.</CardDescription>
+            </CardHeader>
+            <CardContent className='space-y-3'>
+              {officialIQResults.length > 0 ? (
+                officialIQResults.map((result) => (
+                  <div
+                    key={result.booking_id}
+                    className='flex items-center justify-between gap-3 rounded-2xl border border-border/60 bg-background/70 p-4'
+                  >
+                    <div className='min-w-0 space-y-1'>
+                      <p className='break-words text-sm font-medium'>{formatIQTestType(result.test_type)}</p>
+                      <p className='text-xs text-muted-foreground'>
+                        {result.test_date ? formatShortDate(result.test_date) : 'Date unavailable'}
+                        {result.psychologist_name ? ` · ${result.psychologist_name}` : ''}
+                      </p>
+                      {result.is_current_official ? (
+                        <Badge className='border-0 bg-primary/10 text-primary'>Current official score</Badge>
+                      ) : null}
+                    </div>
+                    <p className='shrink-0 text-2xl font-bold'>{result.computed_iq}</p>
+                  </div>
+                ))
+              ) : (
+                <div className='rounded-2xl border border-dashed border-border/70 bg-muted/20 p-6 text-center'>
+                  <Shield className='mx-auto mb-3 h-8 w-8 text-primary' />
+                  <p className='font-semibold'>No official results yet</p>
+                  <p className='mt-2 text-sm text-muted-foreground'>
+                    Once a psychologist scores your IQ session, your verified result will appear here.
+                  </p>
+                  <Button variant='outline' className='mt-4' onClick={() => focusSessionsSection('upcoming')}>
+                    <Calendar className='mr-2 h-4 w-4' />
+                    View IQ Sessions
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card> */}
 
           <div className='lg:col-span-12'>
             <Card className='min-w-0 overflow-hidden border-border/60 bg-gradient-to-br from-amber-500/15 to-primary/10 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]'>
