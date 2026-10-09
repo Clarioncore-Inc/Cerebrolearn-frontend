@@ -1376,77 +1376,6 @@ export function IQUserDashboard({
                                 : `You are ${Math.abs(closestPublicRankingProfile.official_iq - latestOfficialIQScore)} point(s) away from ${closestPublicRankingProfile.full_name}.`
                             : 'As more members join the public rankings, your closest comparison will appear here.'}
                         </p>
-
-                        {iqTestCandidates.length > 0 ? (
-                          <div className='mt-5 space-y-4 rounded-xl border border-border/40 bg-muted/20 p-4'>
-                            {iqTestCandidates.length > 1 ? (
-                              <div className='space-y-2'>
-                                <p className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
-                                  Choose your official test
-                                </p>
-                                <div className='flex flex-wrap gap-2'>
-                                  {iqTestCandidates.map((candidate) => (
-                                    <Button
-                                      key={candidate.booking_id}
-                                      size='sm'
-                                      variant={candidate.is_current_official ? 'default' : 'outline'}
-                                      disabled={isSwitchingOfficialTest || candidate.is_current_official}
-                                      onClick={() => handleSelectOfficialTest(candidate.booking_id)}
-                                    >
-                                      IQ {candidate.computed_iq}
-                                      {candidate.test_date ? ` · ${candidate.test_date}` : ''}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
-                            ) : null}
-
-                            <div className='flex items-center justify-between gap-3'>
-                              <Label htmlFor='public-ranking-opt-in' className='cursor-pointer text-sm'>
-                                Show me on Public Rankings
-                              </Label>
-                              <Switch
-                                id='public-ranking-opt-in'
-                                checked={publicRankingOptIn}
-                                disabled={isTogglingOptIn}
-                                onCheckedChange={handleTogglePublicRanking}
-                              />
-                            </div>
-                          </div>
-                        ) : null}
-
-                        <AlertDialog open={showConsentDialog} onOpenChange={setShowConsentDialog}>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Join the Public Rankings?</AlertDialogTitle>
-                              <AlertDialogDescription asChild>
-                                <div className='space-y-3 text-left'>
-                                  <p>
-                                    Turning this on makes your profile visible to anyone, including
-                                    people who aren't logged in. Specifically, the following will be
-                                    shown publicly:
-                                  </p>
-                                  <ul className='list-disc space-y-1 pl-5'>
-                                    <li>Your name, username, and avatar</li>
-                                    <li>Your verified official IQ score</li>
-                                    <li>Your bio and location, if you've added them</li>
-                                    <li>Your education, work history, honors, and skills, if you've added them</li>
-                                  </ul>
-                                  <p>
-                                    You can turn this off at any time, which will remove your profile
-                                    from the public rankings.
-                                  </p>
-                                </div>
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={handleConfirmPublicRankingConsent}>
-                                I Agree, Show My Profile
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </div>
                     </div>
                   </>
@@ -1454,10 +1383,83 @@ export function IQUserDashboard({
                   <div className='rounded-2xl border border-dashed border-border/70 bg-background/70 p-6 text-center'>
                     <p className='text-lg font-semibold'>No public rankings available yet</p>
                     <p className='mt-2 text-sm text-muted-foreground'>
-                      Once other members opt in to the public rankings, your comparison will appear here automatically.
+                      {iqTestCandidates.length > 0
+                        ? 'Be among the first to join — turn on "Show me on Public Rankings" below. Your comparison will appear here as other members join.'
+                        : 'Your comparison will appear here as members join the public rankings.'}
                     </p>
                   </div>
                 )}
+
+                {latestOfficialIQScore && iqTestCandidates.length > 0 ? (
+                  <div className='space-y-4 rounded-2xl border border-border/60 bg-background/80 p-5'>
+                    {iqTestCandidates.length > 1 ? (
+                      <div className='space-y-2'>
+                        <p className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
+                          Choose your official test
+                        </p>
+                        <div className='flex flex-wrap gap-2'>
+                          {iqTestCandidates.map((candidate) => (
+                            <Button
+                              key={candidate.booking_id}
+                              size='sm'
+                              variant={candidate.is_current_official ? 'default' : 'outline'}
+                              disabled={isSwitchingOfficialTest || candidate.is_current_official}
+                              onClick={() => handleSelectOfficialTest(candidate.booking_id)}
+                            >
+                              IQ {candidate.computed_iq}
+                              {candidate.test_date ? ` · ${candidate.test_date}` : ''}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className='flex items-center justify-between gap-3'>
+                      <Label htmlFor='public-ranking-opt-in' className='cursor-pointer text-sm'>
+                        Show me on Public Rankings
+                      </Label>
+                      <Switch
+                        id='public-ranking-opt-in'
+                        checked={publicRankingOptIn}
+                        disabled={isTogglingOptIn}
+                        onCheckedChange={handleTogglePublicRanking}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                <AlertDialog open={showConsentDialog} onOpenChange={setShowConsentDialog}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Join the Public Rankings?</AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className='space-y-3 text-left'>
+                          <p>
+                            Turning this on makes your profile visible to anyone, including
+                            people who aren't logged in. Specifically, the following will be
+                            shown publicly:
+                          </p>
+                          <ul className='list-disc space-y-1 pl-5'>
+                            <li>Your name, username, and avatar</li>
+                            <li>Your verified official IQ score</li>
+                            <li>Your bio and location, if you've added them</li>
+                            <li>Your education, work history, honors, and skills, if you've added them</li>
+                          </ul>
+                          <p>
+                            You can turn this off at any time, which will remove your profile
+                            from the public rankings.
+                          </p>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleConfirmPublicRankingConsent}>
+                        I Agree, Show My Profile
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </CardContent>
             </Card>
           </div>
