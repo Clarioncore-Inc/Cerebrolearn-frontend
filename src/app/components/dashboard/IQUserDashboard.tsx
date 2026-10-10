@@ -108,7 +108,7 @@ interface ResumeState {
 
 // Section cards are flattened on mobile so their inner panels aren't drawn as cards inside cards.
 const glassCardClassName =
-  'gap-4 border-0 bg-transparent p-0 shadow-none sm:gap-8 sm:border sm:border-border/60 sm:bg-background/75 sm:p-1 sm:backdrop-blur-xl sm:shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] sm:hover:scale-[1.02] transition-all duration-300';
+  'gap-4 overflow-visible rounded-none border-0 bg-transparent p-0 shadow-none sm:gap-8 sm:overflow-hidden sm:rounded-xl sm:border sm:border-border/60 sm:bg-background/75 sm:p-1 sm:backdrop-blur-xl sm:shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] sm:hover:scale-[1.02] transition-all duration-300';
 const sectionCardHeaderClassName = 'px-0 pt-0 sm:px-8 sm:pt-8';
 const sectionCardContentClassName = 'px-0 [&:last-child]:pb-0 sm:px-8 sm:[&:last-child]:pb-8';
 const SESSIONS_PAGE_SIZE = 4;
@@ -1388,8 +1388,8 @@ export function IQUserDashboard({
           </Card> */}
 
           <div className='lg:col-span-12'>
-            <Card className='min-w-0 gap-4 overflow-hidden border-0 bg-transparent p-0 shadow-none transition-all duration-300 sm:gap-8 sm:border sm:border-border/60 sm:bg-gradient-to-br sm:from-amber-500/15 sm:to-primary/10 sm:p-1 sm:shadow-sm sm:backdrop-blur-sm sm:hover:scale-[1.02]'>
-              <CardHeader className={`${sectionCardHeaderClassName} flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between`}>
+            <Card className='min-w-0 gap-4 overflow-hidden border-border/60 bg-gradient-to-br from-amber-500/15 to-primary/10 backdrop-blur-sm transition-all duration-300 sm:gap-8 sm:hover:scale-[1.02]'>
+              <CardHeader className='flex flex-col gap-4 px-4 pt-5 sm:flex-row sm:items-start sm:justify-between sm:px-8 sm:pt-8'>
                 <div className='min-w-0'>
                   <CardTitle className='flex flex-wrap items-center gap-2 break-words'>
                     <Trophy className='h-5 w-5 text-amber-500' />
@@ -1404,7 +1404,7 @@ export function IQUserDashboard({
                   <ArrowRight className='ml-2 h-4 w-4' />
                 </Button>
               </CardHeader>
-              <CardContent className={`space-y-4 ${sectionCardContentClassName}`}>
+              <CardContent className='space-y-4 px-4 [&:last-child]:pb-5 sm:px-8 sm:[&:last-child]:pb-8'>
                 {!latestOfficialIQScore ? (
                   <div className='rounded-2xl border border-dashed border-border/70 bg-background/80 p-6 text-center'>
                     <Trophy className='mx-auto mb-4 h-10 w-10 text-amber-500' />
