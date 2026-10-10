@@ -91,6 +91,14 @@ const clearFirstLoginFlag = () => {
   window.sessionStorage.removeItem(AUTH_FIRST_LOGIN_KEY);
 };
 
+// IQ test data is stored in localStorage without a user id, so it must not outlive the session.
+const USER_SCOPED_STORAGE_KEYS = ['iq_test_results', 'iq_test_in_progress', 'iq_test_progress'];
+
+const clearUserScopedStorage = () => {
+  if (typeof window === 'undefined') return;
+  USER_SCOPED_STORAGE_KEYS.forEach((key) => window.localStorage.removeItem(key));
+};
+
 const getSocialSignupRole = (selectedRole = 'learner') => {
   if (typeof window === 'undefined') return selectedRole;
   return window.sessionStorage.getItem(USER_INTENT_KEY) === 'iq-only'
@@ -115,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(AUTH_TOKEN_KEY);
       sessionStorage.removeItem(USER_INTENT_KEY);
       clearFirstLoginFlag();
+      clearUserScopedStorage();
       setUser(null);
       setProfile(null);
       setIsFirstLogin(false);
@@ -207,6 +216,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(AUTH_TOKEN_KEY);
     sessionStorage.removeItem(USER_INTENT_KEY);
     clearFirstLoginFlag();
+    clearUserScopedStorage();
     setUser(null);
     setProfile(null);
     setIsFirstLogin(false);

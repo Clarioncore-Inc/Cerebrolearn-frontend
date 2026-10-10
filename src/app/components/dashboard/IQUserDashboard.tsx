@@ -110,14 +110,6 @@ const glassCardClassName =
   'border-border/60 bg-background/75 backdrop-blur-xl shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] hover:scale-[1.02] transition-all duration-300';
 const SESSIONS_PAGE_SIZE = 4;
 
-const emptyRadarData = [
-  { metric: 'Pattern Recognition', score: 54 },
-  { metric: 'Working Memory', score: 50 },
-  { metric: 'Processing Speed', score: 48 },
-  { metric: 'Verbal Intelligence', score: 52 },
-  { metric: 'Spatial Reasoning', score: 49 },
-];
-
 const comparisonRows = [
   {
     feature: 'Scoring model',
@@ -167,10 +159,7 @@ const getCognitiveProfileScore = (
   return typeof value === 'number' && !Number.isNaN(value) ? clamp(value, 0, 100) : null;
 };
 
-const buildRadarDataFromCognitiveProfile = (
-  profile: IQSessionCognitiveProfile | null | undefined,
-  fallback: Array<{ metric: string; score: number }>,
-) => {
+const buildRadarDataFromCognitiveProfile = (profile: IQSessionCognitiveProfile | null | undefined) => {
   const scoreByMetric: Record<string, number | null> = {
     'Pattern Recognition': getCognitiveProfileScore(profile, 'pattern_recognition'),
     'Working Memory': getCognitiveProfileScore(profile, 'working_memory'),
@@ -179,10 +168,10 @@ const buildRadarDataFromCognitiveProfile = (
     'Spatial Reasoning': getCognitiveProfileScore(profile, 'spatial_reasoning'),
   };
 
-  return fallback.map((item) => ({
-    metric: item.metric,
-    score: scoreByMetric[item.metric] ?? item.score,
-  }));
+  // Only show metrics the psychologist actually scored.
+  return Object.entries(scoreByMetric).flatMap(([metric, score]) =>
+    score === null ? [] : [{ metric, score }],
+  );
 };
 
 const getCertificateEligibleProfile = (profile?: IQSessionCognitiveProfile | null) => {
@@ -413,28 +402,6 @@ export function IQUserDashboard({
     onNavigate('book-psychologist', { backPage: 'dashboard' });
   };
 
-  const sessionActions = [
-    {
-      label: 'Book My IQ Test',
-      icon: Users,
-      onClick: handleBookIQTest,
-      disabled: isStartingCheckout || isCheckingBookingCredit,
-    },
-    {
-      label: 'Upcoming Tests',
-      icon: Calendar,
-      onClick: () => focusSessionsSection('upcoming'),
-      variant: 'outline' as const,
-    },
-    {
-      label: 'Practice Test',
-      icon: Play,
-      onClick: openPracticeTest,
-      variant: 'outline' as const,
-      disabled: !practiceAllowedTestTypes.length,
-    },
-  ];
-
   const allResults = useMemo(() => {
     const results = readJsonFromStorage<TestResult[]>('iq_test_results', []);
     return results.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -520,57 +487,6 @@ export function IQUserDashboard({
     [iqSessions],
   );
 
-  const categoryTotals = useMemo(() => {
-    const totals = {
-      pattern: { correct: 0, total: 0 },
-      logical: { correct: 0, total: 0 },
-      spatial: { correct: 0, total: 0 },
-      mathematical: { correct: 0, total: 0 },
-    };
-
-    allResults.forEach((result) => {
-      result.questions?.forEach((question, index) => {
-        const type = question.type;
-        if (!(type in totals)) return;
-
-        totals[type as keyof typeof totals].total += 1;
-
-        if (result.answers[index] === question.correctAnswer) {
-          totals[type as keyof typeof totals].correct += 1;
-        }
-      });
-    });
-
-    return totals;
-  }, [allResults]);
-
-  const radarData = useMemo(() => {
-    const latestAccuracy = latestResult?.score || 52;
-    const getCategoryPercent = (key: keyof typeof categoryTotals, fallbackOffset = 0) => {
-      const category = categoryTotals[key];
-      if (!category.total) return clamp(latestAccuracy + fallbackOffset, 35, 92);
-      return clamp((category.correct / category.total) * 100, 20, 100);
-    };
-
-    const pattern = getCategoryPercent('pattern', 6);
-    const logical = getCategoryPercent('logical', 2);
-    const spatial = getCategoryPercent('spatial', -2);
-    const mathematical = getCategoryPercent('mathematical', 4);
-
-    const totalQuestionsAttempted = allResults.reduce((sum, result) => sum + result.totalQuestions, 0);
-    const totalTimeSpent = allResults.reduce((sum, result) => sum + result.timeTaken, 0);
-    const avgTimePerQuestion = totalQuestionsAttempted ? totalTimeSpent / totalQuestionsAttempted : 42;
-    const processingSpeed = clamp(100 - ((avgTimePerQuestion - 22) / 25) * 60, 35, 95);
-
-    return [
-      { metric: 'Pattern Recognition', score: Math.round(pattern) },
-      { metric: 'Working Memory', score: Math.round((logical + mathematical) / 2) },
-      { metric: 'Processing Speed', score: Math.round(processingSpeed) },
-      { metric: 'Verbal Intelligence', score: Math.round(logical * 0.85 + latestAccuracy * 0.15) },
-      { metric: 'Spatial Reasoning', score: Math.round(spatial) },
-    ];
-  }, [allResults, categoryTotals, latestResult]);
-
   const latestSessionWithCognitiveProfile = useMemo(
     () =>
       [...iqSessions]
@@ -586,23 +502,16 @@ export function IQUserDashboard({
     [iqSessions],
   );
 
-  const displayedRadarData = latestSessionWithCognitiveProfile
-    ? buildRadarDataFromCognitiveProfile(
-        latestSessionWithCognitiveProfile.sessionNotes?.cognitive_profile,
-        completedTests > 0 ? radarData : emptyRadarData,
-      )
-    : completedTests > 0
-      ? radarData
-      : emptyRadarData;
-  const strongestMetric = displayedRadarData.reduce((best, item) =>
-    item.score > best.score ? item : best,
+  // Cognitive analytics come only from the KPI scores the psychologist recorded on the latest session.
+  const displayedRadarData = buildRadarDataFromCognitiveProfile(
+    latestSessionWithCognitiveProfile?.sessionNotes?.cognitive_profile,
+  );
+  const strongestMetric = displayedRadarData.reduce<{ metric: string; score: number } | null>(
+    (best, item) => (!best || item.score > best.score ? item : best),
+    null,
   );
   const breakdownMetrics = [...displayedRadarData].sort((a, b) => b.score - a.score);
-  const cognitiveAnalyticsMode = latestSessionWithCognitiveProfile
-    ? 'Latest session result'
-    : completedTests > 0
-      ? 'Live data'
-      : 'Preview mode';
+  const cognitiveAnalyticsMode = latestSessionWithCognitiveProfile ? 'Latest session result' : 'No data yet';
 
   // Practice tracks use different question sets, so progress is only compared within one test type.
   const practiceTestTypesWithResults = useMemo(
@@ -664,10 +573,10 @@ export function IQUserDashboard({
     const badges: string[] = [];
 
     if (completedTests >= 1) badges.push('Baseline Established');
-    if (strongestMetric.metric === 'Pattern Recognition' && strongestMetric.score >= 70) {
+    if (strongestMetric?.metric === 'Pattern Recognition' && strongestMetric.score >= 70) {
       badges.push('Pattern Master');
     }
-    if (displayedRadarData.find((item) => item.metric === 'Processing Speed')?.score >= 72) {
+    if ((displayedRadarData.find((item) => item.metric === 'Processing Speed')?.score ?? 0) >= 72) {
       badges.push('Fast Thinker');
     }
     if (completedTests >= 3) badges.push('Consistency Builder');
@@ -962,6 +871,32 @@ export function IQUserDashboard({
     [iqSessions],
   );
 
+  const sessionActions = [
+    {
+      label: 'Book My IQ Test',
+      icon: Users,
+      onClick: handleBookIQTest,
+      disabled: isStartingCheckout || isCheckingBookingCredit,
+    },
+    ...(upcomingSessions.length > 0
+      ? [
+          {
+            label: 'Upcoming Tests',
+            icon: Calendar,
+            onClick: () => focusSessionsSection('upcoming'),
+            variant: 'outline' as const,
+          },
+        ]
+      : []),
+    {
+      label: 'Practice Test',
+      icon: Play,
+      onClick: openPracticeTest,
+      variant: 'outline' as const,
+      disabled: !practiceAllowedTestTypes.length,
+    },
+  ];
+
   const visibleUpcomingSessions = useMemo(
     () => upcomingSessions.slice(0, visibleSessionCounts.upcoming),
     [upcomingSessions, visibleSessionCounts.upcoming],
@@ -1228,7 +1163,7 @@ export function IQUserDashboard({
                   <CardDescription>
                     {latestSessionWithCognitiveProfile
                       ? 'Previewed from the KPI results entered by your psychologist in your latest completed IQ session.'
-                      : 'Estimated from your completed IQ assessments and recent performance patterns.'}
+                      : 'Your cognitive profile will appear here once your psychologist records the results of your IQ session.'}
                   </CardDescription>
                 </div>
                 <Badge variant='secondary' className='self-start sm:self-auto shrink-0'>
@@ -1237,43 +1172,52 @@ export function IQUserDashboard({
               </div>
             </CardHeader>
             <CardContent className='space-y-4'>
-              <div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
-                <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-                  <div className='min-w-0'>
-                    <p className='text-sm text-muted-foreground'>Top current signal</p>
-                    <p className='break-words text-2xl font-bold'>{strongestMetric.metric}</p>
-                  </div>
-                  <Badge className='w-fit border-0 bg-emerald-500/10 text-emerald-600'>{strongestMetric.score}%</Badge>
+              {!strongestMetric ? (
+                <div className='rounded-2xl border border-dashed border-border/60 bg-background/70 p-6 text-center'>
+                  <Brain className='mx-auto h-8 w-8 text-muted-foreground' />
+                  <p className='mt-3 font-semibold'>No cognitive data yet</p>
+                  <p className='mt-1 text-sm text-muted-foreground'>
+                    Complete your first IQ assessment to see your strengths and opportunities across each cognitive area.
+                  </p>
                 </div>
-                <p className='mt-3 text-sm text-muted-foreground'>
-                  {latestSessionWithCognitiveProfile
-                    ? 'These KPI scores were entered by your psychologist and give you a live preview of your latest cognitive profile.'
-                    : completedTests > 0
-                    ? 'This area currently leads your profile and represents your strongest performance pattern.'
-                    : 'Complete your first assessment to replace this preview with your live cognitive signature.'}
-                </p>
-              </div>
-
-              <div className='space-y-4'>
-                <div className='flex items-center gap-2'>
-                  <Target className='h-4 w-4 text-primary' />
-                  <p className='font-semibold'>Strength vs. Opportunity</p>
-                </div>
-                {breakdownMetrics.map((metric, index) => {
-                  const isStrength = index < 2;
-                  return (
-                    <div key={metric.metric} className='space-y-2'>
-                      <div className='flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3'>
-                        <span className='font-medium'>{metric.metric}</span>
-                        <span className={`break-words ${isStrength ? 'text-emerald-600' : 'text-amber-600'}`}>
-                          {isStrength ? 'Strength' : 'Opportunity'} · {metric.score}%
-                        </span>
+              ) : (
+                <>
+                  <div className='rounded-2xl border border-border/60 bg-background/70 p-4'>
+                    <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+                      <div className='min-w-0'>
+                        <p className='text-sm text-muted-foreground'>Top current signal</p>
+                        <p className='break-words text-2xl font-bold'>{strongestMetric.metric}</p>
                       </div>
-                      <Progress value={metric.score} className='h-2.5' />
+                      <Badge className='w-fit border-0 bg-emerald-500/10 text-emerald-600'>{strongestMetric.score}%</Badge>
                     </div>
-                  );
-                })}
-              </div>
+                    <p className='mt-3 text-sm text-muted-foreground'>
+                      These KPI scores were entered by your psychologist and give you a live preview of your latest
+                      cognitive profile.
+                    </p>
+                  </div>
+    
+                  <div className='space-y-4'>
+                    <div className='flex items-center gap-2'>
+                      <Target className='h-4 w-4 text-primary' />
+                      <p className='font-semibold'>Strength vs. Opportunity</p>
+                    </div>
+                    {breakdownMetrics.map((metric, index) => {
+                      const isStrength = index < 2;
+                      return (
+                        <div key={metric.metric} className='space-y-2'>
+                          <div className='flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3'>
+                            <span className='font-medium'>{metric.metric}</span>
+                            <span className={`break-words ${isStrength ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {isStrength ? 'Strength' : 'Opportunity'} · {metric.score}%
+                            </span>
+                          </div>
+                          <Progress value={metric.score} className='h-2.5' />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 
