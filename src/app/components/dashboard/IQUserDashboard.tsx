@@ -106,8 +106,11 @@ interface ResumeState {
   lastSavedAt?: string;
 }
 
+// Section cards are flattened on mobile so their inner panels aren't drawn as cards inside cards.
 const glassCardClassName =
-  'border-border/60 bg-background/75 backdrop-blur-xl shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] hover:scale-[1.02] transition-all duration-300';
+  'gap-4 border-0 bg-transparent p-0 shadow-none sm:gap-8 sm:border sm:border-border/60 sm:bg-background/75 sm:p-1 sm:backdrop-blur-xl sm:shadow-[0_18px_60px_-30px_rgba(15,23,42,0.35)] sm:hover:scale-[1.02] transition-all duration-300';
+const sectionCardHeaderClassName = 'px-0 pt-0 sm:px-8 sm:pt-8';
+const sectionCardContentClassName = 'px-0 [&:last-child]:pb-0 sm:px-8 sm:[&:last-child]:pb-8';
 const SESSIONS_PAGE_SIZE = 4;
 
 const comparisonRows = [
@@ -1097,7 +1100,7 @@ export function IQUserDashboard({
               ))}
         </div>
 
-        <div className='grid gap-6 lg:grid-cols-12'>
+        <div className='grid gap-10 sm:gap-6 lg:grid-cols-12'>
           {/* <Card className={`lg:col-span-6 lg:order-2 ${glassCardClassName}`}>
             <CardHeader>
               <div className='flex items-center justify-between gap-3'>
@@ -1153,7 +1156,7 @@ export function IQUserDashboard({
           </Card> */}
 
           <Card className={`min-w-0 overflow-hidden lg:col-span-12 lg:order-1 ${glassCardClassName}`}>
-            <CardHeader>
+            <CardHeader className={sectionCardHeaderClassName}>
               <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
                 <div className='min-w-0'>
                   <CardTitle className='flex flex-wrap items-center gap-2 break-words'>
@@ -1171,7 +1174,7 @@ export function IQUserDashboard({
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className='space-y-4'>
+            <CardContent className={`space-y-4 ${sectionCardContentClassName}`}>
               {!strongestMetric ? (
                 <div className='rounded-2xl border border-dashed border-border/60 bg-background/70 p-6 text-center'>
                   <Brain className='mx-auto h-8 w-8 text-muted-foreground' />
@@ -1222,7 +1225,7 @@ export function IQUserDashboard({
           </Card>
 
           <Card className={`min-w-0 overflow-hidden lg:col-span-12 lg:order-3 ${glassCardClassName}`}>
-            <CardHeader>
+            <CardHeader className={sectionCardHeaderClassName}>
               <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
                 <div className='min-w-0'>
                   <CardTitle className='flex items-center gap-2'>
@@ -1249,7 +1252,7 @@ export function IQUserDashboard({
                 ) : null}
               </div>
             </CardHeader>
-            <CardContent className='space-y-5'>
+            <CardContent className={`space-y-5 ${sectionCardContentClassName}`}>
               {practiceTrendData.length > 0 ? (
                 <>
                   <div className='flex flex-wrap items-center gap-2'>
@@ -1385,8 +1388,8 @@ export function IQUserDashboard({
           </Card> */}
 
           <div className='lg:col-span-12'>
-            <Card className='min-w-0 overflow-hidden border-border/60 bg-gradient-to-br from-amber-500/15 to-primary/10 backdrop-blur-sm transition-all duration-300 hover:scale-[1.02]'>
-              <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+            <Card className='min-w-0 gap-4 overflow-hidden border-0 bg-transparent p-0 shadow-none transition-all duration-300 sm:gap-8 sm:border sm:border-border/60 sm:bg-gradient-to-br sm:from-amber-500/15 sm:to-primary/10 sm:p-1 sm:shadow-sm sm:backdrop-blur-sm sm:hover:scale-[1.02]'>
+              <CardHeader className={`${sectionCardHeaderClassName} flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between`}>
                 <div className='min-w-0'>
                   <CardTitle className='flex flex-wrap items-center gap-2 break-words'>
                     <Trophy className='h-5 w-5 text-amber-500' />
@@ -1401,7 +1404,7 @@ export function IQUserDashboard({
                   <ArrowRight className='ml-2 h-4 w-4' />
                 </Button>
               </CardHeader>
-              <CardContent className='space-y-4'>
+              <CardContent className={`space-y-4 ${sectionCardContentClassName}`}>
                 {!latestOfficialIQScore ? (
                   <div className='rounded-2xl border border-dashed border-border/70 bg-background/80 p-6 text-center'>
                     <Trophy className='mx-auto mb-4 h-10 w-10 text-amber-500' />
@@ -1409,10 +1412,7 @@ export function IQUserDashboard({
                     <p className='mt-2 text-sm text-muted-foreground'>
                       Once a psychologist has completed and scored your IQ session, we will show how your official result compares to the public rankings.
                     </p>
-                    <Button className='mt-5' onClick={() => focusSessionsSection('past')}>
-                      <Calendar className='mr-2 h-4 w-4' />
-                      View IQ Sessions
-                    </Button>
+                
                   </div>
                 ) : isInitialPublicRankingsLoading ? (
                   <div className='space-y-4 rounded-2xl border border-border/60 bg-background/80 p-5'>
@@ -1547,7 +1547,7 @@ export function IQUserDashboard({
 
           <div ref={sessionsSectionRef} className='scroll-mt-24 lg:col-span-12'>
             <Card className={`min-w-0 overflow-hidden ${glassCardClassName}`}>
-              <CardHeader className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+              <CardHeader className={`${sectionCardHeaderClassName} flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between`}>
                 <div>
                   <CardTitle className='flex items-center gap-2'>
                     <Calendar className='h-5 w-5 text-primary' />
@@ -1563,7 +1563,7 @@ export function IQUserDashboard({
                   <Badge variant='secondary'>Results available: {sessionResultsCount}</Badge>
                 )}
               </CardHeader>
-              <CardContent className='space-y-4'>
+              <CardContent className={`space-y-4 ${sectionCardContentClassName}`}>
                 {sessionsError ? (
                   <div className='rounded-2xl border border-destructive/20 bg-destructive/5 p-4 text-sm'>
                     <p className='font-semibold'>Unable to load sessions</p>
