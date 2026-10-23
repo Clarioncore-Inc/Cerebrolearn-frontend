@@ -18,13 +18,13 @@ interface AIHeroSectionProps {
 export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProps) {
   const { isIQOnlyMode } = useFeatureFlags();
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+    <section className="relative lg:min-h-[90vh] flex items-center overflow-hidden">
       {/* Animated Background */}
       <AnimatedGradientBackground />
       <NeuralNetworkBackground />
 
       {/* Content Container */}
-      <div className="container relative z-10 py-20 md:py-28">
+      <div className="container relative z-10 pt-8 pb-16 md:py-28">
         <div className="max-w-7xl mx-auto">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left Column - Content */}
