@@ -108,31 +108,29 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
               </SlideInView>
 
               {/* Feature Pills */}
-              <SlideInView delay={400}>
-                <div className="flex flex-wrap gap-3 pt-2">
-                  {!isIQOnlyMode && (
+              {!isIQOnlyMode && (
+                <SlideInView delay={400}>
+                  <div className="flex flex-wrap gap-3 pt-2">
                     <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-primary/20">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                       <span className="text-muted-foreground">50,000+ Active Learners</span>
                     </div>
-                  )}
-                  {/* <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-secondary/20">
-                    <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
-                    <span className="text-muted-foreground">AI-Powered Tutoring</span>
-                  </div> */}
-                  {!isIQOnlyMode && (
+                    {/* <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-secondary/20">
+                      <div className="w-2 h-2 rounded-full bg-secondary animate-pulse"></div>
+                      <span className="text-muted-foreground">AI-Powered Tutoring</span>
+                    </div> */}
                     <div className="glass-ai rounded-full px-4 py-2 text-sm flex items-center gap-2 border border-yellow-500/20">
                       <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
                       <span className="text-muted-foreground">100% Free to Start</span>
                     </div>
-                  )}
-                </div>
-              </SlideInView>
+                  </div>
+                </SlideInView>
+              )}
             </div>
 
             {/* Right Column - Visual Element */}
-            <SlideInView delay={500} direction="right">
-              <div className="relative hidden lg:block animate-float">
+            <SlideInView delay={500} direction="right" className="hidden lg:block">
+              <div className="relative animate-float">
                 <div className="relative w-full aspect-square max-w-lg mx-auto">
                   {/* Floating elements */}
                   <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-br from-warning to-amber-400 rounded-2xl shadow-2xl rotate-12 animate-float"></div>
@@ -149,7 +147,7 @@ export function AIHeroSection({ onNavigate, isAuthenticated }: AIHeroSectionProp
 
           {/* Intelligence Metrics */}
           <SlideInView delay={600}>
-            <div className="mt-16 lg:mt-20">
+            <div className="mt-10 lg:mt-20">
               <IntelligenceMetrics />
             </div>
           </SlideInView>
