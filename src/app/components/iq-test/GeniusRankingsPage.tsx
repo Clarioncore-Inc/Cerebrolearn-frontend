@@ -24,6 +24,8 @@ import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { publicGeniusApi, type GeniusApiResponse } from '../../utils/api-client';
+import { useAppSettings } from '../../hooks/useAppSettings';
+import { useIQTestCheckout } from '../../hooks/useIQTestCheckout';
 
 interface GeniusRankingsPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -270,6 +272,8 @@ const fields = ['All Fields', 'Mathematics', 'Physics', 'Physics & Chemistry', '
 const eras = ['All Eras', 'Renaissance (1400-1599)', 'Early Modern (1600-1799)', 'Early Modern (1800-1899)', 'Modern (1900-1999)', 'Contemporary (2000+)'];
 
 export function GeniusRankingsPage({ onNavigate }: GeniusRankingsPageProps) {
+  const { formattedIQTestPrice } = useAppSettings();
+  const { isStartingCheckout, startCheckout } = useIQTestCheckout(onNavigate);
   const [geniuses, setGeniuses] = useState<Genius[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -703,26 +707,28 @@ export function GeniusRankingsPage({ onNavigate }: GeniusRankingsPageProps) {
             <Brain className="w-16 h-16 mx-auto mb-4" />
             <h2 className="text-3xl font-bold mb-4">Discover Your Own IQ</h2>
             <p className="text-primary-foreground/90 mb-6 max-w-2xl mx-auto">
-              Start with our free practice IQ test or book a certified psychologist for $99 to get an official assessment. 
+              Book an official, psychologist-led IQ assessment for {formattedIQTestPrice}, with practice tests included.
               See how you compare to history's greatest minds.
             </p>
-            <div className="flex items-center justify-center gap-4">
-              <Button 
-                size="lg" 
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 sm:gap-4">
+              <Button
+                size="lg"
                 variant="secondary"
-                onClick={() => onNavigate('iq-test-landing')}
+                className="w-full sm:w-auto"
+                onClick={() => onNavigate('iq-test-overview')}
               >
                 <Brain className="w-5 h-5 mr-2" />
-                Free Practice Test
+                See How It Works
               </Button>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 variant="outline"
-                className="bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10"
-                onClick={() => onNavigate('psychologist-browse')}
+                className="w-full sm:w-auto bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-white/10"
+                onClick={() => startCheckout()}
+                disabled={isStartingCheckout}
               >
                 <Users className="w-5 h-5 mr-2" />
-                Official Test ($99)
+                {isStartingCheckout ? 'Preparing booking…' : `Book Official Test (${formattedIQTestPrice})`}
               </Button>
             </div>
           </CardContent>

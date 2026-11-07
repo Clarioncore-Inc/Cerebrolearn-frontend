@@ -91,8 +91,7 @@ export function SmartBackButton({ currentPage, onNavigate, className = '' }: Sma
     'psychologist-profile': { parent: 'browse-psychologists', label: 'Back to Browse' },
     
     // IQ Test navigation
-    'iq-test': { parent: 'iq-test-landing', label: 'Back to IQ Test Home' },
-    'iq-test-results': { parent: 'iq-test-landing', label: 'Back to IQ Test Home' },
+    'iq-test': { parent: 'iq-test-overview', label: 'Back to IQ Test' },
     
     // Payment navigation
     'payment': { parent: 'course-detail', label: 'Back to Course' },

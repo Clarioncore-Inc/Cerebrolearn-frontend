@@ -254,7 +254,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                   <button
                     className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all inline-flex items-center gap-1 ${
                       [
-                        'iq-test-landing',
+                        'iq-test-overview',
                         'browse-psychologists',
                         'student-sessions',
                       ].includes(currentPage)
@@ -269,7 +269,7 @@ export function Navbar({ onNavigate, currentPage }: NavbarProps) {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align='start' className='w-56'>
                   <DropdownMenuItem
-                    onClick={() => onNavigate('iq-test-landing')}
+                    onClick={() => onNavigate('iq-test-overview')}
                   >
                     <Brain className='mr-2 h-4 w-4' />
                     IQ Assessment

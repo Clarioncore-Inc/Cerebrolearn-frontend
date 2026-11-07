@@ -44,7 +44,7 @@ export function MobileMenu({ currentPage, onNavigate, onSignOut }: MobileMenuPro
     { id: 'landing', label: 'Home', icon: Home, roles: ['all'] },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['student', 'instructor', 'admin', 'psychologist', 'course_creator'] },
     { id: 'catalog', label: 'Courses', icon: BookOpen, roles: ['all'], requiresCourseFeatures: true },
-    { id: 'iq-test-landing', label: 'IQ Test', icon: Brain, roles: ['all'] },
+    { id: 'iq-test-overview', label: 'IQ Test', icon: Brain, roles: ['all'] },
     { id: 'browse-psychologists', label: 'Psychologists', icon: Users, roles: ['all'] },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['student', 'instructor'], requiresLearnerFeatures: true },
   ];

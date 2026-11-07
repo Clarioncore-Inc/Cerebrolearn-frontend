@@ -28,7 +28,7 @@ const PAGE_LABELS: Record<string, string> = {
   'catalog': 'Course Catalog',
   'course-detail': 'Course Details',
   'lesson': 'Lesson',
-  'iq-test-landing': 'IQ Test',
+  'iq-test-overview': 'IQ Test',
   'browse-psychologists': 'Psychologists',
   'student-sessions': 'My Sessions',
   'profile': 'My Profile',

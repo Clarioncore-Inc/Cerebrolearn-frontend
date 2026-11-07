@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { FeatureFlagProvider, useFeatureFlags } from './contexts/FeatureFlagContext';
@@ -52,12 +52,6 @@ import {
 } from '../../utils/resetDatabase';
 
 // IQ Test imports
-import { IQTestLandingPage } from './components/iq-test/IQTestLandingPage';
-import { IQTestLanding } from './components/iq-test/IQTestLanding';
-import { IQTestInterface } from './components/iq-test/IQTestInterface';
-import { IQTestCompletion } from './components/iq-test/IQTestCompletion';
-import { IQTestResults } from './components/iq-test/IQTestResults';
-import { EnhancedIQTestResults } from './components/iq-test/EnhancedIQTestResults';
 import { IQTestPracticeMode } from './components/iq-test/IQTestPracticeMode';
 import { GeniusDirectory } from './components/genius/GeniusDirectory';
 import { PublicUserRankingsPage } from './components/iq-test/PublicUserRankingsPage';
@@ -267,10 +261,6 @@ function AppContent() {
       currentPage !== 'personality-types' &&
       currentPage !== 'iq-test-landing' &&
       currentPage !== 'iq-test-practice' &&
-      currentPage !== 'iq-test-interface' &&
-      currentPage !== 'iq-test-completion' &&
-      currentPage !== 'iq-test-results' &&
-      currentPage !== 'enhanced-iq-results' &&
       currentPage !== 'psychologist-signup'
     ) {
       navigate(pageToPath('landing'), { replace: true });
@@ -677,41 +667,9 @@ function AppContent() {
         return <PersonalityTypesPage onNavigate={handleNavigate} />;
 
       // IQ Test routes
+      // Retired page: send old links and bookmarks to the IQ test overview.
       case 'iq-test-landing':
-        return <IQTestLanding onNavigate={handleNavigate} />;
-
-      case 'iq-test-interface':
-        return <IQTestInterface onNavigate={handleNavigate} />;
-
-      case 'iq-test-completion':
-        return pageData ? (
-          <IQTestCompletion
-            onNavigate={handleNavigate}
-            resultId={pageData.resultId}
-          />
-        ) : (
-          <IQTestLanding onNavigate={handleNavigate} />
-        );
-
-      case 'iq-test-results':
-        return pageData ? (
-          <IQTestResults
-            onNavigate={handleNavigate}
-            resultId={pageData.resultId}
-          />
-        ) : (
-          <IQTestLanding onNavigate={handleNavigate} />
-        );
-
-      case 'enhanced-iq-results':
-        return pageData ? (
-          <EnhancedIQTestResults
-            onNavigate={handleNavigate}
-            resultId={pageData.resultId}
-          />
-        ) : (
-          <IQTestLanding onNavigate={handleNavigate} />
-        );
+        return <Navigate to={pageToPath('iq-test-overview')} replace />;
 
       case 'iq-test-practice':
         return (
