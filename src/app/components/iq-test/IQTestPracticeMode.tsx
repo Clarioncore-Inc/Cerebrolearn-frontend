@@ -114,6 +114,8 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
   const [score, setScore] = useState(0);
   // Per question: null until answered, then whether the first attempt was correct.
   const [questionOutcomes, setQuestionOutcomes] = useState<Array<boolean | null>>([]);
+  // Per question: the option index submitted on the first attempt, so it can be shown on revisit.
+  const [submittedAnswers, setSubmittedAnswers] = useState<Array<number | null>>([]);
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
@@ -185,6 +187,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setShowFeedback(false);
     setScore(0);
     setQuestionOutcomes(new Array(questionCount).fill(null));
+    setSubmittedAnswers(new Array(questionCount).fill(null));
     setStartedAt(Date.now());
   };
 
@@ -219,7 +222,19 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
       const newOutcomes = [...questionOutcomes];
       newOutcomes[currentQuestion] = isCorrect;
       setQuestionOutcomes(newOutcomes);
+
+      const newSubmitted = [...submittedAnswers];
+      newSubmitted[currentQuestion] = selectedAnswer;
+      setSubmittedAnswers(newSubmitted);
     }
+  };
+
+  // Navigate to a question, restoring the answer submitted for it (if any) with its feedback.
+  const goToQuestion = (index: number) => {
+    const previousAnswer = submittedAnswers[index] ?? null;
+    setCurrentQuestion(index);
+    setSelectedAnswer(previousAnswer);
+    setShowFeedback(previousAnswer !== null);
   };
 
   const savePracticeResult = async () => {
@@ -259,16 +274,12 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
       return;
     }
 
-    setCurrentQuestion(currentQuestion + 1);
-    setSelectedAnswer(null);
-    setShowFeedback(false);
+    goToQuestion(currentQuestion + 1);
   };
 
   const handlePreviousQuestion = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion(currentQuestion - 1);
-      setSelectedAnswer(null);
-      setShowFeedback(false);
+      goToQuestion(currentQuestion - 1);
     }
   };
 
@@ -278,6 +289,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setShowFeedback(false);
     setScore(0);
     setQuestionOutcomes(new Array(totalQuestions).fill(null));
+    setSubmittedAnswers(new Array(totalQuestions).fill(null));
     setStartedAt(Date.now());
     toast.success('Practice mode restarted!');
   };
@@ -289,6 +301,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setShowFeedback(false);
     setScore(0);
     setQuestionOutcomes([]);
+    setSubmittedAnswers([]);
   };
 
   const getDifficultyColor = (difficulty: string) => {
