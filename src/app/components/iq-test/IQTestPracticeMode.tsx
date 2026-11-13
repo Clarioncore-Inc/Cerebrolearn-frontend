@@ -18,6 +18,16 @@ import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
 import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
 import { Label } from '../ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../ui/alert-dialog';
 import { toast } from 'sonner@2.0.3';
 import { useAuth } from '../../contexts/AuthContext';
 import {
@@ -39,6 +49,7 @@ interface IQTestPracticeModeProps {
 
 type PracticeTestType = IQTestType;
 type PracticeQuestion = IQPracticeQuestion;
+type ExitAction = 'restart' | 'change-test' | 'home';
 
 const practiceTestOptions: Array<{
   value: PracticeTestType;
@@ -120,11 +131,15 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
   const [practiceQuestions, setPracticeQuestions] = useState<PracticeQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  // Set when the user tries to leave or restart a session that has answered questions.
+  const [pendingExit, setPendingExit] = useState<ExitAction | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadQuestions = async () => {
+      setIsLoadingQuestions(true);
       try {
         const questions = await iqPracticeQuestionService.listPublic();
         if (!isMounted) return;
@@ -148,7 +163,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadAttempt]);
 
   const availablePracticeTestOptions = hasPracticeAccess
     ? practiceTestOptions.filter((option) => allowedTestTypes.includes(option.value))
@@ -291,7 +306,6 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setQuestionOutcomes(new Array(totalQuestions).fill(null));
     setSubmittedAnswers(new Array(totalQuestions).fill(null));
     setStartedAt(Date.now());
-    toast.success('Practice mode restarted!');
   };
 
   const handleChangeTest = () => {
@@ -302,6 +316,55 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
     setScore(0);
     setQuestionOutcomes([]);
     setSubmittedAnswers([]);
+  };
+
+  const hasUnfinishedProgress = selectedTestType !== null && answeredCount > 0;
+
+  // Warn before closing or reloading the tab mid-session (the browser shows its own message).
+  useEffect(() => {
+    if (!hasUnfinishedProgress) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnfinishedProgress]);
+
+  const performExit = (action: ExitAction) => {
+    switch (action) {
+      case 'restart':
+        handleRestart();
+        toast.success('Practice mode restarted!');
+        break;
+      case 'change-test':
+        handleChangeTest();
+        break;
+      case 'home':
+        onNavigate('/dashboard');
+        break;
+    }
+  };
+
+  // Leaving or restarting with answered questions asks first; with none, it just goes.
+  const requestExit = (action: ExitAction) => {
+    if (hasUnfinishedProgress) {
+      setPendingExit(action);
+    } else {
+      performExit(action);
+    }
+  };
+
+  const confirmExit = () => {
+    if (!pendingExit) return;
+    void savePracticeResult();
+    toast.success(
+      `Your ${answeredCount} answered question${answeredCount === 1 ? ' was' : 's were'} saved to your Practice Progress.`,
+    );
+    performExit(pendingExit);
+    setPendingExit(null);
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -359,10 +422,18 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
             </p>
           </div>
 
-          {questionsError ? (
-            <p className="mb-6 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-              {questionsError}
-            </p>
+          {questionsError && !isLoadingQuestions ? (
+            <div className="mb-6 flex flex-col gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <p>{questionsError}</p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+              >
+                <RotateCcw className="mr-1 h-4 w-4" />
+                Retry
+              </Button>
+            </div>
           ) : null}
 
           <div className={`grid gap-8 ${availablePracticeTestOptions.length === 1 ? 'justify-items-center' : 'md:grid-cols-2 xl:grid-cols-3'}`}>
@@ -370,12 +441,22 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
               const questionCount = practiceQuestions.filter((question) =>
                 question.tests.includes(option.value),
               ).length;
+              // Only startable once questions have loaded and this track actually has some.
+              const isStartable = !isLoadingQuestions && !questionsError && questionCount > 0;
+              const questionCountLabel = isLoadingQuestions
+                ? 'Loading questions…'
+                : questionsError
+                  ? 'Questions unavailable'
+                  : questionCount === 0
+                    ? 'No questions available yet'
+                    : `${questionCount} question${questionCount === 1 ? '' : 's'} available`;
 
               return (
                 <div
                   key={option.value}
-                  onClick={() => startPractice(option.value)}
-                  className={`group cursor-pointer rounded-2xl border-2 border-border bg-gradient-to-br from-card to-muted/30 p-8 transition-all hover:scale-[1.02] hover:border-primary hover:shadow-xl dark:from-slate-900 dark:to-slate-950 ${availablePracticeTestOptions.length === 1 ? 'w-full max-w-2xl text-center' : ''}`}
+                  onClick={isStartable ? () => startPractice(option.value) : undefined}
+                  aria-disabled={!isStartable}
+                  className={`group rounded-2xl border-2 border-border bg-gradient-to-br from-card to-muted/30 p-8 transition-all dark:from-slate-900 dark:to-slate-950 ${isStartable ? 'cursor-pointer hover:scale-[1.02] hover:border-primary hover:shadow-xl' : 'cursor-not-allowed opacity-60'} ${availablePracticeTestOptions.length === 1 ? 'w-full max-w-2xl text-center' : ''}`}
                 >
                   <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary text-white">
                     {option.value === 'culture_fair_intelligence_test' ||
@@ -394,7 +475,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
                   </p>
 
                   <p className="mb-4 text-sm font-medium text-primary/80">
-                    {isLoadingQuestions ? 'Loading questions…' : `${questionCount} question${questionCount === 1 ? '' : 's'} available`}
+                    {questionCountLabel}
                   </p>
 
                   <ul className={`space-y-2 text-sm text-foreground/80 ${availablePracticeTestOptions.length === 1 ? 'mx-auto max-w-xl text-center' : 'text-left'}`}>
@@ -406,10 +487,12 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
                     ))}
                   </ul>
 
-                  <div className={`mt-8 inline-flex items-center gap-2 font-semibold text-primary transition-all group-hover:gap-3 ${availablePracticeTestOptions.length === 1 ? 'justify-center' : ''}`}>
-                    Start Practice
-                    <ArrowRight className="h-5 w-5" />
-                  </div>
+                  {isStartable ? (
+                    <div className={`mt-8 inline-flex items-center gap-2 font-semibold text-primary transition-all group-hover:gap-3 ${availablePracticeTestOptions.length === 1 ? 'justify-center' : ''}`}>
+                      Start Practice
+                      <ArrowRight className="h-5 w-5" />
+                    </div>
+                  ) : null}
                 </div>
               );
             })}
@@ -462,7 +545,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
             Practice with instant feedback and explanations when available
           </p>
           <div className="mt-4">
-            <Button variant="outline" size="sm" onClick={handleChangeTest}>
+            <Button variant="outline" size="sm" onClick={() => requestExit('change-test')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Test Choice
             </Button>
@@ -480,7 +563,7 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
                 <span className="text-sm text-muted-foreground">
                   Score: {score}/{totalQuestions}
                 </span>
-                <Button size="sm" variant="ghost" onClick={handleRestart}>
+                <Button size="sm" variant="ghost" onClick={() => requestExit('restart')}>
                   <RotateCcw className="h-4 w-4 mr-1" />
                   Restart
                 </Button>
@@ -653,11 +736,39 @@ export function IQTestPracticeMode({ onNavigate, allowedTestTypes = [], bookedTe
 
         {/* Navigation */}
         <div className="mt-6 text-center">
-          <Button variant="ghost" onClick={() => onNavigate('/dashboard')}>
+          <Button variant="ghost" onClick={() => requestExit('home')}>
             ← Back to IQ Test Home
           </Button>
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingExit !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open) setPendingExit(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingExit === 'restart' ? 'Restart this practice test?' : 'Leave this practice test?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You've answered {answeredCount} of {totalQuestions} questions. Your score so far
+              ({score}/{answeredCount}) will be saved to your Practice Progress
+              {pendingExit === 'restart'
+                ? ', and the test will start again from question 1.'
+                : ', but this session will end.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Practicing</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmExit}>
+              {pendingExit === 'restart' ? 'Save & Restart' : 'Save & Leave'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
